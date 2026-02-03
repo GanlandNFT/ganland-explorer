@@ -1,0 +1,77 @@
+{
+  "collections": [
+    {
+      "contract": "0xdee94416167780b47127624bab7730a43187630d",
+      "chain": "base",
+      "chainId": 8453,
+      "name": "Gan Frens",
+      "totalSupply": 100,
+      "ipfsCid": "QmPz5qbUeNCY72TYZ3UGAewgmPNCBnPi7T4qWqXxuh6WCp",
+      "imageFormat": "jpeg",
+      "previewUrl": "https://ipfs.io/ipfs/QmPz5qbUeNCY72TYZ3UGAewgmPNCBnPi7T4qWqXxuh6WCp/0.jpeg",
+      "marketplaceUrl": "https://www.fractalvisions.io/collections/0xdee94416167780b47127624bab7730a43187630d/collection?chain=base"
+    },
+    {
+      "contract": "0xef38e760918a40b13019db894e898428ffdb3aaf",
+      "chain": "base",
+      "chainId": 8453,
+      "name": "Babybirds",
+      "totalSupply": 100,
+      "ipfsCid": "QmagDYqSxq7EHiKZmFU8vkHkFszRSsJ21otLvtpp49Hf2M",
+      "imageFormat": "jpg",
+      "previewUrl": "https://ipfs.io/ipfs/QmagDYqSxq7EHiKZmFU8vkHkFszRSsJ21otLvtpp49Hf2M/0.jpg",
+      "marketplaceUrl": "https://www.fractalvisions.io/collections/0xef38e760918a40b13019db894e898428ffdb3aaf/collection?chain=base"
+    },
+    {
+      "contract": "0x70706edeea0bb9fb8a9214764066b79441528704",
+      "chain": "optimism",
+      "chainId": 10,
+      "name": "Elements of Ganland",
+      "totalSupply": 5,
+      "ipfsCid": "QmNTAGpipz7TRNsPaid1vSrUpW6gfRHYYxZiQ8Fja1kNg9",
+      "imageFormat": "png",
+      "previewUrl": "https://ipfs.io/ipfs/QmNTAGpipz7TRNsPaid1vSrUpW6gfRHYYxZiQ8Fja1kNg9/0.png",
+      "marketplaceUrl": "https://www.fractalvisions.io/collections/0x70706edeea0bb9fb8a9214764066b79441528704/collection?chain=optimism"
+    },
+    {
+      "contract": "0x56f3e100a11fe5f01d7681eb887bcfb220f82118",
+      "chain": "optimism",
+      "chainId": 10,
+      "name": "Micro Cosms",
+      "totalSupply": 5,
+      "ipfsCid": "QmXC9WpyTD5UeXHcyZNGzdmA79kiR4J1rxhSKayNCd14Kr",
+      "imageFormat": "jpeg",
+      "previewUrl": "https://ipfs.io/ipfs/QmXC9WpyTD5UeXHcyZNGzdmA79kiR4J1rxhSKayNCd14Kr/0.jpeg",
+      "marketplaceUrl": "https://www.fractalvisions.io/collections/0x56f3e100a11fe5f01d7681eb887bcfb220f82118/collection?chain=optimism"
+    },
+    {
+      "contract": "0xb1eddb902ef733baf8e324e955ee6d46cce34708",
+      "chain": "optimism",
+      "chainId": 10,
+      "name": "Trashgans",
+      "totalSupply": 5,
+      "ipfsCid": "QmTNSJiNghkVG73QBteomMEdJnRHPmGTJMNiSHLbbLeuN3",
+      "imageFormat": "png",
+      "previewUrl": "https://ipfs.io/ipfs/QmTNSJiNghkVG73QBteomMEdJnRHPmGTJMNiSHLbbLeuN3/0.png",
+      "marketplaceUrl": "https://www.fractalvisions.io/collections/0xb1eddb902ef733baf8e324e955ee6d46cce34708/collection?chain=optimism"
+    },
+    {
+      "contract": "0xbb1b0da320ccc7a677a2fe00871f422e2e505fb1",
+      "chain": "optimism",
+      "chainId": 10,
+      "name": "Global Gans",
+      "totalSupply": 5,
+      "ipfsCid": "QmVBm8BwPdNTfPAhqjGhAU8ESKZ9VFNvw5n6TYbYK7tJZm",
+      "imageFormat": "png",
+      "previewUrl": "https://ipfs.io/ipfs/QmVBm8BwPdNTfPAhqjGhAU8ESKZ9VFNvw5n6TYbYK7tJZm/0.png",
+      "marketplaceUrl": "https://www.fractalvisions.io/collections/0xbb1b0da320ccc7a677a2fe00871f422e2e505fb1/collection?chain=optimism"
+    }
+  ],
+  "ipfsGateways": [
+    "https://ipfs.io/ipfs/",
+    "https://cloudflare-ipfs.com/ipfs/",
+    "https://gateway.pinata.cloud/ipfs/",
+    "https://dweb.link/ipfs/"
+  ],
+  "updatedAt": "2026-02-02T09:15:00.000Z"
+}
