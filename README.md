@@ -1,62 +1,150 @@
 # Ganland Explorer
 
-NFT collection explorer and wallet dashboard for the Ganland ecosystem.
+<img width="100" alt="GAN Logo" src="https://raw.githubusercontent.com/GanlandNFT/ganland-brand-kit/main/logos/gan-logo-primary.jpg" align="right">
 
-## Features
+AI-powered NFT ecosystem explorer for **Fractal Visions** — featuring multi-chain wallet integration via Privy.
 
-- 🖼️ Browse Ganland NFT collections
-- 💰 View wallet balances ($GAN, $VISION, $OP)
-- 🔗 Multi-chain support (Base, Optimism, Shape, Soneium, Unichain, Superseed)
-- 🔐 Privy wallet integration
-- 📊 Activity tracking
+**Live:** [ganland-explorer.vercel.app](https://ganland-explorer.vercel.app)
 
-## Collections
+---
 
-| Collection | Chain | Contract |
-|------------|-------|----------|
-| GAN Frens | Base | `0xdee94416167780b47127624bab7730a43187630d` |
-| Micro Cosms | Optimism | `0x56f3e100a11fe5f01d7681eb887bcfb220f82118` |
-| Babybirds | Base | `0xef38e760918a40b13019db894e898428ffdb3aaf` |
-| Elements of Ganland | Optimism | `0x70706edeea0bb9fb8a9214764066b79441528704` |
-| Trashgans | Optimism | `0xb1eddb902ef733baf8e324e955ee6d46cce34708` |
-| Global Gans | Optimism | `0x3ada4b50d39c12fac10e84e8f7f46e08b8e58e16` |
+## 🌟 Features
 
-## Stack
+- **Multi-Chain Portfolio** — View NFTs & tokens across 7 chains
+- **Privy Wallet Integration** — Login with X, email, or existing wallet
+- **Collection Browser** — Explore Fractal Visions collections
+- **Zapper API** — Real-time portfolio data across 50+ chains
+- **AI Art Generation** — Generate art with $GAN tokens
 
-- **Frontend:** React + Vite + TailwindCSS
-- **Auth:** Privy (embedded wallets)
-- **Database:** Supabase
-- **Blockchain:** viem + Alchemy RPC
-- **IPFS:** Pinata gateway
+---
 
-## Setup
+## 🔗 Supported Chains
 
+| Chain | Chain ID | Status |
+|-------|----------|--------|
+| Ethereum | 1 | ✅ |
+| Optimism | 10 | ✅ |
+| Base | 8453 | ✅ |
+| Shape | 360 | ✅ |
+| Soneium | 1868 | ✅ |
+| Unichain | 130 | ✅ |
+| Superseed | 5330 | ✅ |
+
+---
+
+## 📦 Collections
+
+### Base (Chain ID: 8453)
+| Collection | Contract | Supply |
+|------------|----------|--------|
+| Gan Frens | `0xdee94416167780b47127624bab7730a43187630d` | 100 |
+| Babybirds | `0x...` | 100 |
+
+### Optimism (Chain ID: 10)
+| Collection | Contract | Supply |
+|------------|----------|--------|
+| Micro Cosms | `0x56f3e100a11fe5f01d7681eb887bcfb220f82118` | 5 |
+| Elements of Ganland | `0x...` | 5 |
+| Trashgans | `0x...` | 5 |
+| Global Gans | `0x...` | 5 |
+
+---
+
+## 🛠️ Tech Stack
+
+- **Framework:** Next.js 14 (App Router)
+- **Styling:** Tailwind CSS
+- **Wallet:** Privy
+- **Data:** Zapper API, Alchemy
+- **Deployment:** Vercel
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+- Node.js 18+
+- Privy App ID (from [privy.io](https://privy.io))
+- Zapper API Key (from [build.zapper.xyz](https://build.zapper.xyz))
+
+### Environment Variables
+```env
+NEXT_PUBLIC_PRIVY_APP_ID=your-privy-app-id
+ZAPPER_API_KEY=your-zapper-api-key
+ALCHEMY_API_KEY=your-alchemy-key
+```
+
+### Installation
 ```bash
+git clone https://github.com/GanlandNFT/ganland-explorer.git
+cd ganland-explorer
 npm install
-cp .env.example .env
-# Add your Privy App ID and Supabase credentials
 npm run dev
 ```
 
-## Environment Variables
+Open [http://localhost:3000](http://localhost:3000)
+
+---
+
+## 📁 Project Structure
 
 ```
-VITE_PRIVY_APP_ID=cmi4n75fu01fhl20dy2gwwr1g
-VITE_SUPABASE_URL=https://qeubpfvvmfgdvjxlvmwh.supabase.co
-VITE_SUPABASE_ANON_KEY=your-anon-key
-VITE_ALCHEMY_API_KEY=your-alchemy-key
+ganland-explorer/
+├── app/
+│   ├── page.tsx           # Home / Portfolio view
+│   ├── collections/       # Collection browser
+│   └── layout.tsx         # Root layout with Privy
+├── components/
+│   ├── WalletModule.tsx   # Portfolio display
+│   ├── CollectionCard.tsx # NFT collection cards
+│   └── ChainSelector.tsx  # Multi-chain switcher
+├── lib/
+│   ├── zapper.ts          # Zapper API client
+│   ├── alchemy.ts         # Alchemy NFT queries
+│   └── chains.ts          # Chain configurations
+├── data/
+│   └── collections.json   # Collection metadata
+└── public/
+    └── chain-icons/       # Chain logos
 ```
 
-## Database
+---
 
-See `sql/supabase-setup.sql` for the complete database schema.
+## 🔌 API Integration
 
-## Related Repos
+### Zapper (Portfolio Data)
+```typescript
+// lib/zapper.ts
+const response = await fetch('https://public.zapper.xyz/graphql', {
+  headers: { 'x-zapper-api-key': process.env.ZAPPER_API_KEY },
+  body: JSON.stringify({
+    query: portfolioQuery,
+    variables: { addresses: [walletAddress] }
+  })
+});
+```
 
-- [ganland-wallet](https://github.com/GanlandNFT/ganland-wallet) - HD wallet system
-- [gan-art-service](https://github.com/GanlandNFT/gan-art-service) - AI art generation
-- [gan-payment-service](https://github.com/GanlandNFT/gan-payment-service) - Payment processing
+### Alchemy (NFT Data)
+```typescript
+// lib/alchemy.ts
+const nfts = await alchemy.nft.getNftsForOwner(address);
+```
 
-## License
+---
+
+## 🎨 Related Repositories
+
+- **[ganland-wallet](https://github.com/GanlandNFT/ganland-wallet)** — HD wallet system
+- **[gan-art-service](https://github.com/GanlandNFT/gan-art-service)** — AI art generation
+- **[fractal-nft-infra](https://github.com/GanlandNFT/fractal-nft-infra)** — Smart contracts
+- **[ganland-brand-kit](https://github.com/GanlandNFT/ganland-brand-kit)** — Brand assets
+
+---
+
+## 📄 License
 
 MIT
+
+---
+
+*Part of the [Fractal Visions](https://fractalvisions.io) ecosystem*
