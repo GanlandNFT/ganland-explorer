@@ -1,33 +1,21 @@
-'use client';
-
 import './globals.css';
-import { PrivyProvider } from '@privy-io/react-auth';
+import PrivyClientWrapper from '../components/PrivyClientWrapper';
 import ActivityBar from '../components/ActivityBar';
 import Header from '../components/Header';
+
+export const metadata = {
+  title: 'Ganland Explorer - NFT Collections & Wallet',
+  description: 'AI-powered NFT ecosystem explorer for Fractal Visions',
+  icons: {
+    icon: '/favicon.svg',
+  },
+};
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <head>
-        <title>Ganland Explorer - NFT Collections & Wallet</title>
-        <meta name="description" content="AI-powered NFT ecosystem explorer for Fractal Visions" />
-        <link rel="icon" href="/favicon.svg" />
-      </head>
       <body className="min-h-screen bg-gan-black">
-        <PrivyProvider
-          appId={process.env.NEXT_PUBLIC_PRIVY_APP_ID || 'placeholder'}
-          config={{
-            loginMethods: ['twitter', 'email', 'wallet'],
-            appearance: {
-              theme: 'dark',
-              accentColor: '#ffcc00',
-              logo: 'https://gateway.pinata.cloud/ipfs/QmW4PqY6rewBa8do32uHNg3u2w1RQ6JHbMeWapgMbN5NiP',
-            },
-            embeddedWallets: {
-              createOnLogin: 'users-without-wallets',
-            },
-          }}
-        >
+        <PrivyClientWrapper>
           <ActivityBar />
           <Header />
           <main className="container mx-auto px-4 py-6">
@@ -43,7 +31,7 @@ export default function RootLayout({ children }) {
               </div>
             </div>
           </footer>
-        </PrivyProvider>
+        </PrivyClientWrapper>
       </body>
     </html>
   );
