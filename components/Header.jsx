@@ -12,7 +12,7 @@ export default function Header() {
         {/* Logo */}
         <a href="/" className="flex items-center gap-3">
           <img
-            src="https://raw.githubusercontent.com/GanlandNFT/ganland-brand-kit/main/logos/gan-logo-primary.jpg"
+            src="/gan-logo.jpg"
             alt="GANLAND"
             className="w-10 h-10 rounded-lg"
           />

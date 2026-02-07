@@ -60,7 +60,7 @@ function ArtCard({ art }) {
         alt={art.title}
         onError={(e) => {
           // Fallback to placeholder
-          e.target.src = 'https://raw.githubusercontent.com/GanlandNFT/ganland-brand-kit/main/logos/gan-logo-primary.jpg';
+          e.target.src = '/gan-logo.jpg';
         }}
       />
       <div className="info opacity-0 group-hover:opacity-100 transition-opacity">

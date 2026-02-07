@@ -20,7 +20,7 @@ export default function FeaturedCollection() {
             alt={collection.name}
             className="w-full aspect-square object-cover rounded-lg"
             onError={(e) => {
-              e.target.src = 'https://raw.githubusercontent.com/GanlandNFT/ganland-brand-kit/main/logos/gan-logo-primary.jpg';
+              e.target.src = '/gan-logo.jpg';
             }}
           />
         </div>

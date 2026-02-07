@@ -72,7 +72,7 @@ function CollectionCard({ collection }) {
           alt={collection.name}
           className="w-full h-full object-cover"
           onError={(e) => {
-            e.target.src = 'https://raw.githubusercontent.com/GanlandNFT/ganland-brand-kit/main/logos/gan-logo-primary.jpg';
+            e.target.src = '/gan-logo.jpg';
           }}
         />
         <div className="absolute top-3 left-3">

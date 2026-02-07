@@ -21,7 +21,7 @@ export default function RootLayout({ children }) {
             appearance: {
               theme: 'dark',
               accentColor: '#ffcc00',
-              logo: 'https://raw.githubusercontent.com/GanlandNFT/ganland-brand-kit/main/logos/gan-logo-primary.jpg',
+              logo: 'https://gateway.pinata.cloud/ipfs/QmW4PqY6rewBa8do32uHNg3u2w1RQ6JHbMeWapgMbN5NiP',
             },
             embeddedWallets: {
               createOnLogin: 'users-without-wallets',
