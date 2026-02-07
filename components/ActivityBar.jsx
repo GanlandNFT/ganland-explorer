@@ -41,42 +41,46 @@ export default function ActivityBar() {
 
   async function fetchRecentTransactions() {
     try {
-      // Try to fetch from API if available
-      // For now, use recent known transactions as fallback
-      const recentTx = [
-        {
-          type: 'transfer',
-          from: '0x4707E990b7dd50288e1B21De1ACD53EE2D10f3FB',
-          to: '0xa702eD4E6a82c8148Cc6B1DC7E22f19E4339fC68',
-          hash: '0x7890abcd...1234',
-          chain: 'base',
-          value: '69',
-          token: '$VISION',
-          time: new Date(Date.now() - 1000 * 60 * 30), // 30 min ago
-        },
-        {
-          type: 'mint',
-          from: '0x4707E990b7dd50288e1B21De1ACD53EE2D10f3FB',
-          collection: 'Micro Cosms',
-          tokenId: '2079',
-          hash: '0x5678efgh...5678',
-          chain: 'optimism',
-          time: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
-        },
-        {
-          type: 'mint',
-          from: '0x4707E990b7dd50288e1B21De1ACD53EE2D10f3FB',
-          collection: 'Gan Frens',
-          tokenId: '4282',
-          hash: '0x1234abcd...9012',
-          chain: 'base',
-          time: new Date(Date.now() - 1000 * 60 * 60 * 4), // 4 hours ago
-        },
-      ];
+      // Fetch real transactions from our API
+      const response = await fetch('/api/transactions');
+      const data = await response.json();
       
-      setTransactions(recentTx);
+      if (data.success && data.transactions?.length > 0) {
+        // Transform API response to our format
+        const formattedTx = data.transactions.map(tx => ({
+          type: tx.tokenId ? 'mint' : 'transfer',
+          from: tx.from,
+          to: tx.to,
+          fromHandle: tx.fromHandle,
+          toHandle: tx.toHandle,
+          hash: tx.hash,
+          chain: tx.chain,
+          value: tx.value,
+          token: tx.asset,
+          tokenId: tx.tokenId,
+          time: new Date(tx.timestamp),
+        }));
+        setTransactions(formattedTx);
+      } else {
+        // Fallback to recent known transactions
+        setTransactions([
+          {
+            type: 'transfer',
+            from: '0x4707E990b7dd50288e1B21De1ACD53EE2D10f3FB',
+            to: '0xa702eD4E6a82c8148Cc6B1DC7E22f19E4339fC68',
+            fromHandle: 'fractalvisions',
+            toHandle: 'BeforeDay1',
+            hash: '0x7890abcd1234',
+            chain: 'base',
+            value: '69',
+            token: '$VISION',
+            time: new Date(Date.now() - 1000 * 60 * 30),
+          },
+        ]);
+      }
     } catch (error) {
       console.error('Failed to fetch transactions:', error);
+      // Keep showing whatever we had
     } finally {
       setIsLoading(false);
     }
@@ -92,8 +96,9 @@ export default function ActivityBar() {
     return `${Math.floor(hours / 24)}d ago`;
   }
 
-  function renderWalletLink(address) {
-    const info = getHandleForWallet(address);
+  function renderWalletLink(address, handle) {
+    // Use provided handle or look up from known wallets
+    const info = handle ? { handle } : getHandleForWallet(address);
     if (info) {
       return (
         <a
@@ -127,18 +132,18 @@ export default function ActivityBar() {
         
         {tx.type === 'transfer' && (
           <>
-            {renderWalletLink(tx.from)}
+            {renderWalletLink(tx.from, tx.fromHandle)}
             <span className="text-gray-500">→</span>
-            {renderWalletLink(tx.to)}
-            <span className="text-green-400 font-mono">{tx.value} {tx.token}</span>
+            {renderWalletLink(tx.to, tx.toHandle)}
+            {tx.value && <span className="text-green-400 font-mono">{tx.value} {tx.token}</span>}
           </>
         )}
         
         {tx.type === 'mint' && (
           <>
-            {renderWalletLink(tx.from)}
+            {renderWalletLink(tx.from, tx.fromHandle)}
             <span className="text-gray-500">minted</span>
-            <span className="text-cyan-400">{tx.collection} #{tx.tokenId}</span>
+            <span className="text-cyan-400">NFT #{tx.tokenId}</span>
           </>
         )}
         
