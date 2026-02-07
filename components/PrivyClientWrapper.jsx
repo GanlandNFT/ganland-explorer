@@ -10,18 +10,27 @@ export default function PrivyClientWrapper({ children }) {
     setMounted(true);
   }, []);
 
-  // Don't render Privy provider during SSR/build - prevents "invalid app ID" error
+  // Always render PrivyProvider on client, but with a loading state initially
+  // This ensures the context is available when child components try to use it
   if (!mounted) {
+    // Return a minimal shell during SSR - no Privy, just layout
     return (
-      <div className="min-h-screen bg-gan-black">
+      <>
         {children}
-      </div>
+      </>
     );
+  }
+
+  const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
+  
+  if (!appId) {
+    console.error('Missing NEXT_PUBLIC_PRIVY_APP_ID');
+    return <>{children}</>;
   }
 
   return (
     <PrivyProvider
-      appId={process.env.NEXT_PUBLIC_PRIVY_APP_ID}
+      appId={appId}
       config={{
         loginMethods: ['twitter', 'email', 'wallet'],
         appearance: {

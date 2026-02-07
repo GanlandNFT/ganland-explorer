@@ -7,6 +7,7 @@ const WalletSection = dynamic(() => import('../components/WalletSection'), {
   ssr: false,
   loading: () => <div className="h-64 bg-gray-900/50 rounded-xl animate-pulse" />
 });
+const PrivyErrorBoundary = dynamic(() => import('../components/PrivyErrorBoundary'), { ssr: false });
 
 export default function Home() {
   return (

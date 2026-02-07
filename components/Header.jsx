@@ -1,12 +1,12 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+import PrivyErrorBoundary from './PrivyErrorBoundary';
 
-// Dynamically import WalletButton with no SSR - only renders after Privy is ready
 const WalletButton = dynamic(() => import('./WalletButton'), {
   ssr: false,
   loading: () => (
-    <div className="w-32 h-9 bg-gray-800 rounded animate-pulse" />
+    <div className="w-32 h-9 bg-gray-800 rounded-lg animate-pulse" />
   ),
 });
 
@@ -34,7 +34,15 @@ export default function Header() {
 
         {/* Wallet Connect */}
         <div className="flex items-center gap-4">
-          <WalletButton />
+          <PrivyErrorBoundary 
+            fallback={
+              <button className="px-4 py-2 bg-gray-700 text-gray-400 rounded-lg cursor-wait">
+                Loading...
+              </button>
+            }
+          >
+            <WalletButton />
+          </PrivyErrorBoundary>
         </div>
       </div>
     </header>

@@ -34,7 +34,6 @@ export default function WalletSection() {
             Connect Wallet
           </button>
           
-          {/* Chain buttons */}
           <div className="flex gap-3 mt-6">
             <span className="px-3 py-1 bg-blue-500/20 text-blue-400 text-xs rounded-full border border-blue-500/30">
               ● Base
@@ -51,7 +50,6 @@ export default function WalletSection() {
     );
   }
 
-  // Connected state
   const displayName = user?.twitter?.username 
     ? `@${user.twitter.username}` 
     : user?.email?.address 

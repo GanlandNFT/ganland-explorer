@@ -5,19 +5,17 @@ import { usePrivy } from '@privy-io/react-auth';
 export default function WalletButton() {
   const { ready, authenticated, login, logout, user } = usePrivy();
 
-  // Still loading Privy
   if (!ready) {
     return (
       <button
         disabled
-        className="px-4 py-2 bg-gray-700 text-gray-400 font-bold rounded border border-gray-600 cursor-wait"
+        className="px-4 py-2 bg-gray-700 text-gray-400 font-bold rounded-lg border border-gray-600 cursor-wait"
       >
         Loading...
       </button>
     );
   }
 
-  // Not connected - show connect button
   if (!authenticated) {
     return (
       <button
@@ -29,7 +27,6 @@ export default function WalletButton() {
     );
   }
 
-  // Connected - show user info
   const displayName = user?.twitter?.username 
     ? `@${user.twitter.username}` 
     : user?.email?.address?.slice(0, 10) + '...' 
