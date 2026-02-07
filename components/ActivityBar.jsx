@@ -1,13 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getHandleForWallet, shortenAddress, knownWallets } from '../lib/supabase';
-
-// Ganland wallet addresses for activity tracking
-const GANLAND_WALLETS = {
-  'GAN Service': '0xc4EF7d096541338FBE007E146De4a7Cd99cb9e40',
-  'Ganland.eth': '0xDd32A567bc09384057A1F260086618D88b28E64F',
-};
+import { getHandleForWallet, shortenAddress } from '../lib/supabase';
 
 const CHAIN_CONFIG = {
   base: {
@@ -33,20 +27,16 @@ export default function ActivityBar() {
 
   useEffect(() => {
     fetchRecentTransactions();
-    
-    // Refresh every 30 seconds
     const interval = setInterval(fetchRecentTransactions, 30000);
     return () => clearInterval(interval);
   }, []);
 
   async function fetchRecentTransactions() {
     try {
-      // Fetch real transactions from our API
       const response = await fetch('/api/transactions');
       const data = await response.json();
       
       if (data.success && data.transactions?.length > 0) {
-        // Transform API response to our format
         const formattedTx = data.transactions.map(tx => ({
           type: tx.tokenId ? 'mint' : 'transfer',
           from: tx.from,
@@ -62,7 +52,6 @@ export default function ActivityBar() {
         }));
         setTransactions(formattedTx);
       } else {
-        // Fallback to recent known transactions
         setTransactions([
           {
             type: 'transfer',
@@ -80,7 +69,6 @@ export default function ActivityBar() {
       }
     } catch (error) {
       console.error('Failed to fetch transactions:', error);
-      // Keep showing whatever we had
     } finally {
       setIsLoading(false);
     }
@@ -97,7 +85,6 @@ export default function ActivityBar() {
   }
 
   function renderWalletLink(address, handle) {
-    // Use provided handle or look up from known wallets
     const info = handle ? { handle } : getHandleForWallet(address);
     if (info) {
       return (
@@ -128,7 +115,7 @@ export default function ActivityBar() {
         rel="noopener noreferrer"
         className="flex items-center gap-2 px-3 py-1 rounded-full bg-gray-800/50 hover:bg-gray-700/50 transition-colors whitespace-nowrap"
       >
-        <span className={`w-2 h-2 rounded-full ${chain.color} animate-pulse`} />
+        <span className={`w-2 h-2 rounded-full ${chain.color}`} />
         
         {tx.type === 'transfer' && (
           <>
@@ -148,7 +135,6 @@ export default function ActivityBar() {
         )}
         
         <span className="text-gray-500 text-xs">• {formatTimeAgo(tx.time)}</span>
-        <span className="text-gray-500">🔗</span>
       </a>
     );
   }
@@ -157,11 +143,16 @@ export default function ActivityBar() {
     <div className="activity-bar border-b border-gray-800 py-2 overflow-hidden bg-gray-900/80 backdrop-blur-sm">
       <div className="container mx-auto px-4">
         <div className="flex items-center gap-4">
-          <span className="text-gray-500 text-xs font-semibold uppercase tracking-wider shrink-0">
-            🔴 Live Activity
-          </span>
+          {/* Blinking red dot + Live Activity label */}
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="live-dot w-2 h-2 rounded-full bg-red-500" />
+            <span className="text-gray-400 text-xs font-semibold uppercase tracking-wider">
+              Live Activity
+            </span>
+          </div>
           
-          <div className="flex items-center gap-3 overflow-x-auto scrollbar-hide">
+          {/* Transactions - full width */}
+          <div className="flex-1 flex items-center gap-3 overflow-x-auto scrollbar-hide">
             {isLoading ? (
               <span className="text-gray-500 text-sm animate-pulse">Loading transactions...</span>
             ) : transactions.length > 0 ? (
@@ -169,25 +160,6 @@ export default function ActivityBar() {
             ) : (
               <span className="text-gray-500 text-sm">No recent activity</span>
             )}
-          </div>
-          
-          <div className="flex items-center gap-3 ml-auto shrink-0">
-            <a
-              href={`https://basescan.org/address/${GANLAND_WALLETS['GAN Service']}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-gray-400 hover:text-blue-400 transition-colors"
-            >
-              Base 🔗
-            </a>
-            <a
-              href={`https://optimistic.etherscan.io/address/${GANLAND_WALLETS['GAN Service']}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-gray-400 hover:text-red-400 transition-colors"
-            >
-              OP 🔗
-            </a>
           </div>
         </div>
       </div>

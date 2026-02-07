@@ -34,6 +34,23 @@ body {
   text-shadow: 0 0 10px var(--gan-yellow);
 }
 
+/* Blinking live indicator */
+.live-dot {
+  animation: blink 1.5s ease-in-out infinite;
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.8);
+}
+
+@keyframes blink {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 6px rgba(239, 68, 68, 0.8);
+  }
+  50% {
+    opacity: 0.3;
+    box-shadow: 0 0 2px rgba(239, 68, 68, 0.4);
+  }
+}
+
 /* Featured Collection Banner */
 .featured-banner {
   background: linear-gradient(135deg, rgba(255, 204, 0, 0.15), rgba(255, 51, 51, 0.1));
