@@ -65,9 +65,9 @@ export default function FeaturedArtists() {
     return null;
   }
 
-  // Only duplicate for seamless loop if we have 2+ items
-  // With 1 item, no need for infinite scroll effect
-  const items = creations.length >= 2 
+  // Only duplicate for seamless loop if we have 4+ items
+  // With fewer items, duplicates are too visible in viewport
+  const items = creations.length >= 4 
     ? [...creations, ...creations] 
     : creations;
 
