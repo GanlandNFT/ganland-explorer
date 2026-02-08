@@ -28,8 +28,7 @@ export default function Header() {
         <nav className="hidden md:flex items-center gap-6">
           <a href="/" className="hover:text-gan-yellow transition-colors">Home</a>
           <a href="#collections" className="hover:text-gan-yellow transition-colors">Collections</a>
-          <a href="#gallery" className="hover:text-gan-yellow transition-colors">Art Gallery</a>
-          <a href="https://ganland.io" target="_blank" className="hover:text-gan-yellow transition-colors">About</a>
+          <a href="/docs" className="hover:text-gan-yellow transition-colors">Docs</a>
         </nav>
 
         {/* Wallet Connect */}

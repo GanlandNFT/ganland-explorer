@@ -151,15 +151,21 @@ export default function ActivityBar() {
             </span>
           </div>
           
-          {/* Transactions - full width */}
-          <div className="flex-1 flex items-center gap-3 overflow-x-auto scrollbar-hide">
-            {isLoading ? (
-              <span className="text-gray-500 text-sm animate-pulse">Loading transactions...</span>
-            ) : transactions.length > 0 ? (
-              transactions.map(renderTransaction)
-            ) : (
-              <span className="text-gray-500 text-sm">No recent activity</span>
-            )}
+          {/* Transactions - auto-scrolling ticker */}
+          <div className="flex-1 overflow-hidden">
+            <div className="ticker-scroll flex items-center gap-3">
+              {isLoading ? (
+                <span className="text-gray-500 text-sm animate-pulse">Loading transactions...</span>
+              ) : transactions.length > 0 ? (
+                <>
+                  {/* Duplicate for seamless loop */}
+                  {transactions.map(renderTransaction)}
+                  {transactions.map((tx, i) => renderTransaction(tx, i + transactions.length))}
+                </>
+              ) : (
+                <span className="text-gray-500 text-sm">No recent activity</span>
+              )}
+            </div>
           </div>
         </div>
       </div>

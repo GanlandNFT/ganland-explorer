@@ -3,6 +3,7 @@ import CollectionsGrid from '../components/CollectionsGrid';
 
 // Dynamic imports for client-only components
 const ArtGallery = dynamic(() => import('../components/ArtGallery'), { ssr: false });
+const FeaturedArtists = dynamic(() => import('../components/FeaturedArtists'), { ssr: false });
 const WalletSection = dynamic(() => import('../components/WalletSection'), { 
   ssr: false,
   loading: () => <div className="h-64 bg-gray-900/50 rounded-xl animate-pulse" />
@@ -28,40 +29,15 @@ export default function Home() {
           Discover AI-generated art, explore the <span className="text-gan-yellow">$GAN</span> token ecosystem, and browse NFT collections across <span className="text-blue-400">Base</span> & <span className="text-red-400">Optimism</span>.
         </p>
         
-        <div className="flex justify-center gap-4 flex-wrap">
-          <a href="#collections" className="px-6 py-3 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors">
-            Get Started
-          </a>
-          <a href="https://dexscreener.com/base/0xc2fa8cfa51b02fdeb84bb22d3c9519aeb498b07" target="_blank" className="px-6 py-3 bg-gan-yellow text-black font-bold rounded-lg hover:bg-gan-gold transition-colors">
-            Explore $GAN Token
-          </a>
-          <a href="#gallery" className="px-6 py-3 border border-gray-600 hover:border-gan-yellow rounded-lg transition-colors">
+        <div className="flex justify-center">
+          <a href="#gallery" className="px-8 py-3 bg-gray-800 hover:bg-gray-700 border border-gray-600 hover:border-gan-yellow rounded-lg transition-colors font-medium">
             View Gallery
           </a>
         </div>
       </section>
 
-      {/* Stats */}
-      <section className="border-y border-gray-800 py-8">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-          <div>
-            <div className="text-4xl font-bold text-gan-yellow">8</div>
-            <div className="text-gray-500 text-sm">NFT Collections</div>
-          </div>
-          <div>
-            <div className="text-4xl font-bold text-blue-400">2</div>
-            <div className="text-gray-500 text-sm">Blockchains</div>
-          </div>
-          <div>
-            <div className="text-4xl font-bold text-purple-400">∞</div>
-            <div className="text-gray-500 text-sm">AI Possibilities</div>
-          </div>
-          <div>
-            <div className="text-4xl font-bold text-green-400">1</div>
-            <div className="text-gray-500 text-sm">$GAN Token</div>
-          </div>
-        </div>
-      </section>
+      {/* Featured Artists Carousel */}
+      <FeaturedArtists />
 
       {/* $GAN Token Section */}
       <section id="token" className="scroll-mt-20">
