@@ -4,10 +4,33 @@ import ActivityBar from '../components/ActivityBar';
 import Header from '../components/Header';
 
 export const metadata = {
-  title: 'Ganland Explorer - NFT Collections & Wallet',
-  description: 'AI-powered NFT ecosystem explorer for Fractal Visions',
+  title: 'GANLAND - Generative Art Network',
+  description: 'AI-powered NFT ecosystem explorer for Fractal Visions. Create, collect, and trade generative art on Base.',
   icons: {
     icon: '/favicon.svg',
+  },
+  openGraph: {
+    title: 'GANLAND - Generative Art Network',
+    description: 'AI-powered NFT ecosystem explorer for Fractal Visions. Create, collect, and trade generative art on Base.',
+    url: 'https://ganland.io',
+    siteName: 'GANLAND',
+    images: [
+      {
+        url: 'https://ganland.io/gan-logo.jpg',
+        width: 1200,
+        height: 630,
+        alt: 'GANLAND - Generative Art Network',
+      },
+    ],
+    locale: 'en_US',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'GANLAND - Generative Art Network',
+    description: 'AI-powered NFT ecosystem explorer for Fractal Visions. Create, collect, and trade generative art on Base.',
+    images: ['https://ganland.io/gan-logo.jpg'],
+    creator: '@GanlandNFT',
   },
 };
 
