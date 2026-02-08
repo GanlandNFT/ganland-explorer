@@ -65,8 +65,11 @@ export default function FeaturedArtists() {
     return null;
   }
 
-  // Duplicate items for seamless loop
-  const items = [...creations, ...creations];
+  // Only duplicate for seamless loop if we have 2+ items
+  // With 1 item, no need for infinite scroll effect
+  const items = creations.length >= 2 
+    ? [...creations, ...creations] 
+    : creations;
 
   return (
     <section className="border-y border-gray-800 py-6 overflow-hidden">
