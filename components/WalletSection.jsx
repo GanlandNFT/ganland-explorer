@@ -1,22 +1,38 @@
 'use client';
 
 import { usePrivy } from '@privy-io/react-auth';
+import { useState, useEffect } from 'react';
 
 export default function WalletSection() {
   const { ready, authenticated, login, logout, user } = usePrivy();
+  const [timedOut, setTimedOut] = useState(false);
 
-  if (!ready) {
+  // Set a timeout for Privy initialization
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!ready) {
+        setTimedOut(true);
+      }
+    }, 5000); // 5 second timeout
+    
+    return () => clearTimeout(timer);
+  }, [ready]);
+
+  // Show connect UI if not ready after timeout, or if not authenticated
+  if (!ready && !timedOut) {
     return (
       <div className="max-w-2xl mx-auto bg-gray-900/50 rounded-xl p-8 border border-gray-800">
         <div className="flex flex-col items-center justify-center py-8">
           <div className="w-16 h-16 bg-gray-800 rounded-full animate-pulse mb-4" />
           <div className="w-48 h-4 bg-gray-800 rounded animate-pulse" />
+          <p className="text-gray-500 text-sm mt-4">Connecting to wallet service...</p>
         </div>
       </div>
     );
   }
 
-  if (!authenticated) {
+  // Show connect button (either timed out or not authenticated)
+  if (!authenticated || timedOut) {
     return (
       <div className="max-w-2xl mx-auto bg-gray-900/50 rounded-xl p-8 border border-gray-800">
         <div className="flex flex-col items-center justify-center py-8">
@@ -28,11 +44,24 @@ export default function WalletSection() {
             Sign in with X (Twitter), email, or your existing wallet to access your Ganland portfolio.
           </p>
           <button
-            onClick={login}
+            onClick={() => {
+              if (ready) {
+                login();
+              } else {
+                // Fallback - redirect to Twitter OAuth or show message
+                window.open('https://x.com/GanlandNFT', '_blank');
+              }
+            }}
             className="px-8 py-3 bg-gan-yellow text-black font-bold rounded-lg hover:bg-gan-gold transition-all duration-200 shadow-lg hover:shadow-gan-yellow/30"
           >
-            Connect Wallet
+            {ready ? 'Connect Wallet' : 'Follow @GanlandNFT'}
           </button>
+          
+          {!ready && timedOut && (
+            <p className="text-gray-500 text-xs mt-4">
+              Wallet service unavailable. <a href="https://x.com/GanlandNFT" target="_blank" className="text-gan-yellow hover:underline">Contact us on X</a> for help.
+            </p>
+          )}
           
           <div className="flex gap-3 mt-6">
             <span className="px-3 py-1 bg-blue-500/20 text-blue-400 text-xs rounded-full border border-blue-500/30">
@@ -75,6 +104,7 @@ export default function WalletSection() {
           <a 
             href={`https://basescan.org/address/${user?.wallet?.address}`}
             target="_blank"
+            rel="noopener noreferrer"
             className="px-4 py-2 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 transition-colors text-sm"
           >
             View on Base
