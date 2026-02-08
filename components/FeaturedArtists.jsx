@@ -2,59 +2,34 @@
 
 import { useEffect, useState, useRef } from 'react';
 
-// Featured art generations from permission list artists
-const FEATURED_CREATIONS = [
-  {
-    id: 1,
-    image: 'https://pbs.twimg.com/media/HAmqIYpaoAAseCs.jpg',
-    quote: "Here's your solarpunk Base city! A futuristic vision where technology meets nature 🌿⚡",
-    artist: 'IGLIVISION',
-    tweetUrl: 'https://x.com/GanlandNFT/status/2020332972516471211',
-  },
-  {
-    id: 2,
-    image: 'https://pbs.twimg.com/media/Gf_xN5RacAAqVRH.jpg',
-    quote: "Fractal lobster emerging from the cosmic chaos 🦞✨",
-    artist: '333nft',
-    tweetUrl: 'https://x.com/GanlandNFT/status/1885748459572592854',
-  },
-  {
-    id: 3,
-    image: 'https://pbs.twimg.com/media/GfsLJHXaEAESsGn.jpg',
-    quote: "Ethereal fractal eye emerging from holographic patterns 👁️🎨",
-    artist: 'artfractalicia',
-    tweetUrl: 'https://x.com/GanlandNFT/status/1884660287891517789',
-  },
-  {
-    id: 4,
-    image: 'https://pbs.twimg.com/media/GfqPmS0akAAoq_D.jpg',
-    quote: "Mystical digital phoenix rising from fractal flames 🔥",
-    artist: 'techwiseconcept',
-    tweetUrl: 'https://x.com/GanlandNFT/status/1884419428260421825',
-  },
-  {
-    id: 5,
-    image: 'https://pbs.twimg.com/media/GfmqGZRagAANm8i.jpg',
-    quote: "Mandelbrot mandala full of cosmic energy and sacred geometry ✨",
-    artist: 'd3throot',
-    tweetUrl: 'https://x.com/GanlandNFT/status/1884055123908337897',
-  },
-  {
-    id: 6,
-    image: 'https://pbs.twimg.com/media/GflJxCbakAA7Jqy.jpg',
-    quote: "Abstract fractal mandala pulsing with digital life 🌀",
-    artist: 'beforeday1',
-    tweetUrl: 'https://x.com/GanlandNFT/status/1883894567406449124',
-  },
-];
-
 export default function FeaturedArtists() {
   const scrollRef = useRef(null);
   const [isPaused, setIsPaused] = useState(false);
+  const [creations, setCreations] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
+  // Fetch featured creations from API (filtered by permission list)
+  useEffect(() => {
+    async function fetchFeatured() {
+      try {
+        const res = await fetch('/api/featured-artists');
+        const data = await res.json();
+        if (data.success && data.creations?.length > 0) {
+          setCreations(data.creations);
+        }
+      } catch (error) {
+        console.error('Failed to fetch featured artists:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchFeatured();
+  }, []);
+
+  // Auto-scroll animation
   useEffect(() => {
     const scrollContainer = scrollRef.current;
-    if (!scrollContainer) return;
+    if (!scrollContainer || creations.length === 0) return;
 
     let animationId;
     let scrollPos = 0;
@@ -74,10 +49,24 @@ export default function FeaturedArtists() {
 
     animationId = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(animationId);
-  }, [isPaused]);
+  }, [isPaused, creations]);
+
+  if (isLoading) {
+    return (
+      <section className="border-y border-gray-800 py-6">
+        <div className="container mx-auto px-4">
+          <div className="h-48 bg-gray-900/50 rounded-lg animate-pulse" />
+        </div>
+      </section>
+    );
+  }
+
+  if (creations.length === 0) {
+    return null;
+  }
 
   // Duplicate items for seamless loop
-  const items = [...FEATURED_CREATIONS, ...FEATURED_CREATIONS];
+  const items = [...creations, ...creations];
 
   return (
     <section className="border-y border-gray-800 py-6 overflow-hidden">
@@ -118,11 +107,17 @@ export default function FeaturedArtists() {
                 "{item.quote}"
               </p>
               
-              {/* Artist */}
+              {/* Artist with link */}
               <div className="flex items-center justify-between">
-                <span className="text-gan-yellow text-sm font-medium hover:underline">
+                <a 
+                  href={`https://x.com/${item.artist}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-gan-yellow text-sm font-medium hover:underline"
+                  onClick={(e) => e.stopPropagation()}
+                >
                   @{item.artist}
-                </span>
+                </a>
                 <span className="text-gray-500 text-xs">↗</span>
               </div>
             </div>

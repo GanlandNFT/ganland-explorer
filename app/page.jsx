@@ -47,7 +47,7 @@ export default function Home() {
             <span className="text-gan-yellow">$GAN</span> Token
           </h2>
           <p className="text-gray-400 mt-2 max-w-xl mx-auto">
-            The native token powering the Ganland AI art ecosystem. Trade, hold, and participate in governance.
+            The native token powering the Ganland AI art ecosystem. Trade, Hold, Mint, and Create Art.
           </p>
         </div>
         
@@ -55,7 +55,7 @@ export default function Home() {
           <div className="flex flex-col md:flex-row gap-6">
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 bg-gan-yellow rounded-lg flex items-center justify-center text-black font-bold text-xl">$G</div>
+                <img src="/gan-logo.jpg" alt="$GAN" className="w-12 h-12 rounded-lg" />
                 <div>
                   <div className="font-bold text-xl">$GAN</div>
                   <div className="text-gray-500 text-sm">Ganland Token</div>
@@ -80,13 +80,13 @@ export default function Home() {
               </div>
             </div>
             <div className="flex-1 flex flex-col gap-3">
-              <a href="https://dexscreener.com/base/0xc2fa8cfa51b02fdeb84bb22d3c9519aeb498b07" target="_blank" className="flex items-center justify-center gap-2 px-4 py-3 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors">
+              <a href="https://dexscreener.com/base/0xc2fa8cfa51B02fDeb84Bb22d3c9519EAEB498b07" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 px-4 py-3 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors">
                 📊 View on DexScreener
               </a>
-              <a href="https://basescan.org/token/0xc2fa8cfa51b02fdeb84bb22d3c9519aeb498b07" target="_blank" className="flex items-center justify-center gap-2 px-4 py-3 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors">
+              <a href="https://basescan.org/token/0xc2fa8cfa51b02fdeb84bb22d3c9519eaeb498b07" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 px-4 py-3 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors">
                 🔍 View on Basescan
               </a>
-              <a href="https://app.uniswap.org/swap?chain=base&outputCurrency=0xc2fa8cfa51b02fdeb84bb22d3c9519aeb498b07" target="_blank" className="flex items-center justify-center gap-2 px-4 py-3 bg-gan-yellow text-black font-bold rounded-lg hover:bg-gan-gold transition-colors">
+              <a href="https://app.uniswap.org/explore/tokens/base/0xc2fa8cfa51b02fdeb84bb22d3c9519eaeb498b07?inputCurrency=NATIVE" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 px-4 py-3 bg-gan-yellow text-black font-bold rounded-lg hover:bg-gan-gold transition-colors">
                 🚀 Trade on Uniswap
               </a>
             </div>
