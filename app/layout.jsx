@@ -12,11 +12,11 @@ export const metadata = {
   openGraph: {
     title: 'GANLAND - Generative Art Network',
     description: 'AI-powered NFT ecosystem explorer for Fractal Visions. Create, collect, and trade generative art on Base.',
-    url: 'https://ganland.io',
+    url: 'https://ganland.ai',
     siteName: 'GANLAND',
     images: [
       {
-        url: 'https://ganland.io/gan-logo.jpg',
+        url: 'https://ganland.ai/gan-logo.jpg',
         width: 1200,
         height: 630,
         alt: 'GANLAND - Generative Art Network',
@@ -29,7 +29,7 @@ export const metadata = {
     card: 'summary_large_image',
     title: 'GANLAND - Generative Art Network',
     description: 'AI-powered NFT ecosystem explorer for Fractal Visions. Create, collect, and trade generative art on Base.',
-    images: ['https://ganland.io/gan-logo.jpg'],
+    images: ['https://ganland.ai/gan-logo.jpg'],
     creator: '@GanlandNFT',
   },
 };

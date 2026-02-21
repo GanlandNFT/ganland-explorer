@@ -4,7 +4,7 @@
 
 AI-powered NFT ecosystem explorer for **Fractal Visions** — featuring multi-chain wallet integration via Privy.
 
-**Live:** [ganland-explorer.vercel.app](https://ganland-explorer.vercel.app)
+**Live:** [ganland.ai](https://ganland.ai)
 
 ---
 
