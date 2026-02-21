@@ -2,6 +2,7 @@
 
 import { usePrivy } from '@privy-io/react-auth';
 
+// Simplified wallet button - X handle shown in WalletSection
 export default function WalletButton() {
   const { ready, authenticated, login, logout } = usePrivy();
 
@@ -36,7 +37,7 @@ export default function WalletButton() {
     );
   }
 
-  // Logged in - show simple Disconnect button (X handle shown in WalletSection)
+  // Logged in - show simple Disconnect button
   return (
     <button
       onClick={logout}
