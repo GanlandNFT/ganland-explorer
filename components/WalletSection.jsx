@@ -80,15 +80,31 @@ export default function WalletSection() {
 
   // Show connected state with balances
   if (ready && authenticated && walletAddress) {
+    const xUsername = user?.twitter?.username;
+    
     return (
       <div className="max-w-2xl mx-auto bg-gray-900/50 rounded-xl p-8 border border-gray-800">
         <div className="text-center mb-6">
-          <h3 className="text-2xl font-bold mb-2">
-            <span className="text-white">Ganland</span>{' '}
-            <span className="text-gan-yellow">Wallet</span>
-          </h3>
+          {/* X Handle as main title - links to profile */}
+          {xUsername ? (
+            <a
+              href={`https://x.com/${xUsername}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-2xl font-bold text-gan-yellow hover:text-gan-gold transition-colors mb-2"
+            >
+              <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+              </svg>
+              @{xUsername}
+            </a>
+          ) : (
+            <h3 className="text-2xl font-bold mb-2 text-gan-yellow">
+              Connected
+            </h3>
+          )}
           <p className="text-gray-400 text-sm">
-            Connected: {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
+            {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
           </p>
         </div>
 
