@@ -10,6 +10,13 @@ const PERMISSION_LIST = [
 // Featured creations - art from co-founders and team (via GAN timeline only)
 const FEATURED_CREATIONS = [
   {
+    id: 6,
+    image: 'https://pbs.twimg.com/media/HBtaJDkaAAAYBkj.jpg',
+    quote: 'A glowing town in a winter storm with snowy mountains ❄️🌃',
+    artist: 'artfractalicia',
+    tweetUrl: 'https://x.com/GanlandNFT/status/2025311573259289080',
+  },
+  {
     id: 5,
     image: 'https://pbs.twimg.com/media/HA_5CGwbsAAR8w5.jpg',
     quote: 'Solarpunk utopia incoming ☀️🌿 Where art galleries float among the gardens',
