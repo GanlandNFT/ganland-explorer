@@ -168,11 +168,11 @@ export default function WalletSection() {
     <div className="max-w-2xl mx-auto bg-gray-900/50 rounded-xl p-8 border border-gray-800">
       <div className="flex flex-col items-center justify-center py-8">
         <h3 className="text-2xl font-bold mb-2">
-          <span className="text-white">Ganland</span>{' '}
-          <span className="text-gan-yellow">Wallet</span>
+          <span className="text-gan-yellow">$GAN</span>{' '}
+          <span className="text-white">Portfolio</span>
         </h3>
         <p className="text-gray-400 text-center mb-6 max-w-md">
-          Connect with X to access your Ganland embedded wallet, manage $GAN tokens, and collect AI art NFTs.
+          The Generative Art Network management system for Ganland.
         </p>
 
         {/* Wallet icon */}

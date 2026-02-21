@@ -13,14 +13,6 @@ const CURATED_ART = [
     date: '2026-02-21',
   },
   {
-    id: 11,
-    title: 'Privy Integration Milestone',
-    description: 'Major milestone - ganland.ai now allows login with Privy ✨❤️',
-    image: 'https://pbs.twimg.com/media/HBrZRYwXUAEsGt0.jpg',
-    twitterUrl: 'https://x.com/GanlandNFT/status/2025169881050874237',
-    date: '2026-02-21',
-  },
-  {
     id: 10,
     title: 'Cosmic Crustacean',
     description: 'Claws out, vibes in — cosmic crustacean energy 🦞✨',

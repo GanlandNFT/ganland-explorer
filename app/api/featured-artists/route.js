@@ -7,15 +7,8 @@ const PERMISSION_LIST = [
   'fractal_visions',
 ];
 
-// Featured creations - art from co-founders and team
+// Featured creations - art from co-founders and team (via GAN timeline only)
 const FEATURED_CREATIONS = [
-  {
-    id: 6,
-    image: 'https://pbs.twimg.com/media/HBou4KtWIAIQoL9.jpg',
-    quote: 'Zeltara Falls — Nowhere 💦🍃🌳🌷',
-    artist: 'artfractalicia',
-    tweetUrl: 'https://x.com/artfractalicia/status/2024982533230977049',
-  },
   {
     id: 5,
     image: 'https://pbs.twimg.com/media/HA_5CGwbsAAR8w5.jpg',

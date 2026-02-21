@@ -103,7 +103,7 @@ export default function Home() {
       {/* Wallet Section */}
       <section id="wallet" className="scroll-mt-20">
         <div className="text-center mb-8">
-          <span className="inline-block px-3 py-1 bg-purple-500/20 text-purple-400 text-xs rounded-full mb-4">Ganland Wallet</span>
+          <span className="inline-block px-3 py-1 bg-purple-500/20 text-purple-400 text-xs rounded-full mb-4">Wallet Module</span>
           <h2 className="text-3xl font-bold">
             <span className="text-white">Ganland</span> <span className="text-purple-400">Wallet</span>
           </h2>
