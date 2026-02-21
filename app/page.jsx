@@ -29,7 +29,10 @@ export default function Home() {
           Discover AI-generated art, explore the <span className="text-gan-yellow">$GAN</span> token ecosystem, and browse NFT collections across <span className="text-blue-400">Base</span> & <span className="text-red-400">Optimism</span>.
         </p>
         
-        <div className="flex justify-center">
+        <div className="flex justify-center gap-4">
+          <a href="https://gan-mandala-mint.vercel.app" target="_blank" className="px-8 py-3 bg-gradient-to-r from-red-500 to-gan-yellow text-black font-bold rounded-lg hover:shadow-lg hover:shadow-gan-yellow/30 transition-all">
+            Mint NFT
+          </a>
           <a href="#gallery" className="px-8 py-3 bg-gray-800 hover:bg-gray-700 border border-gray-600 hover:border-gan-yellow rounded-lg transition-colors font-medium">
             View Gallery
           </a>

@@ -1,6 +1,19 @@
 {
   "collections": [
     {
+      "contract": "0xd1415559a3eCA34694a38A123a12cC6AC17CaFea",
+      "chain": "base",
+      "chainId": 8453,
+      "name": "Neural Networkers",
+      "totalSupply": 1000,
+      "ipfsCid": "QmZD5X1AnHxjuWWh6gD3Z5AJ22hQxRznJuuZC5Fcg7PWR8",
+      "imageFormat": "svg",
+      "previewUrl": "https://gateway.pinata.cloud/ipfs/QmVjeKTZoo9ezKX1XrMAjFHDbMJNvt7thWwVx4WTouAGS2",
+      "marketplaceUrl": "https://www.fractalvisions.io/collections/0xd1415559a3eCA34694a38A123a12cC6AC17CaFea/collection?chain=base",
+      "mintPrice": "0.008",
+      "featured": true
+    },
+    {
       "contract": "0xdee94416167780b47127624bab7730a43187630d",
       "chain": "base",
       "chainId": 8453,

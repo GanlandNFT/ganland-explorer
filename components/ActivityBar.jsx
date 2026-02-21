@@ -2,6 +2,21 @@
 
 import { useEffect, useState } from 'react';
 import { getHandleForWallet, shortenAddress } from '../lib/supabase';
+import tokensData from '../data/tokens.json';
+
+// Allowed token symbols for activity feed
+const ALLOWED_TOKENS = tokensData.allowedTokens.map(t => t.symbol.toUpperCase());
+const BLOCKED_KEYWORDS = tokensData.blockedTokens.map(t => t.toUpperCase());
+
+// Filter spam tokens
+function isAllowedToken(tokenSymbol) {
+  if (!tokenSymbol) return false;
+  const upper = tokenSymbol.toUpperCase();
+  // Block known spam keywords
+  if (BLOCKED_KEYWORDS.some(kw => upper.includes(kw))) return false;
+  // Allow only known tokens
+  return ALLOWED_TOKENS.includes(upper) || upper === 'ETH' || upper === 'NFT';
+}
 
 const CHAIN_CONFIG = {
   base: {
@@ -37,19 +52,21 @@ export default function ActivityBar() {
       const data = await response.json();
       
       if (data.success && data.transactions?.length > 0) {
-        const formattedTx = data.transactions.map(tx => ({
-          type: tx.tokenId ? 'mint' : 'transfer',
-          from: tx.from,
-          to: tx.to,
-          fromHandle: tx.fromHandle,
-          toHandle: tx.toHandle,
-          hash: tx.hash,
-          chain: tx.chain,
-          value: tx.value,
-          token: tx.asset,
-          tokenId: tx.tokenId,
-          time: new Date(tx.timestamp),
-        }));
+        const formattedTx = data.transactions
+          .filter(tx => tx.tokenId || isAllowedToken(tx.asset)) // Filter spam tokens
+          .map(tx => ({
+            type: tx.tokenId ? 'mint' : 'transfer',
+            from: tx.from,
+            to: tx.to,
+            fromHandle: tx.fromHandle,
+            toHandle: tx.toHandle,
+            hash: tx.hash,
+            chain: tx.chain,
+            value: tx.value,
+            token: tx.asset,
+            tokenId: tx.tokenId,
+            time: new Date(tx.timestamp),
+          }));
         setTransactions(formattedTx);
       } else {
         setTransactions([
