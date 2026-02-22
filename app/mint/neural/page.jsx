@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
 import { createPublicClient, http, parseEther, encodeFunctionData } from 'viem';
 import { base } from 'viem/chains';
@@ -39,52 +39,12 @@ const publicClient = createPublicClient({
 });
 
 export default function NeuralMintPage() {
-  const canvasRef = useRef(null);
   const { ready, authenticated, login, user } = usePrivy();
   const { wallets } = useWallets();
   
   const [isMinting, setIsMinting] = useState(false);
   const [txHash, setTxHash] = useState(null);
   const [error, setError] = useState(null);
-  const [userBalance, setUserBalance] = useState(null);
-
-  // Matrix background animation
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    
-    const ctx = canvas.getContext('2d');
-    let width, height, columns, drops;
-    const chars = '01◊◆ψΩ∞█▓▒░╔╗╚╝═║'.split('');
-
-    function resize() {
-      width = canvas.width = window.innerWidth;
-      height = canvas.height = window.innerHeight;
-      columns = Math.floor(width / 20);
-      drops = Array(columns).fill(1);
-    }
-
-    function draw() {
-      ctx.fillStyle = 'rgba(10, 10, 10, 0.03)';
-      ctx.fillRect(0, 0, width, height);
-      ctx.font = '16px "Share Tech Mono", monospace';
-
-      for (let i = 0; i < drops.length; i++) {
-        const char = chars[Math.floor(Math.random() * chars.length)];
-        ctx.fillStyle = Math.random() > 0.5 ? 'rgba(212, 168, 75, 0.15)' : 'rgba(92, 225, 230, 0.12)';
-        ctx.fillText(char, i * 20, drops[i] * 20);
-        if (drops[i] * 20 > height && Math.random() > 0.98) drops[i] = 0;
-        drops[i]++;
-      }
-      requestAnimationFrame(draw);
-    }
-
-    resize();
-    window.addEventListener('resize', resize);
-    draw();
-
-    return () => window.removeEventListener('resize', resize);
-  }, []);
 
   // Handle mint
   const handleMint = async () => {
@@ -155,32 +115,47 @@ export default function NeuralMintPage() {
           color: #fff;
           font-family: 'Inter', sans-serif;
           min-height: 100vh;
+          position: relative;
           --gold: #d4a84b;
           --cyan: #5ce1e6;
           --purple: #8b5cf6;
           --green: #10b981;
         }
+        
+        .grid-background {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          z-index: 0;
+          pointer-events: none;
+          background-image: 
+            linear-gradient(rgba(92, 225, 230, 0.03) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(92, 225, 230, 0.03) 1px, transparent 1px);
+          background-size: 50px 50px;
+        }
+        
+        .grid-background::after {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: radial-gradient(ellipse at center, transparent 0%, #0a0a0a 70%);
+        }
       `}</style>
       
       <div className="mint-page">
-        {/* Matrix Background */}
-        <canvas 
-          ref={canvasRef}
-          style={{
-            position: 'fixed',
-            top: 0, left: 0,
-            width: '100%', height: '100%',
-            zIndex: 0,
-            opacity: 0.08,
-            pointerEvents: 'none'
-          }}
-        />
+        {/* Grid Background */}
+        <div className="grid-background" />
 
         <div style={{ position: 'relative', zIndex: 1, maxWidth: '800px', margin: '0 auto', padding: '20px' }}>
           
-          {/* Header - Just network badge */}
-          <header style={{ display: 'flex', justifyContent: 'flex-end', padding: '15px 0', marginBottom: '30px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', color: '#0052ff', background: 'rgba(0, 82, 255, 0.1)', padding: '6px 12px', borderRadius: '20px', border: '1px solid rgba(0, 82, 255, 0.3)' }}>
+          {/* Header - Centered network badge */}
+          <header style={{ display: 'flex', justifyContent: 'center', padding: '15px 0', marginBottom: '30px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', color: '#0052ff', background: 'rgba(0, 82, 255, 0.1)', padding: '8px 16px', borderRadius: '20px', border: '1px solid rgba(0, 82, 255, 0.3)' }}>
               <span style={{ width: '8px', height: '8px', background: '#0052ff', borderRadius: '50%' }} />
               Base
             </div>
