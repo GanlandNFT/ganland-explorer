@@ -2,6 +2,7 @@ import './globals.css';
 import PrivyClientWrapper from '../components/PrivyClientWrapper';
 import ActivityBar from '../components/ActivityBar';
 import Header from '../components/Header';
+import { Analytics } from '@vercel/analytics/next';
 
 export const metadata = {
   title: 'GANLAND - Generative Art Network',
@@ -55,6 +56,7 @@ export default function RootLayout({ children }) {
             </div>
           </footer>
         </PrivyClientWrapper>
+        <Analytics />
       </body>
     </html>
   );
