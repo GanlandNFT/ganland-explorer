@@ -143,6 +143,17 @@ export default function NeuralMintPage() {
           background: radial-gradient(ellipse at center top, rgba(239, 68, 68, 0.15) 0%, transparent 60%);
         }
         
+        .grid-glow-bottom {
+          position: absolute;
+          bottom: 0;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 80%;
+          height: 300px;
+          background: radial-gradient(ellipse at center bottom, rgba(92, 225, 230, 0.12) 0%, transparent 60%);
+          pointer-events: none;
+        }
+        
         .grid-background::after {
           content: '';
           position: absolute;
@@ -184,6 +195,7 @@ export default function NeuralMintPage() {
       
       <div className="mint-page">
         <div className="grid-background" />
+        <div className="grid-glow-bottom" />
 
         <div style={{ position: 'relative', zIndex: 1, maxWidth: '800px', margin: '0 auto', padding: '20px' }}>
           
