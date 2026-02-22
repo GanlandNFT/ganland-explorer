@@ -48,6 +48,8 @@ export default function RootLayout({ children }) {
             <div className="container mx-auto px-4 text-center text-gray-500 text-sm">
               <p>© 2026 GANLAND. Part of the <a href="https://fractalvisions.io" className="text-gan-yellow hover:underline">Fractal Visions</a> ecosystem.</p>
               <div className="mt-2 space-x-4">
+                <a href="/docs" className="hover:text-gan-yellow">Docs</a>
+                <a href="/schedule" className="hover:text-gan-yellow">Tasks</a>
                 <a href="/terms" className="hover:text-gan-yellow">Terms</a>
                 <a href="/privacy" className="hover:text-gan-yellow">Privacy</a>
                 <a href="https://x.com/GanlandNFT" className="hover:text-gan-yellow">@GanlandNFT</a>
