@@ -106,10 +106,10 @@ export default function DocsOverview() {
             type="ERC-20"
           />
           <ContractRow 
-            name="Payment Wallet"
-            address="0xc4EF7d096541338FBE007E146De4a7Cd99cb9e40"
-            chain="Base"
-            note="ganland.eth"
+            name="ganland.eth"
+            address="0xDd32A567bc09384057A1F260086618D88b28E64F"
+            chain="Multi"
+            note="ENS name"
           />
           <ContractRow 
             name="Neural Networkers"

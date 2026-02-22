@@ -124,14 +124,6 @@ export default function WalletDocsPage() {
         </div>
       </section>
 
-      <InfoBox type="info" title="HD Wallet Security">
-        <ul className="space-y-1">
-          <li>• Wallets are deterministically derived from your X user ID</li>
-          <li>• No private keys stored in database</li>
-          <li>• Same user always gets the same wallet address</li>
-          <li>• Standard BIP-44 derivation path</li>
-        </ul>
-      </InfoBox>
     </div>
   );
 }

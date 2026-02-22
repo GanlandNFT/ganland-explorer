@@ -124,9 +124,11 @@ export default function TransfersDocsPage() {
         </ul>
       </InfoBox>
 
-      <InfoBox type="warning" title="Gas Requirements">
-        <p>Make sure you have enough ETH for gas fees (~$0.01 per transfer on Base).</p>
-      </InfoBox>
+      <div className="mt-6">
+        <InfoBox type="warning" title="Gas Requirements">
+          <p>Make sure you have enough ETH for gas fees (~$0.01 per transfer on Base).</p>
+        </InfoBox>
+      </div>
     </div>
   );
 }

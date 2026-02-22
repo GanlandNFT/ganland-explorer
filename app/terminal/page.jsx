@@ -81,11 +81,15 @@ export default function TerminalPage() {
         
         setGanBalance(balance);
         
-        if (balance >= REQUIRED_GAN) {
+        // Check if user has BOTH: $GAN balance AND subscription
+        // TODO: Check subscription status in Supabase
+        const hasTokens = balance >= REQUIRED_GAN;
+        const hasSubscription = false; // TODO: implement subscription check
+        
+        if (hasTokens && hasSubscription) {
           setAccessStatus('granted');
-          addSystemMessage(`🔓 Access granted! Balance: ${formatGan(balance)} $GAN`);
+          addSystemMessage(`🔓 Access granted! Balance: ${formatGan(balance)} $GAN + Active Subscription`);
         } else {
-          // TODO: Check subscription status in Supabase
           setAccessStatus('insufficient_balance');
         }
       } catch (e) {
@@ -306,7 +310,7 @@ function NoWalletScreen() {
 
 // Paywall screen
 function PaywallScreen({ balance, required, onSubscribe }) {
-  const needed = required - (balance || 0n);
+  const hasTokens = balance && balance >= required;
   
   return (
     <div className="min-h-[60vh] flex items-center justify-center">
@@ -314,12 +318,15 @@ function PaywallScreen({ balance, required, onSubscribe }) {
         <div className="text-6xl mb-6">🎟️</div>
         <h1 className="text-3xl font-bold mb-4">Access Required</h1>
         <p className="text-gray-400 mb-6">
-          To use GAN Terminal, you need one of the following:
+          To use GAN Terminal, you need <strong>both</strong> of the following:
         </p>
         
         <div className="grid md:grid-cols-2 gap-4 mb-8">
-          <div className="p-6 bg-gray-900/50 border border-gray-800 rounded-xl">
-            <div className="text-2xl font-bold text-gan-yellow mb-2">Hold $GAN</div>
+          <div className={`p-6 bg-gray-900/50 border rounded-xl ${hasTokens ? 'border-green-500/50' : 'border-gray-800'}`}>
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-2xl font-bold text-gan-yellow">Hold $GAN</div>
+              {hasTokens && <span className="text-green-400">✓</span>}
+            </div>
             <div className="text-gray-400 text-sm mb-4">
               Minimum 6,900,000 $GAN
             </div>
@@ -336,7 +343,9 @@ function PaywallScreen({ balance, required, onSubscribe }) {
           </div>
           
           <div className="p-6 bg-gray-900/50 border border-gray-800 rounded-xl">
-            <div className="text-2xl font-bold text-purple-400 mb-2">Subscribe</div>
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-2xl font-bold text-purple-400">Subscribe</div>
+            </div>
             <div className="text-gray-400 text-sm mb-4">
               $30/month in ETH
             </div>
@@ -350,6 +359,12 @@ function PaywallScreen({ balance, required, onSubscribe }) {
               Subscribe
             </button>
           </div>
+        </div>
+        
+        <div className="p-4 bg-gray-900/50 border border-gray-800 rounded-lg text-sm text-gray-400 mb-4">
+          <strong className="text-white">Both requirements must be met:</strong>
+          <br />• Hold 6,900,000 $GAN in your wallet
+          <br />• Maintain active $30/month subscription
         </div>
 
         <p className="text-gray-500 text-sm">

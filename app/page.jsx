@@ -161,7 +161,7 @@ export default function Home() {
           </h2>
           <p className="text-gray-400 mb-6 max-w-xl mx-auto">
             Full command-line interface for NFT operations, wallet management, and AI art generation. 
-            Requires <span className="text-gan-yellow">6,900,000 $GAN</span> or <span className="text-purple-400">$30/month</span> subscription.
+            Requires <span className="text-gan-yellow">6,900,000 $GAN</span> and <span className="text-purple-400">$30/month</span> subscription.
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <a 
@@ -178,7 +178,7 @@ export default function Home() {
             </a>
           </div>
           <p className="mt-6 text-sm text-gray-500">
-            Featured artists (@IGLIVISION, @artfractalicia) get free access
+            Featured artists get free access
           </p>
         </div>
       </section>

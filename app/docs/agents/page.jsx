@@ -100,33 +100,6 @@ claim(
         </div>
       </DocsSection>
 
-      <DocsSection 
-        title="Wallet Integration" 
-        icon="💰"
-        description="Create wallets and transfer tokens"
-      >
-        <div className="space-y-4">
-          <div className="p-4 bg-gray-900/50 border border-gray-800 rounded-lg">
-            <h4 className="font-bold text-green-400 mb-2">HD Wallet Derivation</h4>
-            <p className="text-gray-400 text-sm mb-2">
-              Wallets are derived from a master seed using BIP-44:
-            </p>
-            <code className="text-xs text-gray-500 block">
-              Path: m/44'/60'/0'/0/{'{index}'}<br/>
-              Index = SHA256(user_id) mod 2^31
-            </code>
-          </div>
-          
-          <div className="p-4 bg-gray-900/50 border border-gray-800 rounded-lg">
-            <h4 className="font-bold text-blue-400 mb-2">Token Contracts</h4>
-            <div className="space-y-2 text-sm text-gray-400">
-              <p><strong className="text-gan-yellow">$GAN:</strong> 0xc2fa8cfa51B02fDeb84Bb22d3c9519EAEB498b07</p>
-              <p><strong className="text-purple-400">$VISION:</strong> 0x50d7a818e5e339ebe13b17e130b5b608fac354dc</p>
-            </div>
-          </div>
-        </div>
-      </DocsSection>
-
       <section className="mt-12">
         <h2 className="text-xl font-bold mb-4">🔗 Supported Chains</h2>
         <div className="overflow-x-auto">
@@ -213,11 +186,13 @@ claim(
         </div>
       </section>
 
-      <InfoBox type="tip" title="Need Help?">
-        <p>
-          For integration support, reach out on <a href="https://x.com/GanlandNFT" className="text-gan-yellow hover:underline">X/Twitter</a> or check the skill file documentation.
-        </p>
-      </InfoBox>
+      <div className="mt-8">
+        <InfoBox type="tip" title="Need Help?">
+          <p>
+            For integration support, reach out on <a href="https://x.com/GanlandNFT" className="text-gan-yellow hover:underline">X/Twitter</a> or check the skill file documentation.
+          </p>
+        </InfoBox>
+      </div>
     </div>
   );
 }

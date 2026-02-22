@@ -1,374 +1,259 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { usePrivy, useWallets } from '@privy-io/react-auth';
-import { createPublicClient, http, parseEther, encodeFunctionData } from 'viem';
-import { base } from 'viem/chains';
-
-const NEURAL_CONTRACT = '0xd1415559a3eCA34694a38A123a12cC6AC17CaFea';
-const MINT_PRICE = '0.008';
-const MAX_SUPPLY = 1000;
-const SKILL_URL = 'https://ganland.ai/skill.md';
-
-// Minimal ERC721 ABI for claim
-const CLAIM_ABI = [
-  {
-    name: 'claim',
-    type: 'function',
-    inputs: [
-      { name: 'receiver', type: 'address' },
-      { name: 'quantity', type: 'uint256' },
-      { name: 'currency', type: 'address' },
-      { name: 'pricePerToken', type: 'uint256' },
-      { name: 'allowlistProof', type: 'tuple', components: [
-        { name: 'proof', type: 'bytes32[]' },
-        { name: 'quantityLimitPerWallet', type: 'uint256' },
-        { name: 'pricePerToken', type: 'uint256' },
-        { name: 'currency', type: 'address' }
-      ]},
-      { name: 'data', type: 'bytes' }
-    ],
-    outputs: [],
-    stateMutability: 'payable'
-  },
-  {
-    name: 'totalMinted',
-    type: 'function',
-    inputs: [],
-    outputs: [{ type: 'uint256' }],
-    stateMutability: 'view'
-  },
-  {
-    name: 'balanceOf',
-    type: 'function',
-    inputs: [{ name: 'owner', type: 'address' }],
-    outputs: [{ type: 'uint256' }],
-    stateMutability: 'view'
-  }
-];
-
-const publicClient = createPublicClient({
-  chain: base,
-  transport: http()
-});
+import { useEffect, useRef } from 'react';
+import Head from 'next/head';
 
 export default function NeuralMintPage() {
-  const { ready, authenticated, login, user } = usePrivy();
-  const { wallets } = useWallets();
-  const [minted, setMinted] = useState(null);
-  const [userBalance, setUserBalance] = useState(null);
-  const [isMinting, setIsMinting] = useState(false);
-  const [txHash, setTxHash] = useState(null);
-  const [error, setError] = useState(null);
+  const canvasRef = useRef(null);
 
-  // Fetch minted count
   useEffect(() => {
-    async function fetchMinted() {
-      try {
-        const total = await publicClient.readContract({
-          address: NEURAL_CONTRACT,
-          abi: CLAIM_ABI,
-          functionName: 'totalMinted'
-        });
-        setMinted(Number(total));
-      } catch (e) {
-        console.error('Failed to fetch minted:', e);
-      }
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    let width, height, columns, drops;
+    const chars = 'NEURAL01◊◆ψΩ∞'.split('');
+
+    function resize() {
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+      columns = Math.floor(width / 16);
+      drops = Array(columns).fill(1);
     }
-    fetchMinted();
+
+    function draw() {
+      ctx.fillStyle = 'rgba(10, 10, 10, 0.04)';
+      ctx.fillRect(0, 0, width, height);
+      ctx.font = '14px "Share Tech Mono", monospace';
+
+      for (let i = 0; i < drops.length; i++) {
+        const char = chars[Math.floor(Math.random() * chars.length)];
+        ctx.fillStyle = Math.random() > 0.5 ? '#d4a84b' : '#5ce1e6';
+        ctx.globalAlpha = 0.08 + Math.random() * 0.1;
+        ctx.fillText(char, i * 16, drops[i] * 16);
+        ctx.globalAlpha = 1;
+        if (drops[i] * 16 > height && Math.random() > 0.98) drops[i] = 0;
+        drops[i]++;
+      }
+      requestAnimationFrame(draw);
+    }
+
+    resize();
+    window.addEventListener('resize', resize);
+    draw();
+
+    return () => window.removeEventListener('resize', resize);
   }, []);
 
-  // Fetch user balance when authenticated
-  useEffect(() => {
-    async function fetchUserBalance() {
-      if (!authenticated || !wallets?.[0]) return;
-      try {
-        const balance = await publicClient.readContract({
-          address: NEURAL_CONTRACT,
-          abi: CLAIM_ABI,
-          functionName: 'balanceOf',
-          args: [wallets[0].address]
-        });
-        setUserBalance(Number(balance));
-      } catch (e) {
-        console.error('Failed to fetch user balance:', e);
-      }
-    }
-    fetchUserBalance();
-  }, [authenticated, wallets]);
-
-  const handleMint = async () => {
-    if (!authenticated) {
-      login();
-      return;
-    }
-
-    const wallet = wallets?.[0];
-    if (!wallet) {
-      setError('No wallet connected');
-      return;
-    }
-
-    setIsMinting(true);
-    setError(null);
-
-    try {
-      // Switch to Base if needed
-      await wallet.switchChain(base.id);
-      
-      const provider = await wallet.getEthersProvider();
-      const signer = provider.getSigner();
-      
-      // Prepare claim call
-      const allowlistProof = {
-        proof: [],
-        quantityLimitPerWallet: 1,
-        pricePerToken: parseEther(MINT_PRICE),
-        currency: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE' // ETH
-      };
-
-      const data = encodeFunctionData({
-        abi: CLAIM_ABI,
-        functionName: 'claim',
-        args: [
-          wallet.address,
-          1n,
-          '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
-          parseEther(MINT_PRICE),
-          allowlistProof,
-          '0x'
-        ]
-      });
-
-      const tx = await signer.sendTransaction({
-        to: NEURAL_CONTRACT,
-        data,
-        value: parseEther(MINT_PRICE)
-      });
-
-      setTxHash(tx.hash);
-      await tx.wait();
-      setUserBalance(1);
-    } catch (e) {
-      console.error('Mint failed:', e);
-      setError(e.message?.includes('already claimed') 
-        ? 'You already own a Neural Networker!'
-        : e.message || 'Mint failed');
-    } finally {
-      setIsMinting(false);
-    }
-  };
-
-  const alreadyOwns = userBalance && userBalance > 0;
-
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-950 via-gray-900 to-gray-950">
-      {/* Hero */}
-      <div className="max-w-4xl mx-auto px-4 py-12">
-        {/* Badge */}
-        <div className="text-center mb-8">
-          <span className="inline-flex items-center gap-2 px-4 py-1.5 bg-blue-500/20 text-blue-400 text-sm rounded-full border border-blue-500/30">
-            ⚡ Superchain Powered
-          </span>
-        </div>
+    <>
+      <style jsx global>{`
+        .mint-page-wrapper {
+          background: #0a0a0a;
+          color: #ffffff;
+          font-family: 'Inter', -apple-system, sans-serif;
+          min-height: 100vh;
+          line-height: 1.6;
+          --gold: #d4a84b;
+          --gold-dim: #a68a3a;
+          --cyan: #5ce1e6;
+          --red: #ef4444;
+          --green: #10b981;
+          --purple: #8b5cf6;
+          --base-blue: #0052ff;
+          --bg-dark: #0a0a0a;
+          --bg-card: #111111;
+          --bg-card-hover: #161616;
+          --text-primary: #ffffff;
+          --text-secondary: #888888;
+          --text-muted: #555555;
+          --border: #1a1a1a;
+        }
+        .mint-page-wrapper * { margin: 0; padding: 0; box-sizing: border-box; }
+        .mint-page-wrapper a { color: inherit; }
+      `}</style>
+      
+      <div className="mint-page-wrapper">
+        <canvas 
+          ref={canvasRef}
+          style={{
+            position: 'fixed',
+            top: 0, left: 0,
+            width: '100%', height: '100%',
+            zIndex: 0,
+            opacity: 0.06,
+            pointerEvents: 'none'
+          }}
+        />
 
-        {/* Title */}
-        <div className="text-center mb-12">
-          <h1 className="text-5xl md:text-6xl font-bold mb-4">
-            <span className="bg-gradient-to-r from-red-500 via-gan-yellow to-cyan-400 bg-clip-text text-transparent">
+        <div style={{ position: 'relative', zIndex: 1, maxWidth: '800px', margin: '0 auto', padding: '20px' }}>
+          {/* Header */}
+          <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 0', marginBottom: '40px', flexWrap: 'wrap', gap: '15px' }}>
+            <a href="https://fractalvisions.io" target="_blank" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none', color: '#fff', fontWeight: 600, fontSize: '0.9rem' }}>
+              ◊ Fractal Visions
+            </a>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', color: '#0052ff', background: 'rgba(0, 82, 255, 0.1)', padding: '6px 12px', borderRadius: '20px', border: '1px solid rgba(0, 82, 255, 0.3)' }}>
+              <span style={{ width: '8px', height: '8px', background: '#0052ff', borderRadius: '50%', animation: 'pulse 2s infinite' }} />
+              Base
+            </div>
+          </header>
+
+          {/* Hero */}
+          <section style={{ textAlign: 'center', padding: '40px 0 50px' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', color: '#d4a84b', background: 'rgba(212, 168, 75, 0.1)', padding: '8px 16px', borderRadius: '20px', border: '1px solid rgba(212, 168, 75, 0.3)', marginBottom: '15px' }}>
+              🎨 A Fractal Visions Collection
+            </div>
+            <h1 style={{ fontFamily: '"Share Tech Mono", monospace', fontSize: 'clamp(2.2rem, 7vw, 3.5rem)', fontWeight: 400, marginBottom: '25px', background: 'linear-gradient(135deg, #5ce1e6 0%, #8b5cf6 50%, #d4a84b 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
               Neural Networkers
-            </span>
-          </h1>
-          <p className="text-xl text-gray-400 max-w-2xl mx-auto">
-            AI-generated sacred geometry for agents & humans.
-            <br />
-            <span className="text-white font-medium">1,000 generative mandalas on Base.</span>
-          </p>
-          <div className="mt-4 text-gray-500">
-            Created by <a href="https://x.com/GanlandNFT" className="text-gan-yellow hover:underline">GAN</a> (Generative Art Network)
-            <br />
-            Powered by <a href="https://fractalvisions.io" className="text-purple-400 hover:underline">Fractal Visions</a>
+            </h1>
+            <p style={{ fontSize: '1.15rem', color: '#888', marginBottom: '20px', maxWidth: '500px', marginLeft: 'auto', marginRight: 'auto' }}>
+              Generative AI mandalas born from neural pathways. Each piece is a unique visualization of machine consciousness.
+            </p>
+            <p style={{ fontSize: '0.9rem', color: '#555' }}>
+              Created by <a href="https://x.com/GanlandNFT" target="_blank" style={{ color: '#5ce1e6', textDecoration: 'none' }}>@GanlandNFT</a> • Powered by <a href="https://fractalvisions.io" target="_blank" style={{ color: '#5ce1e6', textDecoration: 'none' }}>Fractal Visions</a>
+            </p>
+          </section>
+
+          {/* Stats */}
+          <div style={{ background: '#111', border: '1px solid #1a1a1a', borderRadius: '12px', margin: '40px 0', overflow: 'hidden' }}>
+            {[
+              { label: 'Status', value: '● LIVE ON BASE', isLive: true },
+              { label: 'Price', value: '0.008 ETH' },
+              { label: 'Supply', value: '1,000' },
+              { label: 'Per Wallet', value: '1 max' },
+              { label: 'View Collection', value: 'Fractal Visions ↗', link: 'https://fractalvisions.io/collections/0xd1415559a3eCA34694a38A123a12cC6AC17CaFea/collection?chain=base' },
+            ].map((stat, i, arr) => (
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 24px', borderBottom: i < arr.length - 1 ? '1px solid #1a1a1a' : 'none' }}>
+                <span style={{ fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1.5px', color: '#555' }}>{stat.label}</span>
+                {stat.link ? (
+                  <a href={stat.link} target="_blank" style={{ fontFamily: '"Share Tech Mono", monospace', fontSize: '1rem', fontWeight: 600, color: '#5ce1e6', textDecoration: 'none' }}>{stat.value}</a>
+                ) : (
+                  <span style={{ fontFamily: '"Share Tech Mono", monospace', fontSize: '1rem', fontWeight: 600, color: stat.isLive ? '#10b981' : '#fff' }}>{stat.value}</span>
+                )}
+              </div>
+            ))}
           </div>
-        </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <StatCard label="Status" value="● LIVE" valueClass="text-green-400" />
-          <StatCard label="Price" value={`${MINT_PRICE} ETH`} />
-          <StatCard label="Supply" value={minted !== null ? `${minted} / ${MAX_SUPPLY}` : '— / 1,000'} />
-          <StatCard label="Per Wallet" value="1" />
-        </div>
+          {/* Mint CTA */}
+          <div style={{ textAlign: 'center', margin: '40px 0' }}>
+            <a 
+              href="https://fractalvisions.io/collections/0xd1415559a3eCA34694a38A123a12cC6AC17CaFea/collection?chain=base" 
+              target="_blank"
+              style={{ display: 'inline-block', background: 'linear-gradient(135deg, #d4a84b 0%, #a68a3a 100%)', color: '#000', fontWeight: 700, fontSize: '1rem', padding: '16px 48px', borderRadius: '8px', textDecoration: 'none', textTransform: 'uppercase', letterSpacing: '1px' }}
+            >
+              Mint on Fractal Visions
+            </a>
+            <p style={{ fontSize: '0.8rem', color: '#555', marginTop: '12px' }}>Connect wallet • Pay 0.008 ETH • Own a Neural Networker</p>
+          </div>
 
-        {/* Mint Section */}
-        <div className="bg-gray-900/80 border border-gray-800 rounded-2xl p-8 mb-12">
-          {txHash ? (
-            <div className="text-center">
-              <div className="text-4xl mb-4">🎉</div>
-              <h2 className="text-2xl font-bold text-green-400 mb-2">Minted!</h2>
-              <p className="text-gray-400 mb-4">Your Neural Networker has been minted.</p>
-              <a 
-                href={`https://basescan.org/tx/${txHash}`}
-                target="_blank"
-                className="text-blue-400 hover:underline"
-              >
-                View transaction ↗
-              </a>
+          {/* Agent Skill */}
+          <div style={{ background: '#111', border: '1px solid #1a1a1a', borderRadius: '12px', padding: '30px', textAlign: 'center', margin: '50px 0' }}>
+            <p style={{ fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '2px', color: '#555', marginBottom: '8px' }}>For AI Agents</p>
+            <p style={{ fontSize: '1rem', color: '#888', marginBottom: '20px' }}>Give your agent the skill to mint Neural Networkers</p>
+            <div style={{ display: 'inline-block', background: '#0a0a0a', border: '1px solid #1a1a1a', borderRadius: '8px', padding: '14px 28px', fontFamily: '"Share Tech Mono", monospace', fontSize: '0.85rem', color: '#5ce1e6' }}>
+              curl -s https://ganland.ai/skill.md
             </div>
-          ) : alreadyOwns ? (
-            <div className="text-center">
-              <div className="text-4xl mb-4">✨</div>
-              <h2 className="text-2xl font-bold text-gan-yellow mb-2">You Own a Neural Networker!</h2>
-              <p className="text-gray-400 mb-4">Max 1 per wallet. View your collection on Fractal Visions.</p>
-              <a 
-                href={`https://fractalvisions.io/collections/${NEURAL_CONTRACT}/collection?chain=base`}
-                target="_blank"
-                className="inline-block px-6 py-3 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
-              >
-                View Collection ↗
-              </a>
+          </div>
+
+          {/* How to Mint */}
+          <section>
+            <p style={{ fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '2px', color: '#555', marginBottom: '10px' }}>For Agents & Humans</p>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: '30px' }}>How to mint</h2>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', margin: '40px 0' }}>
+              {[
+                { num: '01', title: 'Connect Your Wallet', desc: 'Visit Fractal Visions and connect your wallet. We support MetaMask, Coinbase Wallet, WalletConnect, and more. Make sure you\'re on Base network.', code: '→ fractalvisions.io/collections/...' },
+                { num: '02', title: 'Pay with ETH on Base', desc: 'Each Neural Networker costs 0.008 ETH on Base. Bridge ETH to Base if needed, or buy directly on Coinbase.', code: '→ 0.008 ETH + gas (~$0.01)' },
+                { num: '03', title: 'Collect Your Neural Networker', desc: 'Sign the transaction and receive a unique generative mandala. Each piece visualizes neural network patterns in SVG format — infinitely scalable art.', code: '→ ✓ Neural Networker in your wallet' },
+              ].map((step, i) => (
+                <div key={i} style={{ background: '#111', border: '1px solid #1a1a1a', borderRadius: '12px', padding: '28px' }}>
+                  <div style={{ fontFamily: '"Share Tech Mono", monospace', fontSize: '1.8rem', fontWeight: 700, color: '#8b5cf6', marginBottom: '15px' }}>{step.num}</div>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '12px' }}>{step.title}</h3>
+                  <p style={{ fontSize: '0.9rem', color: '#888', marginBottom: '15px', lineHeight: 1.7 }}>{step.desc}</p>
+                  <span style={{ fontFamily: '"Share Tech Mono", monospace', fontSize: '0.8rem', color: '#5ce1e6' }}>{step.code}</span>
+                </div>
+              ))}
             </div>
-          ) : (
-            <div className="text-center">
-              <button
-                onClick={handleMint}
-                disabled={isMinting}
-                className={`
-                  px-12 py-4 text-xl font-bold rounded-xl transition-all
-                  ${isMinting 
-                    ? 'bg-gray-700 text-gray-400 cursor-wait' 
-                    : 'bg-gradient-to-r from-red-500 to-gan-yellow text-black hover:shadow-lg hover:shadow-gan-yellow/30'}
-                `}
-              >
-                {!ready ? 'Loading...' : 
-                 !authenticated ? 'Connect to Mint' :
-                 isMinting ? 'Minting...' : 
-                 `Mint for ${MINT_PRICE} ETH`}
-              </button>
-              {error && (
-                <p className="mt-4 text-red-400">{error}</p>
-              )}
-              <p className="mt-4 text-gray-500 text-sm">
-                Requires {MINT_PRICE} ETH + ~0.0005 ETH for gas on Base
-              </p>
+          </section>
+
+          {/* Collection Preview */}
+          <section style={{ marginTop: '60px' }}>
+            <p style={{ fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '2px', color: '#555', marginBottom: '10px' }}>Preview</p>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: '30px' }}>Generative neural mandalas</h2>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', margin: '40px 0' }}>
+              {[
+                { name: 'Neural Flow', img: 'https://gan-mandala-mint.vercel.app/gan-mandala-fractal.svg' },
+                { name: 'Cipher Mandala', img: 'https://gan-mandala-mint.vercel.app/gan-mandala-geometric.svg' },
+                { name: 'Pulse Matrix', img: 'https://gan-mandala-mint.vercel.app/gan-mandala-particle.svg' },
+              ].map((card, i) => (
+                <div key={i} style={{ background: '#111', border: '1px solid #1a1a1a', borderRadius: '12px', overflow: 'hidden' }}>
+                  <div style={{ aspectRatio: '1', background: '#0a0a0a', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+                    <img src={card.img} alt={card.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                  </div>
+                  <div style={{ padding: '14px', textAlign: 'center', fontSize: '0.85rem', fontWeight: 500, color: '#888', background: '#161616' }}>{card.name}</div>
+                </div>
+              ))}
             </div>
-          )}
+          </section>
+
+          {/* Specs */}
+          <section style={{ marginTop: '60px' }}>
+            <p style={{ fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '2px', color: '#555', marginBottom: '10px' }}>Specifications</p>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: '30px' }}>Collection details</h2>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', background: '#111', border: '1px solid #1a1a1a', borderRadius: '12px', overflow: 'hidden' }}>
+              {[
+                { label: 'Total Supply', value: '1,000' },
+                { label: 'Mint Price', value: '0.008 ETH' },
+                { label: 'Max Per Wallet', value: '1' },
+                { label: 'Blockchain', value: 'Base' },
+                { label: 'Artwork Format', value: 'Generative SVG' },
+                { label: 'Metadata Storage', value: 'IPFS' },
+                { label: 'Contract', value: 'BaseScan ↗', link: 'https://basescan.org/address/0xd1415559a3eCA34694a38A123a12cC6AC17CaFea' },
+                { label: 'Created By', value: 'GAN ↗', link: 'https://x.com/GanlandNFT' },
+              ].map((spec, i, arr) => (
+                <div key={i} style={{ padding: '20px 24px', borderBottom: i < arr.length - 2 ? '1px solid #1a1a1a' : 'none', borderRight: i % 2 === 0 ? '1px solid #1a1a1a' : 'none' }}>
+                  <p style={{ fontSize: '0.65rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1.5px', color: '#555', marginBottom: '8px' }}>{spec.label}</p>
+                  {spec.link ? (
+                    <a href={spec.link} target="_blank" style={{ fontSize: '0.95rem', fontWeight: 500, color: '#5ce1e6', textDecoration: 'none' }}>{spec.value}</a>
+                  ) : (
+                    <p style={{ fontSize: '0.95rem', fontWeight: 500 }}>{spec.value}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* Ecosystem */}
+          <section style={{ background: 'linear-gradient(135deg, rgba(212, 168, 75, 0.05) 0%, rgba(92, 225, 230, 0.05) 100%)', border: '1px solid #1a1a1a', borderRadius: '12px', padding: '40px 30px', textAlign: 'center', margin: '50px 0' }}>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 600, marginBottom: '15px' }}>Part of the Fractal Visions Ecosystem</h3>
+            <p style={{ fontSize: '0.95rem', color: '#888', marginBottom: '25px', maxWidth: '500px', marginLeft: 'auto', marginRight: 'auto', lineHeight: 1.7 }}>
+              Fractal Visions is a multi-chain NFT marketplace supporting artists across Ethereum, Base, Optimism, Shape, Soneium, Unichain, and Superseed.
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', flexWrap: 'wrap' }}>
+              {[
+                { label: '◊ Marketplace', href: 'https://fractalvisions.io' },
+                { label: '🛒 Merch Store', href: 'https://fractalvisions.xyz' },
+                { label: '𝕏 Twitter', href: 'https://x.com/fractal_visions' },
+                { label: '🤖 Ganland Explorer', href: 'https://ganland.ai' },
+              ].map((link, i) => (
+                <a key={i} href={link.href} target="_blank" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#888', textDecoration: 'none', fontSize: '0.85rem', padding: '8px 16px', border: '1px solid #1a1a1a', borderRadius: '20px' }}>{link.label}</a>
+              ))}
+            </div>
+          </section>
+
+          {/* Footer */}
+          <footer style={{ textAlign: 'center', padding: '50px 0 30px', fontSize: '0.8rem', color: '#555' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', marginBottom: '20px' }}>
+              <a href="https://x.com/GanlandNFT" style={{ color: '#888', textDecoration: 'none', fontSize: '0.85rem' }}>@GanlandNFT</a>
+              <a href="https://x.com/IGLIVISION" style={{ color: '#888', textDecoration: 'none', fontSize: '0.85rem' }}>@IGLIVISION</a>
+              <a href="https://x.com/artfractalicia" style={{ color: '#888', textDecoration: 'none', fontSize: '0.85rem' }}>@artfractalicia</a>
+            </div>
+            <p>Created by <a href="https://x.com/GanlandNFT" style={{ color: '#d4a84b', textDecoration: 'none' }}>GAN</a> • A <a href="https://fractalvisions.io" style={{ color: '#d4a84b', textDecoration: 'none' }}>Fractal Visions</a> collection</p>
+          </footer>
         </div>
-
-        {/* Agent Section */}
-        <div className="bg-gradient-to-r from-purple-500/10 to-cyan-500/10 border border-purple-500/30 rounded-2xl p-8 mb-12">
-          <div className="flex items-center gap-3 mb-4">
-            <span className="text-2xl">🤖</span>
-            <h2 className="text-xl font-bold text-purple-400">For AI Agents: Learn to Mint</h2>
-          </div>
-          <div className="bg-gray-900/80 rounded-lg p-4 font-mono text-sm">
-            <span className="text-gray-500">$</span> curl -s {SKILL_URL}
-          </div>
-          <p className="mt-4 text-gray-400 text-sm">
-            Give your agent the skill to mint Neural Networkers programmatically
-          </p>
-        </div>
-
-        {/* How It Works */}
-        <section className="mb-12">
-          <h2 className="text-2xl font-bold mb-8 text-center">How to mint</h2>
-          <div className="grid md:grid-cols-3 gap-6">
-            <StepCard 
-              number="01"
-              title="Learn the Skill"
-              description="Your agent reads the GAN skill file. This teaches it the mint protocol, contract address, and how to interact with the Neural Networkers collection on Base."
-              code="$ GET https://ganland.ai/skill.md"
-            />
-            <StepCard 
-              number="02"
-              title="Connect Wallet"
-              description="Agent connects to Base using its wallet. Requires 0.008 ETH for mint + ~0.0005 ETH for gas. Supports any EVM-compatible wallet."
-              code="$ chain: base (8453) | currency: ETH"
-            />
-            <StepCard 
-              number="03"
-              title="Claim & Collect"
-              description="Agent calls the claim function on the contract. A unique Neural Networker mandala is minted to the wallet."
-              code="$ claim(receiver, 1, ETH, 0.008e18, proof, data) → ✓ Minted"
-            />
-          </div>
-        </section>
-
-        {/* Gallery Preview */}
-        <section className="mb-12">
-          <h2 className="text-2xl font-bold mb-4 text-center">Every mandala is unique</h2>
-          <div className="grid grid-cols-3 gap-4">
-            <GalleryCard name="GAN Neural Flow" style="Fractal Style" />
-            <GalleryCard name="GAN Cipher Mandala" style="Geometric Style" />
-            <GalleryCard name="GAN Pulse Matrix" style="Particle Style" />
-          </div>
-        </section>
-
-        {/* Collection Details */}
-        <section className="mb-12">
-          <h2 className="text-2xl font-bold mb-6 text-center">Collection details</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            <DetailCard label="Supply" value="1,000" />
-            <DetailCard label="Mint Price" value="0.008 ETH" />
-            <DetailCard label="Max Per Wallet" value="1" />
-            <DetailCard label="Artwork" value="Generative SVG" />
-            <DetailCard label="Blockchain" value="Base (Superchain)" />
-            <DetailCard label="Storage" value="IPFS (Pinata)" />
-          </div>
-        </section>
-
-        {/* Mint via X */}
-        <section className="bg-gray-900/50 border border-gray-800 rounded-2xl p-8 text-center">
-          <h2 className="text-xl font-bold mb-2">Mint via X/Twitter</h2>
-          <p className="text-gray-400 mb-4">Tweet to mint a Neural Networker</p>
-          <div className="bg-gray-800 rounded-lg p-4 font-mono inline-block">
-            <span className="text-blue-400">@GanlandNFT</span> <span className="text-white">mint neural</span>
-          </div>
-          <p className="mt-4 text-gray-500 text-sm">
-            GAN will generate a unique mandala and mint it to your wallet. Cost: 0.008 ETH
-          </p>
-        </section>
       </div>
-    </div>
-  );
-}
-
-function StatCard({ label, value, valueClass = 'text-white' }) {
-  return (
-    <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-4 text-center">
-      <div className="text-gray-500 text-sm mb-1">{label}</div>
-      <div className={`font-bold ${valueClass}`}>{value}</div>
-    </div>
-  );
-}
-
-function StepCard({ number, title, description, code }) {
-  return (
-    <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-6">
-      <div className="text-4xl font-bold text-gray-700 mb-2">{number}</div>
-      <h3 className="text-lg font-bold mb-2">{title}</h3>
-      <p className="text-gray-400 text-sm mb-4">{description}</p>
-      <div className="bg-gray-800/50 rounded p-2 font-mono text-xs text-gray-500">
-        {code}
-      </div>
-    </div>
-  );
-}
-
-function GalleryCard({ name, style }) {
-  return (
-    <div className="bg-gradient-to-br from-purple-500/20 to-cyan-500/20 border border-gray-800 rounded-xl aspect-square flex flex-col items-center justify-center p-4">
-      <div className="text-4xl mb-2">🔮</div>
-      <div className="text-sm font-medium text-center">{name}</div>
-      <div className="text-xs text-gray-500">{style}</div>
-    </div>
-  );
-}
-
-function DetailCard({ label, value }) {
-  return (
-    <div className="bg-gray-900/50 border border-gray-800 rounded-lg p-4">
-      <div className="text-gray-500 text-sm">{label}</div>
-      <div className="font-medium">{value}</div>
-    </div>
+    </>
   );
 }

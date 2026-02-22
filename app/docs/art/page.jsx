@@ -10,7 +10,7 @@ export default function ArtDocsPage() {
     <div>
       <div className="mb-8">
         <p className="text-gray-400 text-lg">
-          Generate unique AI artwork using natural language prompts. Powered by Leonardo AI and paid with $GAN tokens.
+          Generate unique AI artwork using natural language prompts. Paid with $GAN tokens.
         </p>
       </div>
 
@@ -130,10 +130,6 @@ export default function ArtDocsPage() {
       <section className="mt-12">
         <h2 className="text-xl font-bold mb-4">🛠️ Technical Details</h2>
         <div className="p-4 bg-gray-900/50 border border-gray-800 rounded-lg space-y-3 text-sm">
-          <div className="flex justify-between">
-            <span className="text-gray-500">Model</span>
-            <span>Leonardo Diffusion XL</span>
-          </div>
           <div className="flex justify-between">
             <span className="text-gray-500">Resolution</span>
             <span>1024 × 1024</span>
