@@ -78,8 +78,7 @@ export default function SchedulePage() {
 
   useEffect(() => {
     loadIssues();
-    const interval = setInterval(loadIssues, 120000); // Refresh every 2 min
-    return () => clearInterval(interval);
+    // No auto-refresh - only loads on page visit to minimize API calls
   }, []);
 
   const truncate = (str, len) => {
