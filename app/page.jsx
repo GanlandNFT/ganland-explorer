@@ -30,7 +30,7 @@ export default function Home() {
         </p>
         
         <div className="flex justify-center gap-4">
-          <a href="https://gan-mandala-mint.vercel.app" target="_blank" className="px-8 py-3 bg-gradient-to-r from-red-500 to-gan-yellow text-black font-bold rounded-lg hover:shadow-lg hover:shadow-gan-yellow/30 transition-all">
+          <a href="/mint/neural" className="px-8 py-3 bg-gradient-to-r from-red-500 to-gan-yellow text-black font-bold rounded-lg hover:shadow-lg hover:shadow-gan-yellow/30 transition-all">
             Mint NFT
           </a>
           <a href="#gallery" className="px-8 py-3 bg-gray-800 hover:bg-gray-700 border border-gray-600 hover:border-gan-yellow rounded-lg transition-colors font-medium">
@@ -149,6 +149,37 @@ export default function Home() {
           >
             Explore All on Fractal Visions ↗
           </a>
+        </div>
+      </section>
+
+      {/* Terminal CTA Section */}
+      <section className="py-12">
+        <div className="max-w-3xl mx-auto bg-gradient-to-r from-purple-500/10 via-gan-yellow/10 to-cyan-500/10 border border-purple-500/30 rounded-2xl p-8 text-center">
+          <span className="inline-block px-3 py-1 bg-purple-500/20 text-purple-400 text-xs rounded-full mb-4">Power Users</span>
+          <h2 className="text-3xl font-bold mb-4">
+            <span className="text-white">GAN</span> <span className="text-purple-400">Terminal</span>
+          </h2>
+          <p className="text-gray-400 mb-6 max-w-xl mx-auto">
+            Full command-line interface for NFT operations, wallet management, and AI art generation. 
+            Requires <span className="text-gan-yellow">6,900,000 $GAN</span> or <span className="text-purple-400">$30/month</span> subscription.
+          </p>
+          <div className="flex flex-col sm:flex-row justify-center gap-4">
+            <a 
+              href="/terminal" 
+              className="px-8 py-3 bg-gradient-to-r from-purple-500 to-gan-yellow text-black font-bold rounded-lg hover:shadow-lg hover:shadow-purple-500/30 transition-all"
+            >
+              Launch Terminal
+            </a>
+            <a 
+              href="/docs" 
+              className="px-8 py-3 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
+            >
+              View Documentation
+            </a>
+          </div>
+          <p className="mt-6 text-sm text-gray-500">
+            Featured artists (@IGLIVISION, @artfractalicia) get free access
+          </p>
         </div>
       </section>
     </div>

@@ -29,6 +29,9 @@ export default function Header() {
           <a href="/" className="hover:text-gan-yellow transition-colors">Home</a>
           <a href="#collections" className="hover:text-gan-yellow transition-colors">Collections</a>
           <a href="/docs" className="hover:text-gan-yellow transition-colors">Docs</a>
+          <a href="/terminal" className="px-3 py-1 bg-purple-500/20 text-purple-400 border border-purple-500/30 rounded-lg hover:bg-purple-500/30 transition-colors">
+            Terminal
+          </a>
         </nav>
 
         {/* Wallet Connect */}
