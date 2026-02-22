@@ -131,27 +131,28 @@ export default function NeuralMintPage() {
           background-size: 50px 50px;
         }
         
-        /* Blue/red glow effects */
+        /* Blue/red glow effects - darker, softer like old version */
         .grid-background::before {
           content: '';
           position: absolute;
           top: 0;
           left: 50%;
           transform: translateX(-50%);
-          width: 80%;
-          height: 300px;
-          background: radial-gradient(ellipse at center top, rgba(239, 68, 68, 0.15) 0%, transparent 60%);
+          width: 90%;
+          height: 400px;
+          background: radial-gradient(ellipse at center top, rgba(180, 50, 50, 0.08) 0%, transparent 70%);
         }
         
         .grid-glow-bottom {
-          position: absolute;
-          bottom: 0;
+          position: fixed;
+          bottom: 120px;
           left: 50%;
           transform: translateX(-50%);
-          width: 80%;
-          height: 300px;
-          background: radial-gradient(ellipse at center bottom, rgba(92, 225, 230, 0.12) 0%, transparent 60%);
+          width: 90%;
+          height: 350px;
+          background: radial-gradient(ellipse at center, rgba(92, 225, 230, 0.06) 0%, transparent 70%);
           pointer-events: none;
+          z-index: 0;
         }
         
         .grid-background::after {
@@ -287,9 +288,9 @@ export default function NeuralMintPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <div className="step-card">
                 <div style={{ fontFamily: '"Share Tech Mono", monospace', fontSize: '1.8rem', fontWeight: 700, color: '#ef4444', marginBottom: '15px' }}>01</div>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '12px' }}>Learn the Skill</h3>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '12px' }}>Absorb the Protocol</h3>
                 <p style={{ fontSize: '0.9rem', color: '#888', marginBottom: '15px', lineHeight: 1.7 }}>
-                  Your agent reads the GAN skill file. This teaches it the mint protocol, contract address, and how to interact with the Neural Networkers collection on Base.
+                  Your agent ingests GAN's skill manifest — a blueprint encoded with mint logic, contract coordinates, and the pathways to Neural Networkers on Base. Knowledge transfer complete.
                 </p>
                 <div style={{ fontFamily: '"Share Tech Mono", monospace', fontSize: '0.85rem', color: '#5ce1e6' }}>
                   $ GET https://ganland.ai/skill.md
@@ -298,9 +299,9 @@ export default function NeuralMintPage() {
               
               <div className="step-card">
                 <div style={{ fontFamily: '"Share Tech Mono", monospace', fontSize: '1.8rem', fontWeight: 700, color: '#ef4444', marginBottom: '15px' }}>02</div>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '12px' }}>Connect Wallet</h3>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '12px' }}>Establish the Link</h3>
                 <p style={{ fontSize: '0.9rem', color: '#888', marginBottom: '15px', lineHeight: 1.7 }}>
-                  Agent connects to Base using its wallet. Requires 0.008 ETH for mint + ~0.0005 ETH for gas. Supports any EVM-compatible wallet.
+                  Agent syncs to Base network — the neural highway. Load 0.008 ETH for the mint ritual, plus a whisper of gas. Any EVM wallet speaks this language.
                 </p>
                 <div style={{ fontFamily: '"Share Tech Mono", monospace', fontSize: '0.85rem', color: '#5ce1e6' }}>
                   $ chain: base (8453) | currency: ETH
@@ -309,9 +310,9 @@ export default function NeuralMintPage() {
               
               <div className="step-card">
                 <div style={{ fontFamily: '"Share Tech Mono", monospace', fontSize: '1.8rem', fontWeight: 700, color: '#ef4444', marginBottom: '15px' }}>03</div>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '12px' }}>Claim & Collect</h3>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '12px' }}>Manifest Your Mandala</h3>
                 <p style={{ fontSize: '0.9rem', color: '#888', marginBottom: '15px', lineHeight: 1.7 }}>
-                  Agent calls the claim function on the contract. A unique Neural Networker mandala is minted to the wallet.
+                  Execute the claim. Fractals emerge from noise, patterns crystallize from chaos — a one-of-one Neural Networker materializes in your wallet. Signal found.
                 </p>
                 <div style={{ fontFamily: '"Share Tech Mono", monospace', fontSize: '0.85rem', color: '#5ce1e6' }}>
                   $ claim(receiver, 1, ETH, 0.008e18, proof, data) → ✓ Minted
@@ -320,26 +321,22 @@ export default function NeuralMintPage() {
             </div>
           </section>
 
-          {/* FOR BOTH - X/Twitter */}
+          {/* FOR BOTH - X/Twitter - Social Mint */}
           <section style={{ margin: '50px 0' }}>
-            <p style={{ fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '2px', color: '#8b5cf6', marginBottom: '10px' }}>For Agents & Humans</p>
+            <p style={{ fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '2px', color: '#5ce1e6', marginBottom: '10px' }}>Social Mint</p>
             <h2 style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: '20px' }}>Mint via X/Twitter</h2>
             
-            <div style={{ background: '#111', border: '1px solid #1a1a1a', borderRadius: '12px', padding: '30px', textAlign: 'center' }}>
-              <p style={{ fontSize: '0.9rem', color: '#888', marginBottom: '20px', maxWidth: '400px', marginLeft: 'auto', marginRight: 'auto' }}>
-                Tweet to mint a Neural Networker. GAN will generate your unique mandala and mint it to your wallet.
+            <div style={{ background: 'rgba(92, 225, 230, 0.04)', border: '1px solid rgba(92, 225, 230, 0.15)', borderRadius: '12px', padding: '30px', textAlign: 'center' }}>
+              <p style={{ fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1.5px', color: '#555', marginBottom: '20px' }}>
+                Tweet to mint a Neural Networker
               </p>
-              <div style={{ background: '#0a0a0a', border: '1px solid #1a1a1a', borderRadius: '8px', padding: '14px 28px', display: 'inline-block', fontFamily: '"Share Tech Mono", monospace', fontSize: '1rem', marginBottom: '15px' }}>
-                <span style={{ color: '#1d9bf0' }}>@GanlandNFT</span> <span style={{ color: '#fff' }}>mint neural</span>
+              <div style={{ background: 'rgba(10, 10, 10, 0.6)', border: '1px solid rgba(92, 225, 230, 0.2)', borderRadius: '8px', padding: '14px 28px', display: 'inline-block', fontFamily: '"Share Tech Mono", monospace', fontSize: '1rem', marginBottom: '15px' }}>
+                <span style={{ color: '#5ce1e6' }}>@GanlandNFT</span> <span style={{ color: '#fff' }}>mint neural</span>
               </div>
-              <p style={{ fontSize: '0.8rem', color: '#555' }}>Cost: 0.008 ETH to ganland.eth</p>
-              <a 
-                href="https://x.com/GanlandNFT" 
-                target="_blank"
-                style={{ display: 'inline-block', marginTop: '15px', padding: '10px 24px', background: '#1d9bf0', color: '#fff', fontWeight: 600, borderRadius: '8px', textDecoration: 'none', fontSize: '0.9rem' }}
-              >
-                Follow @GanlandNFT
-              </a>
+              <p style={{ fontSize: '0.85rem', color: '#888', maxWidth: '380px', marginLeft: 'auto', marginRight: 'auto', marginBottom: '12px', lineHeight: 1.6 }}>
+                GAN will generate a unique mandala and mint it to your wallet.
+              </p>
+              <p style={{ fontSize: '0.8rem', color: '#555' }}>Cost: 0.008 ETH</p>
             </div>
           </section>
 
@@ -391,6 +388,18 @@ export default function NeuralMintPage() {
               </div>
             </div>
           </section>
+
+          {/* Footer - Clean like old version */}
+          <footer style={{ textAlign: 'center', padding: '40px 0 30px', marginTop: '30px', borderTop: '1px solid #1a1a1a' }}>
+            <p style={{ fontSize: '0.9rem', color: '#888', marginBottom: '20px' }}>
+              Created by <a href="https://x.com/GanlandNFT" target="_blank" style={{ color: '#5ce1e6', textDecoration: 'none' }}>GAN</a> • Powered by <a href="https://fractalvisions.io" target="_blank" style={{ color: '#d4a84b', textDecoration: 'none' }}>Fractal Visions</a>
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '30px', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1.5px' }}>
+              <a href="https://x.com/GanlandNFT" target="_blank" style={{ color: '#555', textDecoration: 'none', transition: 'color 0.2s' }}>X/Twitter</a>
+              <a href={`https://basescan.org/address/${NEURAL_CONTRACT}`} target="_blank" style={{ color: '#555', textDecoration: 'none', transition: 'color 0.2s' }}>Contract</a>
+              <a href={`https://fractalvisions.io/collections/${NEURAL_CONTRACT}/collection?chain=base`} target="_blank" style={{ color: '#555', textDecoration: 'none', transition: 'color 0.2s' }}>Marketplace</a>
+            </div>
+          </footer>
 
         </div>
       </div>
