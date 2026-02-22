@@ -58,7 +58,7 @@ export default function DocsLayout({ children }) {
       <div className="mt-12 pt-8 border-t border-gray-800">
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="text-gray-500 text-sm">
-            Need help? Tweet <a href="https://x.com/GanlandNFT" className="text-gan-yellow hover:underline">@GanlandNFT</a> or message on <a href="https://t.me/ganlandnft_bot" className="text-blue-400 hover:underline">Telegram</a>
+            Need help? Tweet <a href="https://x.com/GanlandNFT" className="text-gan-yellow hover:underline">@GanlandNFT</a>
           </div>
           <div className="flex gap-4">
             <a href="https://github.com/GanlandNFT/ganland-docs" className="text-gray-500 hover:text-white transition-colors">
