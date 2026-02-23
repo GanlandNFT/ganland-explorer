@@ -131,31 +131,29 @@ export default function NeuralMintPage() {
   const [copied, setCopied] = useState(false);
   const [balance, setBalance] = useState(null);
 
-  // Get the connected wallet - prioritize EMBEDDED (Privy) wallets for social login
-  const getPreferredWallet = () => {
+  // Get the EMBEDDED wallet ONLY - we never use external wallets for minting
+  // This prevents the "flicker" where external wallet shows first then switches
+  const getEmbeddedWallet = () => {
     if (!wallets || wallets.length === 0) return null;
-    // First, try to find the embedded (Privy) wallet - this is created on social login
-    const embeddedWallet = wallets.find(w => w.walletClientType === 'privy');
-    if (embeddedWallet) return embeddedWallet;
-    // Fall back to external wallet if no embedded wallet exists
-    return wallets[0];
+    return wallets.find(w => w.walletClientType === 'privy') || null;
   };
-  const wallet = getPreferredWallet();
+  const wallet = getEmbeddedWallet();
   
-  // Simple state: either we have a wallet or we don't
-  // No intermediate "loading" states - clean transitions only
+  // Simple state: either we have an embedded wallet or we don't
+  // External wallets are IGNORED for minting - they're only for Account Settings linking
   const hasWallet = wallet?.address;
-  const isExternalWallet = wallet?.walletClientType !== 'privy';
+  const isExternalWallet = false; // Never - we only use embedded
 
   // Debug: Log wallet state changes
   useEffect(() => {
-    console.log('[Mint Page] Privy state:', { 
+    const allWalletTypes = wallets?.map(w => `${w.walletClientType}:${w.address?.slice(0,6)}`).join(', ') || 'none';
+    console.log('[Mint Page] Wallet state:', { 
       ready, 
       authenticated, 
       walletsCount: wallets?.length || 0,
-      walletAddress: wallet?.address,
-      walletType: wallet?.walletClientType,
-      hasWallet 
+      allWallets: allWalletTypes,
+      embeddedWallet: wallet?.address || 'none',
+      usingForMint: hasWallet ? 'embedded' : 'none'
     });
   }, [ready, authenticated, wallets, wallet, hasWallet]);
 
@@ -236,8 +234,8 @@ export default function NeuralMintPage() {
 
   // Step 2: User confirms in our modal - send the transaction
   const handleConfirmTransaction = async () => {
-    // Use same wallet preference logic as getPreferredWallet()
-    const txWallet = getPreferredWallet();
+    // Use the embedded wallet only - no external wallets for minting
+    const txWallet = getEmbeddedWallet();
     if (!txWallet || !pendingTx) return;
 
     setIsConfirming(true);
@@ -454,12 +452,11 @@ export default function NeuralMintPage() {
                 </div>
               ) : (
                 <>
-                  {/* Show connected wallet info - ONLY when we have a wallet */}
+                  {/* Show embedded wallet info - ONLY when we have an embedded wallet */}
                   {hasWallet && (
                     <p style={{ fontSize: '0.8rem', color: '#666', marginBottom: '12px' }}>
-                      {isExternalWallet ? '🦊 ' : '🔐 '}
-                      <span style={{ color: '#5ce1e6', fontFamily: '"Share Tech Mono", monospace' }}>{wallet.address.slice(0, 6)}...{wallet.address.slice(-4)}</span>
-                      <span style={{ color: '#444', marginLeft: '8px' }}>({isExternalWallet ? 'External' : 'Embedded'})</span>
+                      🔐 <span style={{ color: '#5ce1e6', fontFamily: '"Share Tech Mono", monospace' }}>{wallet.address.slice(0, 6)}...{wallet.address.slice(-4)}</span>
+                      <span style={{ color: '#444', marginLeft: '8px' }}>(Embedded Wallet)</span>
                     </p>
                   )}
                   
