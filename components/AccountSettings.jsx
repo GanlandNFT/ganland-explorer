@@ -53,14 +53,21 @@ export default function AccountSettings({ isOpen, onClose }) {
     setIsLinking(null);
   };
 
-  const handleDisconnectExternalWallet = async (wallet) => {
-    if (wallet.disconnect) {
-      try {
-        await wallet.disconnect();
-      } catch (e) {
-        console.error('Failed to disconnect wallet:', e);
+  const handleDisconnectExternalWallet = async (walletToDisconnect) => {
+    setIsLinking('external-' + walletToDisconnect.address);
+    try {
+      // First try to disconnect the wallet connection
+      if (walletToDisconnect.disconnect) {
+        await walletToDisconnect.disconnect();
       }
+      // Also unlink it from the Privy account if possible
+      if (unlinkWallet && walletToDisconnect.address) {
+        await unlinkWallet(walletToDisconnect.address);
+      }
+    } catch (e) {
+      console.error('Failed to disconnect wallet:', e);
     }
+    setIsLinking(null);
   };
 
   const AccountRow = ({ label, value, linked, type, canUnlink = true, comingSoon = false }) => (
@@ -225,18 +232,20 @@ export default function AccountSettings({ isOpen, onClose }) {
               </div>
               <button
                 onClick={() => handleDisconnectExternalWallet(wallet)}
+                disabled={isLinking === 'external-' + wallet.address}
                 style={{
                   padding: '6px 12px',
                   borderRadius: '6px',
                   border: 'none',
                   fontWeight: 600,
                   fontSize: '0.8rem',
-                  cursor: 'pointer',
+                  cursor: isLinking === 'external-' + wallet.address ? 'wait' : 'pointer',
                   background: 'rgba(239, 68, 68, 0.2)',
                   color: '#ef4444',
+                  opacity: isLinking === 'external-' + wallet.address ? 0.5 : 1,
                 }}
               >
-                Disconnect
+                {isLinking === 'external-' + wallet.address ? '...' : 'Disconnect'}
               </button>
             </div>
           ))}

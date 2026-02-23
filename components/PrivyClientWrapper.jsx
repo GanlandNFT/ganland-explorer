@@ -35,17 +35,19 @@ export default function PrivyClientWrapper({ children }) {
         appearance: {
           theme: 'dark',
           accentColor: '#d4a84b',
-          // Use direct URL instead of IPFS for better Safari compatibility
           logo: 'https://ganland.ai/gan-logo.jpg',
         },
         // Embedded wallets - always create one on social login
         embeddedWallets: {
           createOnLogin: 'all-users',
+          // Don't show UI prompts for embedded wallet
+          noPromptOnSignature: true,
         },
-        // Wallet list config - hide external wallet connection option initially
-        walletList: ['detected_wallets'],
-        // Don't auto-connect to any external wallets
-        // User must explicitly choose to connect MetaMask
+        // External wallet settings
+        externalWallets: {
+          // Disable auto-reconnect to external wallets on page load
+          autoConnect: false,
+        },
       }}
     >
       {children}
