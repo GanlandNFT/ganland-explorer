@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { usePrivy, useWallets } from '@privy-io/react-auth';
+import { usePrivy } from '@privy-io/react-auth';
 import dynamic from 'next/dynamic';
 
 // Dynamically import AccountSettings to avoid SSR issues
@@ -9,7 +9,6 @@ const AccountSettings = dynamic(() => import('./AccountSettings'), { ssr: false 
 
 export default function WalletButton() {
   const { ready, authenticated, login, logout, user } = usePrivy();
-  const { wallets } = useWallets();
   const [showDropdown, setShowDropdown] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const dropdownRef = useRef(null);
@@ -25,29 +24,9 @@ export default function WalletButton() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Full disconnect: logout from Privy AND disconnect any external wallets
-  const handleFullDisconnect = async () => {
+  // Simple logout - no external wallet handling needed
+  const handleLogout = async () => {
     setShowDropdown(false);
-    
-    // Disconnect all external wallets from Privy
-    for (const wallet of wallets || []) {
-      if (wallet.walletClientType !== 'privy' && wallet.disconnect) {
-        try { await wallet.disconnect(); } catch (e) {}
-      }
-    }
-    
-    // Try to revoke browser wallet permissions (MetaMask, etc.)
-    if (typeof window !== 'undefined' && window.ethereum) {
-      try {
-        await window.ethereum.request({
-          method: 'wallet_revokePermissions',
-          params: [{ eth_accounts: {} }]
-        });
-      } catch (e) {
-        // wallet_revokePermissions not supported by all wallets - that's ok
-      }
-    }
-    
     await logout();
   };
 
@@ -112,15 +91,15 @@ export default function WalletButton() {
               Account Settings
             </button>
             
-            {/* Disconnect */}
+            {/* Log Out */}
             <button
-              onClick={handleFullDisconnect}
+              onClick={handleLogout}
               className="w-full px-4 py-3 text-left text-red-400 hover:bg-gray-800 transition-colors text-sm flex items-center gap-2 border-t border-gray-700"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
               </svg>
-              Disconnect
+              Log Out
             </button>
           </div>
         )}

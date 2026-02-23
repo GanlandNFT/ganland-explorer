@@ -130,58 +130,18 @@ export default function NeuralMintPage() {
   const [error, setError] = useState(null);
   const [copied, setCopied] = useState(false);
   const [balance, setBalance] = useState(null);
-  const [selectedWalletAddress, setSelectedWalletAddress] = useState(null);
 
-  // Get all available wallets
-  const embeddedWallet = wallets?.find(w => w.walletClientType === 'privy') || null;
-  const externalWallets = wallets?.filter(w => w.walletClientType !== 'privy') || [];
-  const allWallets = wallets || [];
-  
-  // Selected wallet for minting - default to embedded, but user can switch
-  const getSelectedWallet = () => {
-    if (!allWallets.length) return null;
-    if (selectedWalletAddress) {
-      return allWallets.find(w => w.address === selectedWalletAddress) || embeddedWallet;
-    }
-    return embeddedWallet || allWallets[0];
-  };
-  const wallet = getSelectedWallet();
-  
-  // Do we have multiple wallet options?
-  const hasMultipleWallets = allWallets.length > 1;
+  // Use embedded wallet only (Privy-created)
+  const wallet = wallets?.find(w => w.walletClientType === 'privy') || null;
   const hasWallet = wallet?.address;
-  const isExternalWallet = wallet?.walletClientType !== 'privy';
-
-  // Debug: Log wallet state changes
-  useEffect(() => {
-    const allWalletTypes = wallets?.map(w => `${w.walletClientType}:${w.address?.slice(0,6)}`).join(', ') || 'none';
-    console.log('[Mint Page] Wallet state:', { 
-      ready, 
-      authenticated, 
-      walletsCount: wallets?.length || 0,
-      allWallets: allWalletTypes,
-      selectedWallet: wallet?.address || 'none',
-      selectedType: wallet?.walletClientType || 'none',
-      usingForMint: hasWallet ? (isExternalWallet ? 'external' : 'embedded') : 'none'
-    });
-  }, [ready, authenticated, wallets, wallet, hasWallet, isExternalWallet]);
-  
-  // Auto-select embedded wallet when wallets load
-  useEffect(() => {
-    if (!selectedWalletAddress && embeddedWallet) {
-      setSelectedWalletAddress(embeddedWallet.address);
-    }
-  }, [embeddedWallet, selectedWalletAddress]);
 
   // Fetch balance when wallet connects
   useEffect(() => {
     const fetchBalance = async () => {
       if (wallet?.address) {
-        console.log('[Mint Page] Fetching balance for:', wallet.address);
         try {
           const bal = await publicClient.getBalance({ address: wallet.address });
           setBalance(bal);
-          console.log('[Mint Page] Balance:', bal.toString());
         } catch (e) {
           console.error('Balance fetch failed:', e);
         }
@@ -190,7 +150,7 @@ export default function NeuralMintPage() {
       }
     };
     fetchBalance();
-  }, [wallet?.address, wallets]); // Added wallets to re-fetch when wallet array changes
+  }, [wallet?.address]);
 
   // Check if user has enough balance
   const mintCost = parseEther(MINT_PRICE);
@@ -250,16 +210,14 @@ export default function NeuralMintPage() {
 
   // Step 2: User confirms in our modal - send the transaction
   const handleConfirmTransaction = async () => {
-    // Use the selected wallet (embedded or external)
-    const txWallet = getSelectedWallet();
-    if (!txWallet || !pendingTx) return;
+    if (!wallet || !pendingTx) return;
 
     setIsConfirming(true);
     setIsMinting(true);
 
     try {
-      await txWallet.switchChain(base.id);
-      const provider = await txWallet.getEthersProvider();
+      await wallet.switchChain(base.id);
+      const provider = await wallet.getEthersProvider();
       const signer = provider.getSigner();
 
       const tx = await signer.sendTransaction(pendingTx);
@@ -470,43 +428,11 @@ export default function NeuralMintPage() {
                 </div>
               ) : (
                 <>
-                  {/* Wallet Selector - shows when user has multiple wallets */}
-                  {hasWallet && hasMultipleWallets && (
-                    <div style={{ marginBottom: '16px' }}>
-                      <label style={{ fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', color: '#555', display: 'block', marginBottom: '8px' }}>
-                        Select Wallet for Minting
-                      </label>
-                      <select
-                        value={selectedWalletAddress || ''}
-                        onChange={(e) => setSelectedWalletAddress(e.target.value)}
-                        style={{
-                          width: '100%',
-                          maxWidth: '320px',
-                          padding: '12px 16px',
-                          background: '#0a0a0a',
-                          border: '1px solid #333',
-                          borderRadius: '8px',
-                          color: '#fff',
-                          fontFamily: '"Share Tech Mono", monospace',
-                          fontSize: '0.9rem',
-                          cursor: 'pointer',
-                          outline: 'none',
-                        }}
-                      >
-                        {allWallets.map((w) => (
-                          <option key={w.address} value={w.address}>
-                            {w.walletClientType === 'privy' ? '🔐 Embedded' : '🦊 ' + (w.walletClientType || 'External')} • {w.address.slice(0, 6)}...{w.address.slice(-4)}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-                  
-                  {/* Show selected wallet info */}
-                  {hasWallet && !hasMultipleWallets && (
+                  {/* Show embedded wallet address */}
+                  {hasWallet && (
                     <p style={{ fontSize: '0.8rem', color: '#666', marginBottom: '12px' }}>
-                      {isExternalWallet ? '🦊' : '🔐'} <span style={{ color: '#5ce1e6', fontFamily: '"Share Tech Mono", monospace' }}>{wallet.address.slice(0, 6)}...{wallet.address.slice(-4)}</span>
-                      <span style={{ color: '#444', marginLeft: '8px' }}>({isExternalWallet ? wallet.walletClientType : 'Embedded Wallet'})</span>
+                      🔐 <span style={{ color: '#5ce1e6', fontFamily: '"Share Tech Mono", monospace' }}>{wallet.address.slice(0, 6)}...{wallet.address.slice(-4)}</span>
+                      <span style={{ color: '#444', marginLeft: '8px' }}>(Embedded Wallet)</span>
                     </p>
                   )}
                   
@@ -555,9 +481,7 @@ export default function NeuralMintPage() {
                   
                   <p style={{ fontSize: '0.8rem', color: '#555', marginTop: '10px' }}>
                     {hasWallet 
-                      ? (hasMultipleWallets 
-                          ? 'Choose your wallet above • Mint on Base' 
-                          : 'Mint directly on Base network')
+                      ? 'Mint directly on Base network'
                       : 'Connect via X or Email to get started'}
                   </p>
                 </>

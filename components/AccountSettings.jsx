@@ -1,11 +1,19 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { usePrivy, useLinkAccount, useWallets } from '@privy-io/react-auth';
 
+// Generate a short referral code from user ID
+function generateReferralCode(userId) {
+  if (!userId) return null;
+  // Take last 8 chars of user ID, uppercase
+  const hash = userId.replace(/[^a-zA-Z0-9]/g, '').slice(-8).toUpperCase();
+  return `GAN-${hash}`;
+}
+
 export default function AccountSettings({ isOpen, onClose }) {
-  const { user, unlinkEmail, unlinkTwitter, unlinkWallet } = usePrivy();
-  const { linkEmail, linkTwitter, linkWallet } = useLinkAccount({
+  const { user, unlinkEmail, unlinkTwitter } = usePrivy();
+  const { linkEmail, linkTwitter } = useLinkAccount({
     onSuccess: (user, linkedAccount) => {
       console.log('Successfully linked:', linkedAccount);
       setIsLinking(null);
@@ -20,6 +28,8 @@ export default function AccountSettings({ isOpen, onClose }) {
   const { wallets } = useWallets();
   const [isLinking, setIsLinking] = useState(null);
   const [toast, setToast] = useState(null);
+  const [referralStats, setReferralStats] = useState({ points: 0, referrals: 0 });
+  const [copied, setCopied] = useState(false);
 
   // Auto-clear toast
   useEffect(() => {
@@ -29,6 +39,22 @@ export default function AccountSettings({ isOpen, onClose }) {
     }
   }, [toast]);
 
+  // Generate referral code
+  const referralCode = generateReferralCode(user?.id);
+  const referralLink = referralCode ? `https://ganland.ai?ref=${referralCode}` : null;
+
+  // Copy referral link
+  const handleCopyReferral = async () => {
+    if (!referralLink) return;
+    try {
+      await navigator.clipboard.writeText(referralLink);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (e) {
+      console.error('Copy failed:', e);
+    }
+  };
+
   if (!isOpen || !user) return null;
 
   // Get linked accounts
@@ -37,9 +63,6 @@ export default function AccountSettings({ isOpen, onClose }) {
   
   // Get embedded wallet (Privy-created)
   const embeddedWallet = wallets?.find(w => w.walletClientType === 'privy');
-  
-  // Get external wallets (MetaMask, WalletConnect, etc.) - NOT the embedded one
-  const externalWallets = wallets?.filter(w => w.walletClientType !== 'privy') || [];
 
   const handleLink = async (type) => {
     setIsLinking(type);
@@ -51,92 +74,24 @@ export default function AccountSettings({ isOpen, onClose }) {
         case 'twitter': 
           await linkTwitter(); 
           break;
-        case 'wallet': 
-          await linkWallet();
-          break;
       }
     } catch (e) {
       console.error(`Failed to link ${type}:`, e);
       setIsLinking(null);
     }
-    // Note: setIsLinking(null) is handled by onSuccess/onError callbacks
   };
 
-  const handleUnlink = async (type, data) => {
+  const handleUnlink = async (type) => {
     setIsLinking(type);
     try {
       switch (type) {
         case 'email': await unlinkEmail(linkedEmail); break;
         case 'twitter': await unlinkTwitter(user.twitter?.subject); break;
-        case 'wallet': 
-          if (data?.address) {
-            await unlinkWallet(data.address);
-          }
-          break;
       }
       setToast({ message: `Unlinked ${type}`, type: 'success' });
     } catch (e) {
       console.error(`Failed to unlink ${type}:`, e);
       setToast({ message: `Failed to unlink ${type}`, type: 'error' });
-    }
-    setIsLinking(null);
-  };
-
-  const handleDisconnectExternalWallet = async (walletToDisconnect) => {
-    setIsLinking('external-' + walletToDisconnect.address);
-    let disconnectMessage = '';
-    
-    try {
-      // First, unlink from Privy account
-      if (unlinkWallet && walletToDisconnect.address) {
-        await unlinkWallet(walletToDisconnect.address);
-      }
-      
-      // Try to disconnect wallet connection
-      if (walletToDisconnect.disconnect) {
-        await walletToDisconnect.disconnect();
-      }
-      
-      // Try multiple methods to revoke browser wallet permissions
-      if (typeof window !== 'undefined' && window.ethereum) {
-        let revoked = false;
-        
-        // Method 1: wallet_revokePermissions (newer standard)
-        try {
-          await window.ethereum.request({
-            method: 'wallet_revokePermissions',
-            params: [{ eth_accounts: {} }]
-          });
-          revoked = true;
-        } catch (e) {
-          console.log('wallet_revokePermissions not supported');
-        }
-        
-        // Method 2: Try to clear by requesting empty permissions
-        if (!revoked) {
-          try {
-            // Some wallets respond to this
-            await window.ethereum.request({
-              method: 'wallet_requestPermissions',
-              params: [{ eth_accounts: {} }]
-            });
-          } catch (e) {
-            // Expected to fail, but sometimes clears state
-          }
-        }
-        
-        if (!revoked) {
-          disconnectMessage = 'Wallet removed from account. To fully disconnect from browser: MetaMask → ⋮ → Connected sites → Disconnect';
-        }
-      }
-      
-      setToast({ 
-        message: disconnectMessage || 'Wallet disconnected', 
-        type: disconnectMessage ? 'warning' : 'success' 
-      });
-    } catch (e) {
-      console.error('Failed to disconnect wallet:', e);
-      setToast({ message: 'Failed to disconnect wallet', type: 'error' });
     }
     setIsLinking(null);
   };
@@ -240,7 +195,7 @@ export default function AccountSettings({ isOpen, onClose }) {
         )}
 
         {/* Social Accounts */}
-        <div style={{ marginBottom: '16px' }}>
+        <div style={{ marginBottom: '24px' }}>
           <div style={{ fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', color: '#888', marginBottom: '8px' }}>
             Linked Accounts
           </div>
@@ -278,73 +233,93 @@ export default function AccountSettings({ isOpen, onClose }) {
           />
         </div>
 
-        {/* External Wallets */}
-        <div style={{ marginTop: '24px' }}>
-          <div style={{ fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', color: '#888', marginBottom: '12px' }}>
-            🦊 External Wallets
+        {/* Referral System */}
+        <div style={{
+          background: 'rgba(92, 225, 230, 0.05)',
+          border: '1px solid rgba(92, 225, 230, 0.2)',
+          borderRadius: '12px',
+          padding: '20px',
+          marginBottom: '24px'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', color: '#888' }}>
+              🎁 Referral Program
+            </div>
+            <div style={{ 
+              background: 'rgba(212, 168, 75, 0.2)', 
+              padding: '4px 10px', 
+              borderRadius: '12px',
+              fontSize: '0.85rem',
+              fontWeight: 700,
+              color: '#d4a84b'
+            }}>
+              {referralStats.points} pts
+            </div>
           </div>
           
-          {externalWallets.map((wallet, i) => (
-            <div key={i} style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              padding: '14px',
-              background: '#0a0a0a',
-              borderRadius: '8px',
-              marginBottom: '8px',
-              border: '1px solid #222'
-            }}>
-              <div>
-                <span style={{ fontFamily: '"Share Tech Mono", monospace', fontSize: '0.9rem', color: '#5ce1e6' }}>
-                  {wallet.address?.slice(0,6)}...{wallet.address?.slice(-4)}
-                </span>
-                <span style={{ fontSize: '0.75rem', color: '#555', marginLeft: '8px' }}>
-                  ({wallet.walletClientType || 'External'})
-                </span>
+          <div style={{ fontSize: '0.9rem', color: '#aaa', marginBottom: '16px', lineHeight: 1.5 }}>
+            Share your link — every friend who joins Ganland boosts your score!
+          </div>
+          
+          {/* Referral Link */}
+          {referralLink && (
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <div style={{
+                flex: 1,
+                background: '#0a0a0a',
+                border: '1px solid #333',
+                borderRadius: '8px',
+                padding: '12px 14px',
+                fontFamily: '"Share Tech Mono", monospace',
+                fontSize: '0.8rem',
+                color: '#5ce1e6',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap'
+              }}>
+                {referralLink}
               </div>
               <button
-                onClick={() => handleDisconnectExternalWallet(wallet)}
-                disabled={isLinking === 'external-' + wallet.address}
+                onClick={handleCopyReferral}
                 style={{
-                  padding: '6px 12px',
-                  borderRadius: '6px',
+                  padding: '12px 16px',
+                  borderRadius: '8px',
                   border: 'none',
+                  background: copied ? 'rgba(16, 185, 129, 0.2)' : 'rgba(92, 225, 230, 0.2)',
+                  color: copied ? '#10b981' : '#5ce1e6',
                   fontWeight: 600,
-                  fontSize: '0.8rem',
-                  cursor: isLinking === 'external-' + wallet.address ? 'wait' : 'pointer',
-                  background: 'rgba(239, 68, 68, 0.2)',
-                  color: '#ef4444',
-                  opacity: isLinking === 'external-' + wallet.address ? 0.5 : 1,
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap'
                 }}
               >
-                {isLinking === 'external-' + wallet.address ? '...' : 'Disconnect'}
+                {copied ? '✓ Copied' : 'Copy'}
               </button>
             </div>
-          ))}
+          )}
           
-          {/* Add external wallet button */}
-          <button
-            onClick={() => handleLink('wallet')}
-            disabled={isLinking === 'wallet'}
-            style={{
-              width: '100%',
-              padding: '14px',
-              borderRadius: '8px',
-              border: '1px dashed #333',
-              background: 'transparent',
-              color: isLinking === 'wallet' ? '#5ce1e6' : '#888',
-              cursor: isLinking === 'wallet' ? 'wait' : 'pointer',
-              fontSize: '0.9rem',
-              marginTop: externalWallets.length > 0 ? '8px' : '0'
-            }}
-          >
-            {isLinking === 'wallet' ? 'Connecting... (complete in wallet)' : '+ Link MetaMask or other wallet'}
-          </button>
+          {/* Referral Stats */}
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: '1fr 1fr', 
+            gap: '12px', 
+            marginTop: '16px',
+            paddingTop: '16px',
+            borderTop: '1px solid rgba(92, 225, 230, 0.1)'
+          }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#fff' }}>{referralStats.referrals}</div>
+              <div style={{ fontSize: '0.75rem', color: '#666', textTransform: 'uppercase', letterSpacing: '1px' }}>Friends Joined</div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#d4a84b' }}>{referralStats.points}</div>
+              <div style={{ fontSize: '0.75rem', color: '#666', textTransform: 'uppercase', letterSpacing: '1px' }}>Total Points</div>
+            </div>
+          </div>
         </div>
 
         {/* Footer note */}
-        <p style={{ fontSize: '0.75rem', color: '#555', marginTop: '24px', textAlign: 'center' }}>
+        <p style={{ fontSize: '0.75rem', color: '#555', textAlign: 'center' }}>
           Link accounts to recover access if you lose one method
         </p>
       </div>
