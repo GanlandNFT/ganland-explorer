@@ -131,14 +131,14 @@ export default function NeuralMintPage() {
   const [copied, setCopied] = useState(false);
   const [balance, setBalance] = useState(null);
 
-  // Get the connected wallet - prioritize external wallets (MetaMask, etc.) over embedded
-  // Privy embedded wallets have walletClientType === 'privy'
+  // Get the connected wallet - prioritize EMBEDDED (Privy) wallets for social login
+  // This ensures users who login with X get their Privy embedded wallet, not MetaMask
   const getPreferredWallet = () => {
     if (!wallets || wallets.length === 0) return null;
-    // First, try to find an external wallet (MetaMask, WalletConnect, etc.)
-    const externalWallet = wallets.find(w => w.walletClientType !== 'privy');
-    if (externalWallet) return externalWallet;
-    // Fall back to embedded wallet
+    // First, try to find the embedded (Privy) wallet - this is created on social login
+    const embeddedWallet = wallets.find(w => w.walletClientType === 'privy');
+    if (embeddedWallet) return embeddedWallet;
+    // Fall back to external wallet (MetaMask, etc.) if no embedded wallet
     return wallets[0];
   };
   const wallet = getPreferredWallet();
@@ -234,15 +234,16 @@ export default function NeuralMintPage() {
 
   // Step 2: User confirms in our modal - send the transaction
   const handleConfirmTransaction = async () => {
-    const wallet = wallets?.[0];
-    if (!wallet || !pendingTx) return;
+    // Use same wallet preference logic as getPreferredWallet()
+    const txWallet = getPreferredWallet();
+    if (!txWallet || !pendingTx) return;
 
     setIsConfirming(true);
     setIsMinting(true);
 
     try {
-      await wallet.switchChain(base.id);
-      const provider = await wallet.getEthersProvider();
+      await txWallet.switchChain(base.id);
+      const provider = await txWallet.getEthersProvider();
       const signer = provider.getSigner();
 
       const tx = await signer.sendTransaction(pendingTx);
@@ -396,7 +397,7 @@ export default function NeuralMintPage() {
           onClose={handleCloseModal}
           onConfirm={handleConfirmTransaction}
           transaction={pendingTx}
-          walletAddress={wallets?.[0]?.address}
+          walletAddress={wallet?.address}
           isLoading={isConfirming}
         />
 
