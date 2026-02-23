@@ -25,8 +25,11 @@ export default function PrivyClientWrapper({ children }) {
   return (
     <PrivyProvider
       appId={appId}
+      onSuccess={(user) => {
+        console.log('[Privy] Login success:', user?.twitter?.username || user?.email?.address || 'wallet user');
+      }}
       config={{
-        // Login methods
+        // Login methods - twitter first for social-first experience
         loginMethods: ['twitter', 'email', 'wallet'],
         // Appearance
         appearance: {
@@ -37,6 +40,11 @@ export default function PrivyClientWrapper({ children }) {
         // Embedded wallets
         embeddedWallets: {
           createOnLogin: 'users-without-wallets',
+        },
+        // External wallets config
+        externalWallets: {
+          // Don't auto-connect external wallets - let user choose
+          coinbaseWallet: { connectionOptions: 'smartWalletOnly' },
         },
       }}
     >
