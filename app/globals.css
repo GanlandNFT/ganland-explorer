@@ -10,6 +10,14 @@
   --gan-cyan: #5CE1E6;
   --gan-black: #0a0a0a;
   --gan-gold: #D4A84B;
+  
+  /* Privy modal styling */
+  --privy-color-background: #111111;
+  --privy-color-background-2: #1a1a1a;
+  --privy-color-foreground: #ffffff;
+  --privy-color-foreground-2: #888888;
+  --privy-color-accent: #d4a84b;
+  --privy-border-radius-lg: 12px;
 }
 
 body {
