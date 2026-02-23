@@ -242,22 +242,13 @@ export default function NeuralMintPage() {
           padding-bottom: 0 !important;
         }
         
-        /* Force full page coverage - no gaps */
-        html, body {
-          min-height: 100vh;
-          min-height: 100dvh;
-          background: #0a0a0a !important;
-        }
-        
         .mint-page {
           background: #0a0a0a;
           color: #fff;
           font-family: 'Inter', sans-serif;
           min-height: 100vh;
-          min-height: 100dvh;
           position: relative;
           overflow-x: hidden;
-          padding-bottom: env(safe-area-inset-bottom, 0);
         }
         
         .grid-background {

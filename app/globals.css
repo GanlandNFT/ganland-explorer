@@ -172,31 +172,17 @@ body {
   background: var(--gan-gold);
 }
 
-/* Hide global footer/header when mint page is active and fill viewport */
-body:has(.mint-page) {
-  min-height: 100vh;
-  min-height: 100dvh;
-}
-
-body:has(.mint-page) > div {
-  min-height: 100vh;
-  min-height: 100dvh;
-  display: flex;
-  flex-direction: column;
-}
-
-body:has(.mint-page) > div > footer,
-body:has(.mint-page) footer.border-t.border-gray-800 {
+/* Hide global elements on mint page - SIMPLE version */
+body:has(.mint-page) footer.border-t {
   display: none !important;
 }
 
-body:has(.mint-page) > div > main {
-  padding: 0 !important;
-  margin: 0 !important;
-  max-width: none !important;
-  flex: 1;
-}
-
-body:has(.mint-page) > div > header {
-  display: none !important;
+/* Make Privy modal float on mobile (not stuck to bottom) */
+[data-privy-dialog],
+div[class*="PrivyModal"],
+div[role="dialog"][aria-modal="true"] {
+  border-radius: 16px !important;
+  margin: 20px !important;
+  max-height: calc(100vh - 40px) !important;
+  bottom: auto !important;
 }
