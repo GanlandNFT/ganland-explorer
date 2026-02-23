@@ -130,6 +130,21 @@ export default function NeuralMintPage() {
   const [error, setError] = useState(null);
   const [copied, setCopied] = useState(false);
   const [balance, setBalance] = useState(null);
+  const [walletLoadTimeout, setWalletLoadTimeout] = useState(false);
+
+  // Reset wallet loading timeout when auth state changes
+  useEffect(() => {
+    if (authenticated && !wallets?.length) {
+      // Start timeout - if wallet doesn't load in 5 seconds, show connect button
+      setWalletLoadTimeout(false);
+      const timer = setTimeout(() => {
+        setWalletLoadTimeout(true);
+      }, 5000);
+      return () => clearTimeout(timer);
+    } else {
+      setWalletLoadTimeout(false);
+    }
+  }, [authenticated, wallets?.length]);
 
   // Get the connected wallet - prioritize EMBEDDED (Privy) wallets for social login
   // This ensures users who login with X get their Privy embedded wallet, not MetaMask
@@ -453,7 +468,7 @@ export default function NeuralMintPage() {
               ) : (
                 <>
                   {/* Connected wallet - show wallet type and address */}
-                  {authenticated && (
+                  {authenticated && !walletLoadTimeout && (
                     <p style={{ fontSize: '0.8rem', color: '#666', marginBottom: '12px' }}>
                       {hasWallet ? (
                         <>
@@ -470,25 +485,25 @@ export default function NeuralMintPage() {
                   {/* MINT BUTTON */}
                   <button
                     onClick={handleMint}
-                    disabled={isMinting || (hasWallet && !hasEnoughBalance) || (authenticated && !hasWallet)}
+                    disabled={isMinting || (hasWallet && !hasEnoughBalance) || (authenticated && !hasWallet && !walletLoadTimeout)}
                     style={{ 
                       display: 'inline-block', 
-                      background: isMinting || (hasWallet && !hasEnoughBalance) || (authenticated && !hasWallet)
+                      background: isMinting || (hasWallet && !hasEnoughBalance) || (authenticated && !hasWallet && !walletLoadTimeout)
                         ? '#333' 
                         : 'linear-gradient(135deg, #d4a84b 0%, #a68a3a 100%)', 
-                      color: isMinting || (hasWallet && !hasEnoughBalance) || (authenticated && !hasWallet) ? '#666' : '#000', 
+                      color: isMinting || (hasWallet && !hasEnoughBalance) || (authenticated && !hasWallet && !walletLoadTimeout) ? '#666' : '#000', 
                       fontWeight: 700, 
                       fontSize: '1rem', 
                       padding: '16px 48px', 
                       borderRadius: '8px', 
                       border: 'none',
-                      cursor: isMinting || (hasWallet && !hasEnoughBalance) || (authenticated && !hasWallet) ? 'not-allowed' : 'pointer',
+                      cursor: isMinting || (hasWallet && !hasEnoughBalance) || (authenticated && !hasWallet && !walletLoadTimeout) ? 'not-allowed' : 'pointer',
                       textTransform: 'uppercase', 
                       letterSpacing: '1px' 
                     }}
                   >
                     {!ready ? '' : 
-                     !authenticated ? 'Connect Wallet' :
+                     (!authenticated || walletLoadTimeout) ? 'Connect Wallet' :
                      !hasWallet ? 'Loading Wallet...' :
                      !hasEnoughBalance ? 'Insufficient Balance' :
                      isMinting ? 'Minting...' : 
@@ -512,7 +527,7 @@ export default function NeuralMintPage() {
                   {error && <p style={{ color: '#ef4444', marginTop: '12px', fontSize: '0.9rem' }}>{error}</p>}
                   
                   <p style={{ fontSize: '0.8rem', color: '#555', marginTop: '10px' }}>
-                    {!authenticated 
+                    {(!authenticated || walletLoadTimeout)
                       ? 'Connect via Twitter, Email, or Wallet' 
                       : hasWallet 
                         ? 'Mint directly on Base network'

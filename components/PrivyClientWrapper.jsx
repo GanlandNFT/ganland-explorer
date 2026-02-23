@@ -35,17 +35,17 @@ export default function PrivyClientWrapper({ children }) {
         appearance: {
           theme: 'dark',
           accentColor: '#d4a84b',
-          logo: 'https://gateway.pinata.cloud/ipfs/QmW4PqY6rewBa8do32uHNg3u2w1RQ6JHbMeWapgMbN5NiP',
+          // Use direct URL instead of IPFS for better Safari compatibility
+          logo: 'https://ganland.ai/gan-logo.jpg',
         },
-        // Embedded wallets
+        // Embedded wallets - always create one on social login
         embeddedWallets: {
-          createOnLogin: 'users-without-wallets',
+          createOnLogin: 'all-users',
         },
-        // External wallets config
-        externalWallets: {
-          // Don't auto-connect external wallets - let user choose
-          coinbaseWallet: { connectionOptions: 'smartWalletOnly' },
-        },
+        // Wallet list config - hide external wallet connection option initially
+        walletList: ['detected_wallets'],
+        // Don't auto-connect to any external wallets
+        // User must explicitly choose to connect MetaMask
       }}
     >
       {children}
