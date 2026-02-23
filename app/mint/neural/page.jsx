@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
 import { createPublicClient, http, parseEther, encodeFunctionData } from 'viem';
 import { base } from 'viem/chains';
@@ -9,6 +9,7 @@ const NEURAL_CONTRACT = '0xd1415559a3eCA34694a38A123a12cC6AC17CaFea';
 const MINT_PRICE = '0.008';
 const MAX_SUPPLY = 1000;
 const CURRENT_MINTED = 3;
+const TWEET_TEXT = '@GanlandNFT mint neural';
 
 const CLAIM_ABI = [
   {
@@ -32,10 +33,81 @@ const CLAIM_ABI = [
   }
 ];
 
-const publicClient = createPublicClient({
-  chain: base,
-  transport: http()
-});
+// Animated glow component using canvas
+function AnimatedGlows() {
+  const canvasRef = useRef(null);
+  
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    let animationId;
+    let time = 0;
+    
+    // Blobs configuration
+    const blobs = [
+      { x: 0.5, y: 0.1, radius: 300, color: [180, 50, 50], speed: 0.0003, offsetX: 0, offsetY: 0 },
+      { x: 0.5, y: 0.85, radius: 280, color: [92, 180, 190], speed: 0.0004, offsetX: Math.PI, offsetY: Math.PI * 0.5 },
+    ];
+    
+    const resize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    };
+    
+    const draw = () => {
+      time += 1;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      blobs.forEach(blob => {
+        // Subtle random motion
+        const moveX = Math.sin(time * blob.speed + blob.offsetX) * 50;
+        const moveY = Math.cos(time * blob.speed * 0.7 + blob.offsetY) * 30;
+        
+        const x = blob.x * canvas.width + moveX;
+        const y = blob.y * canvas.height + moveY;
+        
+        // Create radial gradient
+        const gradient = ctx.createRadialGradient(x, y, 0, x, y, blob.radius);
+        gradient.addColorStop(0, `rgba(${blob.color[0]}, ${blob.color[1]}, ${blob.color[2]}, 0.08)`);
+        gradient.addColorStop(0.5, `rgba(${blob.color[0]}, ${blob.color[1]}, ${blob.color[2]}, 0.04)`);
+        gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(x, y, blob.radius, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      
+      animationId = requestAnimationFrame(draw);
+    };
+    
+    resize();
+    draw();
+    window.addEventListener('resize', resize);
+    
+    return () => {
+      window.removeEventListener('resize', resize);
+      cancelAnimationFrame(animationId);
+    };
+  }, []);
+  
+  return (
+    <canvas
+      ref={canvasRef}
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        zIndex: 0,
+        pointerEvents: 'none',
+      }}
+    />
+  );
+}
 
 export default function NeuralMintPage() {
   const { ready, authenticated, login } = usePrivy();
@@ -44,6 +116,7 @@ export default function NeuralMintPage() {
   const [isMinting, setIsMinting] = useState(false);
   const [txHash, setTxHash] = useState(null);
   const [error, setError] = useState(null);
+  const [copied, setCopied] = useState(false);
 
   const handleMint = async () => {
     if (!authenticated) {
@@ -103,6 +176,21 @@ export default function NeuralMintPage() {
     }
   };
 
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(TWEET_TEXT);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Copy failed:', err);
+    }
+  };
+
+  const handleTweetShare = () => {
+    const tweetUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(TWEET_TEXT)}`;
+    window.open(tweetUrl, '_blank', 'width=550,height=420');
+  };
+
   return (
     <>
       <style jsx global>{`
@@ -123,36 +211,12 @@ export default function NeuralMintPage() {
           left: 0;
           width: 100%;
           height: 100%;
-          z-index: 0;
+          z-index: 1;
           pointer-events: none;
           background-image: 
             linear-gradient(rgba(92, 225, 230, 0.04) 1px, transparent 1px),
             linear-gradient(90deg, rgba(92, 225, 230, 0.04) 1px, transparent 1px);
           background-size: 50px 50px;
-        }
-        
-        /* Blue/red glow effects - darker, softer like old version */
-        .grid-background::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: 50%;
-          transform: translateX(-50%);
-          width: 90%;
-          height: 400px;
-          background: radial-gradient(ellipse at center top, rgba(180, 50, 50, 0.08) 0%, transparent 70%);
-        }
-        
-        .grid-glow-bottom {
-          position: fixed;
-          bottom: 120px;
-          left: 50%;
-          transform: translateX(-50%);
-          width: 90%;
-          height: 350px;
-          background: radial-gradient(ellipse at center, rgba(92, 225, 230, 0.06) 0%, transparent 70%);
-          pointer-events: none;
-          z-index: 0;
         }
         
         .grid-background::after {
@@ -192,13 +256,21 @@ export default function NeuralMintPage() {
           border-color: rgba(212, 168, 75, 0.6);
           box-shadow: 0 0 25px rgba(212, 168, 75, 0.2), inset 0 0 20px rgba(212, 168, 75, 0.05);
         }
+        
+        .copy-btn:hover {
+          background: rgba(92, 225, 230, 0.15) !important;
+        }
+        
+        .share-btn:hover {
+          background: #1a8cd8 !important;
+        }
       `}</style>
       
       <div className="mint-page">
+        <AnimatedGlows />
         <div className="grid-background" />
-        <div className="grid-glow-bottom" />
 
-        <div style={{ position: 'relative', zIndex: 1, maxWidth: '800px', margin: '0 auto', padding: '20px' }}>
+        <div style={{ position: 'relative', zIndex: 2, maxWidth: '800px', margin: '0 auto', padding: '20px' }}>
           
           {/* Header - Centered network badge */}
           <header style={{ display: 'flex', justifyContent: 'center', padding: '15px 0', marginBottom: '30px' }}>
@@ -321,7 +393,7 @@ export default function NeuralMintPage() {
             </div>
           </section>
 
-          {/* FOR BOTH - X/Twitter - Social Mint */}
+          {/* Social Mint - X/Twitter */}
           <section style={{ margin: '50px 0' }}>
             <p style={{ fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '2px', color: '#5ce1e6', marginBottom: '10px' }}>Social Mint</p>
             <h2 style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: '20px' }}>Mint via X/Twitter</h2>
@@ -330,13 +402,61 @@ export default function NeuralMintPage() {
               <p style={{ fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1.5px', color: '#555', marginBottom: '20px' }}>
                 Tweet to mint a Neural Networker
               </p>
-              <div style={{ background: 'rgba(10, 10, 10, 0.6)', border: '1px solid rgba(92, 225, 230, 0.2)', borderRadius: '8px', padding: '14px 28px', display: 'inline-block', fontFamily: '"Share Tech Mono", monospace', fontSize: '1rem', marginBottom: '15px' }}>
-                <span style={{ color: '#5ce1e6' }}>@GanlandNFT</span> <span style={{ color: '#fff' }}>mint neural</span>
+              
+              {/* Tweet text with copy button */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginBottom: '20px' }}>
+                <div style={{ background: 'rgba(10, 10, 10, 0.6)', border: '1px solid rgba(92, 225, 230, 0.2)', borderRadius: '8px', padding: '14px 24px', fontFamily: '"Share Tech Mono", monospace', fontSize: '1rem' }}>
+                  <span style={{ color: '#5ce1e6' }}>@GanlandNFT</span> <span style={{ color: '#fff' }}>mint neural</span>
+                </div>
+                <button
+                  onClick={handleCopy}
+                  className="copy-btn"
+                  style={{
+                    background: 'rgba(92, 225, 230, 0.1)',
+                    border: '1px solid rgba(92, 225, 230, 0.3)',
+                    borderRadius: '8px',
+                    padding: '14px 16px',
+                    cursor: 'pointer',
+                    color: '#5ce1e6',
+                    fontSize: '0.85rem',
+                    fontWeight: 600,
+                    transition: 'background 0.2s',
+                  }}
+                >
+                  {copied ? '✓ Copied' : 'Copy'}
+                </button>
               </div>
-              <p style={{ fontSize: '0.85rem', color: '#888', maxWidth: '380px', marginLeft: 'auto', marginRight: 'auto', marginBottom: '12px', lineHeight: 1.6 }}>
+              
+              <p style={{ fontSize: '0.85rem', color: '#888', maxWidth: '380px', marginLeft: 'auto', marginRight: 'auto', marginBottom: '20px', lineHeight: 1.6 }}>
                 GAN will generate a unique mandala and mint it to your wallet.
               </p>
-              <p style={{ fontSize: '0.8rem', color: '#555' }}>Cost: 0.008 ETH</p>
+              
+              {/* Twitter Share Button */}
+              <button
+                onClick={handleTweetShare}
+                className="share-btn"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  background: '#1d9bf0',
+                  color: '#fff',
+                  fontWeight: 600,
+                  fontSize: '0.9rem',
+                  padding: '12px 24px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  transition: 'background 0.2s',
+                }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                </svg>
+                Post to X
+              </button>
+              
+              <p style={{ fontSize: '0.8rem', color: '#555', marginTop: '15px' }}>Cost: 0.008 ETH</p>
             </div>
           </section>
 
@@ -364,7 +484,7 @@ export default function NeuralMintPage() {
             </div>
           </section>
 
-          {/* Specs - Only non-repetitive items */}
+          {/* Specs */}
           <section style={{ margin: '50px 0' }}>
             <p style={{ fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '2px', color: '#555', marginBottom: '10px' }}>Specifications</p>
             <h2 style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: '30px' }}>Collection details</h2>
@@ -389,7 +509,7 @@ export default function NeuralMintPage() {
             </div>
           </section>
 
-          {/* Footer - Clean like old version */}
+          {/* Footer - Clean */}
           <footer style={{ textAlign: 'center', padding: '40px 0 30px', marginTop: '30px', borderTop: '1px solid #1a1a1a' }}>
             <p style={{ fontSize: '0.9rem', color: '#888', marginBottom: '20px' }}>
               Created by <a href="https://x.com/GanlandNFT" target="_blank" style={{ color: '#5ce1e6', textDecoration: 'none' }}>GAN</a> • Powered by <a href="https://fractalvisions.io" target="_blank" style={{ color: '#d4a84b', textDecoration: 'none' }}>Fractal Visions</a>
