@@ -416,7 +416,7 @@ export default function NeuralMintPage() {
             <p style={{ fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '2px', color: '#10b981', marginBottom: '10px' }}>For Humans</p>
             <h2 style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: '20px' }}>Mint with wallet</h2>
             
-            <div style={{ textAlign: 'center', padding: '30px', background: '#111', border: '1px solid #1a1a1a', borderRadius: '12px' }}>
+            <div style={{ textAlign: 'center', padding: '24px', background: '#111', border: '1px solid #1a1a1a', borderRadius: '12px' }}>
               {txHash ? (
                 <div>
                   <div style={{ fontSize: '2rem', marginBottom: '10px' }}>🎉</div>
@@ -427,25 +427,14 @@ export default function NeuralMintPage() {
                 </div>
               ) : (
                 <>
-                  {/* Show connected wallet info */}
+                  {/* Connected wallet - simple inline text above button */}
                   {hasWallet && (
-                    <div style={{ marginBottom: '20px', padding: '12px 16px', background: '#0a0a0a', borderRadius: '8px', border: '1px solid #1a1a1a' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-                        <span style={{ fontSize: '0.8rem', color: '#666' }}>
-                          Connected: <span style={{ color: '#5ce1e6', fontFamily: '"Share Tech Mono", monospace' }}>{wallet.address.slice(0, 6)}...{wallet.address.slice(-4)}</span>
-                        </span>
-                        <span style={{ fontSize: '0.8rem', color: hasEnoughBalance ? '#10b981' : '#ef4444' }}>
-                          {balance ? `${(Number(balance) / 1e18).toFixed(4)} ETH` : 'Loading...'}
-                        </span>
-                      </div>
-                      {!hasEnoughBalance && balance !== null && (
-                        <p style={{ fontSize: '0.75rem', color: '#ef4444', marginTop: '8px' }}>
-                          ⚠️ Need at least {MINT_PRICE} ETH to mint
-                        </p>
-                      )}
-                    </div>
+                    <p style={{ fontSize: '0.8rem', color: '#666', marginBottom: '12px' }}>
+                      Connected: <span style={{ color: '#5ce1e6', fontFamily: '"Share Tech Mono", monospace' }}>{wallet.address.slice(0, 6)}...{wallet.address.slice(-4)}</span>
+                    </p>
                   )}
                   
+                  {/* MINT BUTTON */}
                   <button
                     onClick={handleMint}
                     disabled={isMinting || (hasWallet && !hasEnoughBalance)}
@@ -465,7 +454,7 @@ export default function NeuralMintPage() {
                       letterSpacing: '1px' 
                     }}
                   >
-                    {!ready ? 'Loading...' : 
+                    {!ready ? '' : 
                      !authenticated ? 'Connect Wallet' :
                      !hasWallet ? 'Waiting for Wallet...' :
                      !hasEnoughBalance ? 'Insufficient Balance' :
@@ -473,9 +462,23 @@ export default function NeuralMintPage() {
                      `Mint for ${MINT_PRICE} ETH`}
                   </button>
                   
-                  {error && <p style={{ color: '#ef4444', marginTop: '15px', fontSize: '0.9rem' }}>{error}</p>}
+                  {/* Balance shown BELOW button (only when wallet connected and balance loaded) */}
+                  {hasWallet && balance !== null && (
+                    <p style={{ fontSize: '0.8rem', color: hasEnoughBalance ? '#10b981' : '#888', marginTop: '10px' }}>
+                      Balance: {(Number(balance) / 1e18).toFixed(4)} ETH
+                    </p>
+                  )}
                   
-                  <p style={{ fontSize: '0.8rem', color: '#555', marginTop: '12px' }}>
+                  {/* Warning BELOW button and balance */}
+                  {hasWallet && !hasEnoughBalance && balance !== null && (
+                    <p style={{ fontSize: '0.75rem', color: '#ef4444', marginTop: '6px' }}>
+                      ⚠️ Need at least {MINT_PRICE} ETH to mint
+                    </p>
+                  )}
+                  
+                  {error && <p style={{ color: '#ef4444', marginTop: '12px', fontSize: '0.9rem' }}>{error}</p>}
+                  
+                  <p style={{ fontSize: '0.8rem', color: '#555', marginTop: '10px' }}>
                     {!authenticated 
                       ? 'Connect via Twitter, Email, or Wallet' 
                       : hasWallet 
