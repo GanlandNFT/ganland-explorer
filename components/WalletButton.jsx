@@ -1,10 +1,27 @@
 'use client';
 
-import { usePrivy } from '@privy-io/react-auth';
+import { usePrivy, useWallets } from '@privy-io/react-auth';
 
 // Simplified wallet button - X handle shown in WalletSection
 export default function WalletButton() {
   const { ready, authenticated, login, logout } = usePrivy();
+  const { wallets } = useWallets();
+
+  // Full disconnect: logout from Privy AND disconnect any external wallets
+  const handleFullDisconnect = async () => {
+    // Disconnect all external wallets first
+    for (const wallet of wallets || []) {
+      if (wallet.walletClientType !== 'privy' && wallet.disconnect) {
+        try {
+          await wallet.disconnect();
+        } catch (e) {
+          console.log('Wallet disconnect error:', e);
+        }
+      }
+    }
+    // Then logout from Privy
+    await logout();
+  };
 
   // Still initializing
   if (!ready) {
@@ -40,7 +57,7 @@ export default function WalletButton() {
   // Logged in - show simple Disconnect button
   return (
     <button
-      onClick={logout}
+      onClick={handleFullDisconnect}
       className="px-4 py-2 bg-transparent text-gan-yellow font-bold rounded-lg border border-gan-yellow hover:bg-gan-yellow hover:text-black transition-all duration-200 text-sm"
     >
       Disconnect
