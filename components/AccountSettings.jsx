@@ -1,13 +1,33 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { usePrivy, useLinkAccount, useWallets } from '@privy-io/react-auth';
 
 export default function AccountSettings({ isOpen, onClose }) {
   const { user, unlinkEmail, unlinkTwitter, unlinkWallet } = usePrivy();
-  const { linkEmail, linkTwitter, linkWallet } = useLinkAccount();
+  const { linkEmail, linkTwitter, linkWallet } = useLinkAccount({
+    onSuccess: (user, linkedAccount) => {
+      console.log('Successfully linked:', linkedAccount);
+      setIsLinking(null);
+      setToast({ message: `Successfully linked ${linkedAccount.type}`, type: 'success' });
+    },
+    onError: (error) => {
+      console.error('Link error:', error);
+      setIsLinking(null);
+      setToast({ message: 'Failed to link account', type: 'error' });
+    }
+  });
   const { wallets } = useWallets();
   const [isLinking, setIsLinking] = useState(null);
+  const [toast, setToast] = useState(null);
+
+  // Auto-clear toast
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
 
   if (!isOpen || !user) return null;
 
@@ -25,14 +45,21 @@ export default function AccountSettings({ isOpen, onClose }) {
     setIsLinking(type);
     try {
       switch (type) {
-        case 'email': await linkEmail(); break;
-        case 'twitter': await linkTwitter(); break;
-        case 'wallet': await linkWallet(); break;
+        case 'email': 
+          await linkEmail(); 
+          break;
+        case 'twitter': 
+          await linkTwitter(); 
+          break;
+        case 'wallet': 
+          await linkWallet();
+          break;
       }
     } catch (e) {
       console.error(`Failed to link ${type}:`, e);
+      setIsLinking(null);
     }
-    setIsLinking(null);
+    // Note: setIsLinking(null) is handled by onSuccess/onError callbacks
   };
 
   const handleUnlink = async (type, data) => {
@@ -47,41 +74,69 @@ export default function AccountSettings({ isOpen, onClose }) {
           }
           break;
       }
+      setToast({ message: `Unlinked ${type}`, type: 'success' });
     } catch (e) {
       console.error(`Failed to unlink ${type}:`, e);
+      setToast({ message: `Failed to unlink ${type}`, type: 'error' });
     }
     setIsLinking(null);
   };
 
   const handleDisconnectExternalWallet = async (walletToDisconnect) => {
     setIsLinking('external-' + walletToDisconnect.address);
+    let disconnectMessage = '';
+    
     try {
-      // First try to disconnect the wallet connection
-      if (walletToDisconnect.disconnect) {
-        await walletToDisconnect.disconnect();
-      }
-      // Also unlink it from the Privy account if possible
+      // First, unlink from Privy account
       if (unlinkWallet && walletToDisconnect.address) {
         await unlinkWallet(walletToDisconnect.address);
       }
       
-      // Try to revoke browser wallet permissions (MetaMask, etc.)
-      // This fully disconnects the wallet from the browser
+      // Try to disconnect wallet connection
+      if (walletToDisconnect.disconnect) {
+        await walletToDisconnect.disconnect();
+      }
+      
+      // Try multiple methods to revoke browser wallet permissions
       if (typeof window !== 'undefined' && window.ethereum) {
+        let revoked = false;
+        
+        // Method 1: wallet_revokePermissions (newer standard)
         try {
           await window.ethereum.request({
             method: 'wallet_revokePermissions',
             params: [{ eth_accounts: {} }]
           });
-          console.log('Browser wallet permissions revoked');
-        } catch (revokeError) {
-          // wallet_revokePermissions not supported by all wallets
-          // User may need to manually disconnect via extension
-          console.log('wallet_revokePermissions not supported:', revokeError.message);
+          revoked = true;
+        } catch (e) {
+          console.log('wallet_revokePermissions not supported');
+        }
+        
+        // Method 2: Try to clear by requesting empty permissions
+        if (!revoked) {
+          try {
+            // Some wallets respond to this
+            await window.ethereum.request({
+              method: 'wallet_requestPermissions',
+              params: [{ eth_accounts: {} }]
+            });
+          } catch (e) {
+            // Expected to fail, but sometimes clears state
+          }
+        }
+        
+        if (!revoked) {
+          disconnectMessage = 'Wallet removed from account. To fully disconnect from browser: MetaMask → ⋮ → Connected sites → Disconnect';
         }
       }
+      
+      setToast({ 
+        message: disconnectMessage || 'Wallet disconnected', 
+        type: disconnectMessage ? 'warning' : 'success' 
+      });
     } catch (e) {
       console.error('Failed to disconnect wallet:', e);
+      setToast({ message: 'Failed to disconnect wallet', type: 'error' });
     }
     setIsLinking(null);
   };
@@ -130,14 +185,14 @@ export default function AccountSettings({ isOpen, onClose }) {
       left: 0,
       right: 0,
       bottom: 0,
-      height: '100dvh', /* iOS Safari - dynamic viewport */
+      height: '100dvh',
       background: 'rgba(0,0,0,0.8)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       zIndex: 1000,
       padding: '20px',
-      paddingBottom: 'env(safe-area-inset-bottom, 20px)', /* iOS safe area */
+      paddingBottom: 'env(safe-area-inset-bottom, 20px)',
     }} onClick={onClose}>
       <div style={{
         background: '#111',
@@ -145,10 +200,10 @@ export default function AccountSettings({ isOpen, onClose }) {
         border: '1px solid #222',
         maxWidth: '450px',
         width: '100%',
-        maxHeight: '80dvh', /* iOS Safari - dynamic viewport */
+        maxHeight: '80dvh',
         overflow: 'auto',
         padding: '24px',
-        marginBottom: 'env(safe-area-inset-bottom, 0px)', /* iOS safe area */
+        marginBottom: 'env(safe-area-inset-bottom, 0px)',
       }} onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
@@ -195,7 +250,7 @@ export default function AccountSettings({ isOpen, onClose }) {
             value={linkedTwitter ? `@${linkedTwitter}` : null}
             linked={!!linkedTwitter}
             type="twitter"
-            canUnlink={!!linkedEmail} // Can only unlink if email is also linked
+            canUnlink={!!linkedEmail}
           />
           
           <AccountRow 
@@ -203,7 +258,7 @@ export default function AccountSettings({ isOpen, onClose }) {
             value={linkedEmail}
             linked={!!linkedEmail}
             type="email"
-            canUnlink={!!linkedTwitter} // Can only unlink if twitter is also linked
+            canUnlink={!!linkedTwitter}
           />
           
           <AccountRow 
@@ -229,7 +284,6 @@ export default function AccountSettings({ isOpen, onClose }) {
             🦊 External Wallets
           </div>
           
-          {/* Show linked external wallets with disconnect option */}
           {externalWallets.map((wallet, i) => (
             <div key={i} style={{
               display: 'flex',
@@ -279,13 +333,13 @@ export default function AccountSettings({ isOpen, onClose }) {
               borderRadius: '8px',
               border: '1px dashed #333',
               background: 'transparent',
-              color: '#888',
+              color: isLinking === 'wallet' ? '#5ce1e6' : '#888',
               cursor: isLinking === 'wallet' ? 'wait' : 'pointer',
               fontSize: '0.9rem',
               marginTop: externalWallets.length > 0 ? '8px' : '0'
             }}
           >
-            {isLinking === 'wallet' ? 'Connecting...' : '+ Link MetaMask or other wallet'}
+            {isLinking === 'wallet' ? 'Connecting... (complete in wallet)' : '+ Link MetaMask or other wallet'}
           </button>
         </div>
 
@@ -294,6 +348,28 @@ export default function AccountSettings({ isOpen, onClose }) {
           Link accounts to recover access if you lose one method
         </p>
       </div>
+
+      {/* Toast */}
+      {toast && (
+        <div style={{
+          position: 'fixed',
+          bottom: '24px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          padding: '12px 20px',
+          borderRadius: '8px',
+          background: toast.type === 'success' ? '#10b981' : toast.type === 'warning' ? '#f59e0b' : '#ef4444',
+          color: toast.type === 'warning' ? '#000' : '#fff',
+          fontSize: '0.9rem',
+          fontWeight: 500,
+          maxWidth: '90vw',
+          textAlign: 'center',
+          zIndex: 1001,
+          boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
+        }}>
+          {toast.message}
+        </div>
+      )}
     </div>
   );
 }
