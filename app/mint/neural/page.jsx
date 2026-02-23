@@ -145,13 +145,27 @@ export default function NeuralMintPage() {
   const hasWallet = authenticated && wallet?.address;
   const isExternalWallet = wallet?.walletClientType !== 'privy';
 
+  // Debug: Log wallet state changes
+  useEffect(() => {
+    console.log('[Mint Page] Privy state:', { 
+      ready, 
+      authenticated, 
+      walletsCount: wallets?.length || 0,
+      walletAddress: wallet?.address,
+      walletType: wallet?.walletClientType,
+      hasWallet 
+    });
+  }, [ready, authenticated, wallets, wallet, hasWallet]);
+
   // Fetch balance when wallet connects
   useEffect(() => {
     const fetchBalance = async () => {
       if (wallet?.address) {
+        console.log('[Mint Page] Fetching balance for:', wallet.address);
         try {
           const bal = await publicClient.getBalance({ address: wallet.address });
           setBalance(bal);
+          console.log('[Mint Page] Balance:', bal.toString());
         } catch (e) {
           console.error('Balance fetch failed:', e);
         }
@@ -160,7 +174,7 @@ export default function NeuralMintPage() {
       }
     };
     fetchBalance();
-  }, [wallet?.address]);
+  }, [wallet?.address, wallets]); // Added wallets to re-fetch when wallet array changes
 
   // Check if user has enough balance
   const mintCost = parseEther(MINT_PRICE);
