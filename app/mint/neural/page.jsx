@@ -438,37 +438,43 @@ export default function NeuralMintPage() {
               ) : (
                 <>
                   {/* Connected wallet - show wallet type and address */}
-                  {hasWallet && (
+                  {authenticated && (
                     <p style={{ fontSize: '0.8rem', color: '#666', marginBottom: '12px' }}>
-                      {isExternalWallet ? '🦊 ' : '🔐 '}
-                      <span style={{ color: '#5ce1e6', fontFamily: '"Share Tech Mono", monospace' }}>{wallet.address.slice(0, 6)}...{wallet.address.slice(-4)}</span>
-                      <span style={{ color: '#444', marginLeft: '8px' }}>({isExternalWallet ? 'External' : 'Embedded'})</span>
+                      {hasWallet ? (
+                        <>
+                          {isExternalWallet ? '🦊 ' : '🔐 '}
+                          <span style={{ color: '#5ce1e6', fontFamily: '"Share Tech Mono", monospace' }}>{wallet.address.slice(0, 6)}...{wallet.address.slice(-4)}</span>
+                          <span style={{ color: '#444', marginLeft: '8px' }}>({isExternalWallet ? 'External' : 'Embedded'})</span>
+                        </>
+                      ) : (
+                        <span style={{ color: '#888' }}>✓ Logged in — loading wallet...</span>
+                      )}
                     </p>
                   )}
                   
                   {/* MINT BUTTON */}
                   <button
                     onClick={handleMint}
-                    disabled={isMinting || (hasWallet && !hasEnoughBalance)}
+                    disabled={isMinting || (hasWallet && !hasEnoughBalance) || (authenticated && !hasWallet)}
                     style={{ 
                       display: 'inline-block', 
-                      background: isMinting || (hasWallet && !hasEnoughBalance) 
+                      background: isMinting || (hasWallet && !hasEnoughBalance) || (authenticated && !hasWallet)
                         ? '#333' 
                         : 'linear-gradient(135deg, #d4a84b 0%, #a68a3a 100%)', 
-                      color: isMinting || (hasWallet && !hasEnoughBalance) ? '#666' : '#000', 
+                      color: isMinting || (hasWallet && !hasEnoughBalance) || (authenticated && !hasWallet) ? '#666' : '#000', 
                       fontWeight: 700, 
                       fontSize: '1rem', 
                       padding: '16px 48px', 
                       borderRadius: '8px', 
                       border: 'none',
-                      cursor: isMinting || (hasWallet && !hasEnoughBalance) ? 'not-allowed' : 'pointer',
+                      cursor: isMinting || (hasWallet && !hasEnoughBalance) || (authenticated && !hasWallet) ? 'not-allowed' : 'pointer',
                       textTransform: 'uppercase', 
                       letterSpacing: '1px' 
                     }}
                   >
                     {!ready ? '' : 
                      !authenticated ? 'Connect Wallet' :
-                     !hasWallet ? 'Waiting for Wallet...' :
+                     !hasWallet ? 'Loading Wallet...' :
                      !hasEnoughBalance ? 'Insufficient Balance' :
                      isMinting ? 'Minting...' : 
                      `Mint for ${MINT_PRICE} ETH`}
