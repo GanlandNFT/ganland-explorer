@@ -131,9 +131,19 @@ export default function NeuralMintPage() {
   const [copied, setCopied] = useState(false);
   const [balance, setBalance] = useState(null);
 
-  // Get the connected wallet
-  const wallet = wallets?.[0];
+  // Get the connected wallet - prioritize external wallets (MetaMask, etc.) over embedded
+  // Privy embedded wallets have walletClientType === 'privy'
+  const getPreferredWallet = () => {
+    if (!wallets || wallets.length === 0) return null;
+    // First, try to find an external wallet (MetaMask, WalletConnect, etc.)
+    const externalWallet = wallets.find(w => w.walletClientType !== 'privy');
+    if (externalWallet) return externalWallet;
+    // Fall back to embedded wallet
+    return wallets[0];
+  };
+  const wallet = getPreferredWallet();
   const hasWallet = authenticated && wallet?.address;
+  const isExternalWallet = wallet?.walletClientType !== 'privy';
 
   // Fetch balance when wallet connects
   useEffect(() => {
@@ -427,10 +437,12 @@ export default function NeuralMintPage() {
                 </div>
               ) : (
                 <>
-                  {/* Connected wallet - simple inline text above button */}
+                  {/* Connected wallet - show wallet type and address */}
                   {hasWallet && (
                     <p style={{ fontSize: '0.8rem', color: '#666', marginBottom: '12px' }}>
-                      Connected: <span style={{ color: '#5ce1e6', fontFamily: '"Share Tech Mono", monospace' }}>{wallet.address.slice(0, 6)}...{wallet.address.slice(-4)}</span>
+                      {isExternalWallet ? '🦊 ' : '🔐 '}
+                      <span style={{ color: '#5ce1e6', fontFamily: '"Share Tech Mono", monospace' }}>{wallet.address.slice(0, 6)}...{wallet.address.slice(-4)}</span>
+                      <span style={{ color: '#444', marginLeft: '8px' }}>({isExternalWallet ? 'External' : 'Embedded'})</span>
                     </p>
                   )}
                   
