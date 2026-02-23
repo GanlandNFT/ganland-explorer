@@ -322,6 +322,8 @@ export default function NeuralMintPage() {
           color: #fff;
           font-family: 'Inter', sans-serif;
           min-height: 100vh;
+          min-height: 100dvh; /* iOS Safari - dynamic viewport */
+          min-height: -webkit-fill-available; /* Fallback for older iOS */
           position: relative;
           overflow-x: hidden;
         }

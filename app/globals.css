@@ -20,10 +20,18 @@
   --privy-border-radius-lg: 12px;
 }
 
+html {
+  /* Fix iOS Safari 100vh issue */
+  height: 100%;
+  height: -webkit-fill-available;
+}
+
 body {
   background: var(--gan-black);
   color: #fff;
   font-family: 'Share Tech Mono', monospace;
+  min-height: 100%;
+  min-height: -webkit-fill-available;
 }
 
 /* Activity Bar */
@@ -183,6 +191,13 @@ div[class*="PrivyModal"],
 div[role="dialog"][aria-modal="true"] {
   border-radius: 16px !important;
   margin: 20px !important;
-  max-height: calc(100vh - 40px) !important;
+  max-height: calc(100dvh - 40px) !important; /* Use dvh for iOS */
   bottom: auto !important;
+}
+
+/* iOS Safari safe area padding */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  body {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
 }

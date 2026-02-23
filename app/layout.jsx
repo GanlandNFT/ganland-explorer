@@ -3,6 +3,12 @@ import PrivyClientWrapper from '../components/PrivyClientWrapper';
 import ActivityBar from '../components/ActivityBar';
 import Header from '../components/Header';
 
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover', // iOS safe area support
+};
+
 export const metadata = {
   title: 'GANLAND - Generative Art Network',
   description: 'AI-powered NFT ecosystem explorer for Fractal Visions. Create, collect, and trade generative art on Base.',

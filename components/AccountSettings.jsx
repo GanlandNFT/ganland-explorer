@@ -114,12 +114,14 @@ export default function AccountSettings({ isOpen, onClose }) {
       left: 0,
       right: 0,
       bottom: 0,
+      height: '100dvh', /* iOS Safari - dynamic viewport */
       background: 'rgba(0,0,0,0.8)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       zIndex: 1000,
-      padding: '20px'
+      padding: '20px',
+      paddingBottom: 'env(safe-area-inset-bottom, 20px)', /* iOS safe area */
     }} onClick={onClose}>
       <div style={{
         background: '#111',
@@ -127,9 +129,10 @@ export default function AccountSettings({ isOpen, onClose }) {
         border: '1px solid #222',
         maxWidth: '450px',
         width: '100%',
-        maxHeight: '80vh',
+        maxHeight: '80dvh', /* iOS Safari - dynamic viewport */
         overflow: 'auto',
-        padding: '24px'
+        padding: '24px',
+        marginBottom: 'env(safe-area-inset-bottom, 0px)', /* iOS safe area */
       }} onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
