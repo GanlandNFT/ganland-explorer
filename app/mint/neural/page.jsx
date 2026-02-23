@@ -113,8 +113,13 @@ function AnimatedGlows() {
   );
 }
 
+const publicClient = createPublicClient({
+  chain: base,
+  transport: http()
+});
+
 export default function NeuralMintPage() {
-  const { ready, authenticated, login } = usePrivy();
+  const { ready, authenticated, login, logout } = usePrivy();
   const { wallets } = useWallets();
   
   const [isMinting, setIsMinting] = useState(false);
@@ -124,17 +129,50 @@ export default function NeuralMintPage() {
   const [txHash, setTxHash] = useState(null);
   const [error, setError] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [balance, setBalance] = useState(null);
+
+  // Get the connected wallet
+  const wallet = wallets?.[0];
+  const hasWallet = authenticated && wallet?.address;
+
+  // Fetch balance when wallet connects
+  useEffect(() => {
+    const fetchBalance = async () => {
+      if (wallet?.address) {
+        try {
+          const bal = await publicClient.getBalance({ address: wallet.address });
+          setBalance(bal);
+        } catch (e) {
+          console.error('Balance fetch failed:', e);
+        }
+      } else {
+        setBalance(null);
+      }
+    };
+    fetchBalance();
+  }, [wallet?.address]);
+
+  // Check if user has enough balance
+  const mintCost = parseEther(MINT_PRICE);
+  const hasEnoughBalance = balance && balance >= mintCost;
 
   // Step 1: User clicks mint - show our custom modal
   const handleMint = async () => {
+    // Must be authenticated first
     if (!authenticated) {
       login();
       return;
     }
 
-    const wallet = wallets?.[0];
-    if (!wallet) {
-      setError('No wallet connected');
+    // Must have a wallet connected
+    if (!wallet?.address) {
+      setError('Please connect a wallet first');
+      return;
+    }
+
+    // Check balance before proceeding
+    if (!hasEnoughBalance) {
+      setError(`Insufficient balance. You need at least ${MINT_PRICE} ETH on Base.`);
       return;
     }
 
@@ -190,9 +228,21 @@ export default function NeuralMintPage() {
       await tx.wait();
     } catch (e) {
       console.error('Mint failed:', e);
-      setError(e.message?.includes('already claimed') 
-        ? 'You already own a Neural Networker!'
-        : e.message || 'Mint failed');
+      const msg = e.message?.toLowerCase() || '';
+      
+      // Parse common errors into friendly messages
+      let friendlyError = 'Mint failed. Please try again.';
+      if (msg.includes('already claimed') || msg.includes('exceed')) {
+        friendlyError = 'You already own a Neural Networker! (1 per wallet)';
+      } else if (msg.includes('insufficient') || msg.includes('funds')) {
+        friendlyError = `Insufficient funds. Need ${MINT_PRICE} ETH + gas on Base.`;
+      } else if (msg.includes('rejected') || msg.includes('denied')) {
+        friendlyError = 'Transaction rejected by wallet.';
+      } else if (msg.includes('network') || msg.includes('chain')) {
+        friendlyError = 'Please switch to Base network.';
+      }
+      
+      setError(friendlyError);
       setShowTxModal(false);
     } finally {
       setIsMinting(false);
@@ -377,31 +427,60 @@ export default function NeuralMintPage() {
                 </div>
               ) : (
                 <>
+                  {/* Show connected wallet info */}
+                  {hasWallet && (
+                    <div style={{ marginBottom: '20px', padding: '12px 16px', background: '#0a0a0a', borderRadius: '8px', border: '1px solid #1a1a1a' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                        <span style={{ fontSize: '0.8rem', color: '#666' }}>
+                          Connected: <span style={{ color: '#5ce1e6', fontFamily: '"Share Tech Mono", monospace' }}>{wallet.address.slice(0, 6)}...{wallet.address.slice(-4)}</span>
+                        </span>
+                        <span style={{ fontSize: '0.8rem', color: hasEnoughBalance ? '#10b981' : '#ef4444' }}>
+                          {balance ? `${(Number(balance) / 1e18).toFixed(4)} ETH` : 'Loading...'}
+                        </span>
+                      </div>
+                      {!hasEnoughBalance && balance !== null && (
+                        <p style={{ fontSize: '0.75rem', color: '#ef4444', marginTop: '8px' }}>
+                          ⚠️ Need at least {MINT_PRICE} ETH to mint
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  
                   <button
                     onClick={handleMint}
-                    disabled={isMinting}
+                    disabled={isMinting || (hasWallet && !hasEnoughBalance)}
                     style={{ 
                       display: 'inline-block', 
-                      background: isMinting ? '#444' : 'linear-gradient(135deg, #d4a84b 0%, #a68a3a 100%)', 
-                      color: '#000', 
+                      background: isMinting || (hasWallet && !hasEnoughBalance) 
+                        ? '#333' 
+                        : 'linear-gradient(135deg, #d4a84b 0%, #a68a3a 100%)', 
+                      color: isMinting || (hasWallet && !hasEnoughBalance) ? '#666' : '#000', 
                       fontWeight: 700, 
                       fontSize: '1rem', 
                       padding: '16px 48px', 
                       borderRadius: '8px', 
                       border: 'none',
-                      cursor: isMinting ? 'wait' : 'pointer',
+                      cursor: isMinting || (hasWallet && !hasEnoughBalance) ? 'not-allowed' : 'pointer',
                       textTransform: 'uppercase', 
                       letterSpacing: '1px' 
                     }}
                   >
                     {!ready ? 'Loading...' : 
-                     !authenticated ? 'Connect Wallet to Mint' :
+                     !authenticated ? 'Connect Wallet' :
+                     !hasWallet ? 'Waiting for Wallet...' :
+                     !hasEnoughBalance ? 'Insufficient Balance' :
                      isMinting ? 'Minting...' : 
                      `Mint for ${MINT_PRICE} ETH`}
                   </button>
-                  {error && <p style={{ color: '#ef4444', marginTop: '10px', fontSize: '0.9rem' }}>{error}</p>}
+                  
+                  {error && <p style={{ color: '#ef4444', marginTop: '15px', fontSize: '0.9rem' }}>{error}</p>}
+                  
                   <p style={{ fontSize: '0.8rem', color: '#555', marginTop: '12px' }}>
-                    Connect your wallet via Privy and mint directly on Base
+                    {!authenticated 
+                      ? 'Connect via Twitter, Email, or Wallet' 
+                      : hasWallet 
+                        ? 'Mint directly on Base network'
+                        : 'Setting up your wallet...'}
                   </p>
                 </>
               )}
