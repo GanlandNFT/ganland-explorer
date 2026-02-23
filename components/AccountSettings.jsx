@@ -64,6 +64,22 @@ export default function AccountSettings({ isOpen, onClose }) {
       if (unlinkWallet && walletToDisconnect.address) {
         await unlinkWallet(walletToDisconnect.address);
       }
+      
+      // Try to revoke browser wallet permissions (MetaMask, etc.)
+      // This fully disconnects the wallet from the browser
+      if (typeof window !== 'undefined' && window.ethereum) {
+        try {
+          await window.ethereum.request({
+            method: 'wallet_revokePermissions',
+            params: [{ eth_accounts: {} }]
+          });
+          console.log('Browser wallet permissions revoked');
+        } catch (revokeError) {
+          // wallet_revokePermissions not supported by all wallets
+          // User may need to manually disconnect via extension
+          console.log('wallet_revokePermissions not supported:', revokeError.message);
+        }
+      }
     } catch (e) {
       console.error('Failed to disconnect wallet:', e);
     }

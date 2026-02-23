@@ -28,11 +28,26 @@ export default function WalletButton() {
   // Full disconnect: logout from Privy AND disconnect any external wallets
   const handleFullDisconnect = async () => {
     setShowDropdown(false);
+    
+    // Disconnect all external wallets from Privy
     for (const wallet of wallets || []) {
       if (wallet.walletClientType !== 'privy' && wallet.disconnect) {
         try { await wallet.disconnect(); } catch (e) {}
       }
     }
+    
+    // Try to revoke browser wallet permissions (MetaMask, etc.)
+    if (typeof window !== 'undefined' && window.ethereum) {
+      try {
+        await window.ethereum.request({
+          method: 'wallet_revokePermissions',
+          params: [{ eth_accounts: {} }]
+        });
+      } catch (e) {
+        // wallet_revokePermissions not supported by all wallets - that's ok
+      }
+    }
+    
     await logout();
   };
 
