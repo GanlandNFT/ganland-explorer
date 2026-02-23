@@ -34,7 +34,7 @@ const CLAIM_ABI = [
   }
 ];
 
-// Animated glow component using canvas - BRIGHTER and more visible
+// Animated glow component - darker blue, blobs travel on/off page
 function AnimatedGlows() {
   const canvasRef = useRef(null);
   
@@ -46,11 +46,12 @@ function AnimatedGlows() {
     let animationId;
     let time = 0;
     
-    // Blobs configuration - BRIGHTER colors, larger radius, more movement
+    // Blobs travel on/off the page with larger movement range
+    // Darker blue colors (was 92,225,230 - now deeper blues)
     const blobs = [
-      { x: 0.5, y: 0.15, radius: 450, color: [220, 60, 60], speed: 0.008, offsetX: 0, offsetY: 0 },
-      { x: 0.3, y: 0.7, radius: 400, color: [92, 225, 230], speed: 0.006, offsetX: Math.PI, offsetY: Math.PI * 0.5 },
-      { x: 0.7, y: 0.8, radius: 350, color: [92, 200, 220], speed: 0.007, offsetX: Math.PI * 0.3, offsetY: Math.PI * 0.8 },
+      { x: 0.5, y: 0.1, radius: 500, color: [200, 50, 50], speed: 0.006, rangeX: 200, rangeY: 150, offsetX: 0, offsetY: 0 },
+      { x: 0.2, y: 0.75, radius: 450, color: [30, 100, 160], speed: 0.005, rangeX: 250, rangeY: 200, offsetX: Math.PI, offsetY: Math.PI * 0.5 },
+      { x: 0.8, y: 0.85, radius: 400, color: [40, 90, 140], speed: 0.007, rangeX: 300, rangeY: 180, offsetX: Math.PI * 0.3, offsetY: Math.PI * 0.8 },
     ];
     
     const resize = () => {
@@ -63,18 +64,18 @@ function AnimatedGlows() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       
       blobs.forEach(blob => {
-        // More visible floating motion
-        const moveX = Math.sin(time * blob.speed + blob.offsetX) * 80;
-        const moveY = Math.cos(time * blob.speed * 0.8 + blob.offsetY) * 60;
+        // Large movement - blobs can travel off edges
+        const moveX = Math.sin(time * blob.speed + blob.offsetX) * blob.rangeX;
+        const moveY = Math.cos(time * blob.speed * 0.7 + blob.offsetY) * blob.rangeY;
         
         const x = blob.x * canvas.width + moveX;
         const y = blob.y * canvas.height + moveY;
         
-        // Create radial gradient - MUCH BRIGHTER
+        // Create radial gradient
         const gradient = ctx.createRadialGradient(x, y, 0, x, y, blob.radius);
-        gradient.addColorStop(0, `rgba(${blob.color[0]}, ${blob.color[1]}, ${blob.color[2]}, 0.25)`);
-        gradient.addColorStop(0.4, `rgba(${blob.color[0]}, ${blob.color[1]}, ${blob.color[2]}, 0.12)`);
-        gradient.addColorStop(0.7, `rgba(${blob.color[0]}, ${blob.color[1]}, ${blob.color[2]}, 0.05)`);
+        gradient.addColorStop(0, `rgba(${blob.color[0]}, ${blob.color[1]}, ${blob.color[2]}, 0.3)`);
+        gradient.addColorStop(0.4, `rgba(${blob.color[0]}, ${blob.color[1]}, ${blob.color[2]}, 0.15)`);
+        gradient.addColorStop(0.7, `rgba(${blob.color[0]}, ${blob.color[1]}, ${blob.color[2]}, 0.06)`);
         gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
         
         ctx.fillStyle = gradient;
@@ -241,13 +242,22 @@ export default function NeuralMintPage() {
           padding-bottom: 0 !important;
         }
         
+        /* Force full page coverage - no gaps */
+        html, body {
+          min-height: 100vh;
+          min-height: 100dvh;
+          background: #0a0a0a !important;
+        }
+        
         .mint-page {
           background: #0a0a0a;
           color: #fff;
           font-family: 'Inter', sans-serif;
           min-height: 100vh;
+          min-height: 100dvh;
           position: relative;
           overflow-x: hidden;
+          padding-bottom: env(safe-area-inset-bottom, 0);
         }
         
         .grid-background {

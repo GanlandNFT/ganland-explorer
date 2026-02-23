@@ -172,17 +172,29 @@ body {
   background: var(--gan-gold);
 }
 
-/* Hide global footer when mint page is active */
+/* Hide global footer/header when mint page is active and fill viewport */
+body:has(.mint-page) {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+body:has(.mint-page) > div {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
 body:has(.mint-page) > div > footer,
 body:has(.mint-page) footer.border-t.border-gray-800 {
   display: none !important;
 }
 
-/* Also hide header/main padding on mint page */
 body:has(.mint-page) > div > main {
   padding: 0 !important;
   margin: 0 !important;
   max-width: none !important;
+  flex: 1;
 }
 
 body:has(.mint-page) > div > header {
