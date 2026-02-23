@@ -29,13 +29,15 @@ export default function PrivyClientWrapper({ children }) {
         console.log('[Privy] Login success:', user?.twitter?.username || user?.email?.address || 'wallet user');
       }}
       config={{
-        // Login methods - twitter first for social-first experience
-        loginMethods: ['twitter', 'email', 'wallet'],
+        // Login methods - social first, no wallet login (like Bankr)
+        // Users login with social, get embedded wallet, can link external later
+        loginMethods: ['twitter', 'email', 'farcaster'],
         // Appearance
         appearance: {
           theme: 'dark',
           accentColor: '#d4a84b',
           logo: 'https://ganland.ai/gan-logo.jpg',
+          showWalletLoginFirst: false,
         },
         // Embedded wallets - always create one on social login
         embeddedWallets: {
