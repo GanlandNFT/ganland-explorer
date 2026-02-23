@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
 import { createPublicClient, http, parseEther, encodeFunctionData } from 'viem';
 import { base } from 'viem/chains';
+import TransactionModal from '../../../components/TransactionModal';
 
 const NEURAL_CONTRACT = '0xd1415559a3eCA34694a38A123a12cC6AC17CaFea';
 const MINT_PRICE = '0.008';
@@ -116,10 +117,14 @@ export default function NeuralMintPage() {
   const { wallets } = useWallets();
   
   const [isMinting, setIsMinting] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [showTxModal, setShowTxModal] = useState(false);
+  const [pendingTx, setPendingTx] = useState(null);
   const [txHash, setTxHash] = useState(null);
   const [error, setError] = useState(null);
   const [copied, setCopied] = useState(false);
 
+  // Step 1: User clicks mint - show our custom modal
   const handleMint = async () => {
     if (!authenticated) {
       login();
@@ -132,40 +137,54 @@ export default function NeuralMintPage() {
       return;
     }
 
-    setIsMinting(true);
     setError(null);
+    
+    // Prepare transaction data
+    const allowlistProof = {
+      proof: [],
+      quantityLimitPerWallet: 1,
+      pricePerToken: parseEther(MINT_PRICE),
+      currency: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'
+    };
+
+    const data = encodeFunctionData({
+      abi: CLAIM_ABI,
+      functionName: 'claim',
+      args: [
+        wallet.address,
+        1n,
+        '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+        parseEther(MINT_PRICE),
+        allowlistProof,
+        '0x'
+      ]
+    });
+
+    // Store pending transaction and show modal
+    setPendingTx({
+      to: NEURAL_CONTRACT,
+      data,
+      value: parseEther(MINT_PRICE)
+    });
+    setShowTxModal(true);
+  };
+
+  // Step 2: User confirms in our modal - send the transaction
+  const handleConfirmTransaction = async () => {
+    const wallet = wallets?.[0];
+    if (!wallet || !pendingTx) return;
+
+    setIsConfirming(true);
+    setIsMinting(true);
 
     try {
       await wallet.switchChain(base.id);
       const provider = await wallet.getEthersProvider();
       const signer = provider.getSigner();
-      
-      const allowlistProof = {
-        proof: [],
-        quantityLimitPerWallet: 1,
-        pricePerToken: parseEther(MINT_PRICE),
-        currency: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'
-      };
 
-      const data = encodeFunctionData({
-        abi: CLAIM_ABI,
-        functionName: 'claim',
-        args: [
-          wallet.address,
-          1n,
-          '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
-          parseEther(MINT_PRICE),
-          allowlistProof,
-          '0x'
-        ]
-      });
+      const tx = await signer.sendTransaction(pendingTx);
 
-      const tx = await signer.sendTransaction({
-        to: NEURAL_CONTRACT,
-        data,
-        value: parseEther(MINT_PRICE)
-      });
-
+      setShowTxModal(false);
       setTxHash(tx.hash);
       await tx.wait();
     } catch (e) {
@@ -173,9 +192,17 @@ export default function NeuralMintPage() {
       setError(e.message?.includes('already claimed') 
         ? 'You already own a Neural Networker!'
         : e.message || 'Mint failed');
+      setShowTxModal(false);
     } finally {
       setIsMinting(false);
+      setIsConfirming(false);
+      setPendingTx(null);
     }
+  };
+
+  const handleCloseModal = () => {
+    setShowTxModal(false);
+    setPendingTx(null);
   };
 
   const handleCopy = async () => {
@@ -287,6 +314,16 @@ export default function NeuralMintPage() {
       <div className="mint-page">
         <AnimatedGlows />
         <div className="grid-background" />
+        
+        {/* Custom Transaction Approval Modal */}
+        <TransactionModal
+          isOpen={showTxModal}
+          onClose={handleCloseModal}
+          onConfirm={handleConfirmTransaction}
+          transaction={pendingTx}
+          walletAddress={wallets?.[0]?.address}
+          isLoading={isConfirming}
+        />
 
         <div style={{ position: 'relative', zIndex: 2, maxWidth: '800px', margin: '0 auto', padding: '20px' }}>
           
