@@ -130,34 +130,21 @@ export default function NeuralMintPage() {
   const [error, setError] = useState(null);
   const [copied, setCopied] = useState(false);
   const [balance, setBalance] = useState(null);
-  const [walletLoadTimeout, setWalletLoadTimeout] = useState(false);
-
-  // Reset wallet loading timeout when auth state changes
-  useEffect(() => {
-    if (authenticated && !wallets?.length) {
-      // Start timeout - if wallet doesn't load in 5 seconds, show connect button
-      setWalletLoadTimeout(false);
-      const timer = setTimeout(() => {
-        setWalletLoadTimeout(true);
-      }, 5000);
-      return () => clearTimeout(timer);
-    } else {
-      setWalletLoadTimeout(false);
-    }
-  }, [authenticated, wallets?.length]);
 
   // Get the connected wallet - prioritize EMBEDDED (Privy) wallets for social login
-  // This ensures users who login with X get their Privy embedded wallet, not MetaMask
   const getPreferredWallet = () => {
     if (!wallets || wallets.length === 0) return null;
     // First, try to find the embedded (Privy) wallet - this is created on social login
     const embeddedWallet = wallets.find(w => w.walletClientType === 'privy');
     if (embeddedWallet) return embeddedWallet;
-    // Fall back to external wallet (MetaMask, etc.) if no embedded wallet
+    // Fall back to external wallet if no embedded wallet exists
     return wallets[0];
   };
   const wallet = getPreferredWallet();
-  const hasWallet = authenticated && wallet?.address;
+  
+  // Simple state: either we have a wallet or we don't
+  // No intermediate "loading" states - clean transitions only
+  const hasWallet = wallet?.address;
   const isExternalWallet = wallet?.walletClientType !== 'privy';
 
   // Debug: Log wallet state changes
@@ -467,44 +454,37 @@ export default function NeuralMintPage() {
                 </div>
               ) : (
                 <>
-                  {/* Connected wallet - show wallet type and address */}
-                  {authenticated && !walletLoadTimeout && (
+                  {/* Show connected wallet info - ONLY when we have a wallet */}
+                  {hasWallet && (
                     <p style={{ fontSize: '0.8rem', color: '#666', marginBottom: '12px' }}>
-                      {hasWallet ? (
-                        <>
-                          {isExternalWallet ? '🦊 ' : '🔐 '}
-                          <span style={{ color: '#5ce1e6', fontFamily: '"Share Tech Mono", monospace' }}>{wallet.address.slice(0, 6)}...{wallet.address.slice(-4)}</span>
-                          <span style={{ color: '#444', marginLeft: '8px' }}>({isExternalWallet ? 'External' : 'Embedded'})</span>
-                        </>
-                      ) : (
-                        <span style={{ color: '#888' }}>✓ Logged in — loading wallet...</span>
-                      )}
+                      {isExternalWallet ? '🦊 ' : '🔐 '}
+                      <span style={{ color: '#5ce1e6', fontFamily: '"Share Tech Mono", monospace' }}>{wallet.address.slice(0, 6)}...{wallet.address.slice(-4)}</span>
+                      <span style={{ color: '#444', marginLeft: '8px' }}>({isExternalWallet ? 'External' : 'Embedded'})</span>
                     </p>
                   )}
                   
-                  {/* MINT BUTTON */}
+                  {/* MINT BUTTON - Simple states: Connect, Mint, Minting, Insufficient */}
                   <button
                     onClick={handleMint}
-                    disabled={isMinting || (hasWallet && !hasEnoughBalance) || (authenticated && !hasWallet && !walletLoadTimeout)}
+                    disabled={isMinting || (hasWallet && !hasEnoughBalance)}
                     style={{ 
                       display: 'inline-block', 
-                      background: isMinting || (hasWallet && !hasEnoughBalance) || (authenticated && !hasWallet && !walletLoadTimeout)
+                      background: isMinting || (hasWallet && !hasEnoughBalance)
                         ? '#333' 
                         : 'linear-gradient(135deg, #d4a84b 0%, #a68a3a 100%)', 
-                      color: isMinting || (hasWallet && !hasEnoughBalance) || (authenticated && !hasWallet && !walletLoadTimeout) ? '#666' : '#000', 
+                      color: isMinting || (hasWallet && !hasEnoughBalance) ? '#666' : '#000', 
                       fontWeight: 700, 
                       fontSize: '1rem', 
                       padding: '16px 48px', 
                       borderRadius: '8px', 
                       border: 'none',
-                      cursor: isMinting || (hasWallet && !hasEnoughBalance) || (authenticated && !hasWallet && !walletLoadTimeout) ? 'not-allowed' : 'pointer',
+                      cursor: isMinting || (hasWallet && !hasEnoughBalance) ? 'not-allowed' : 'pointer',
                       textTransform: 'uppercase', 
                       letterSpacing: '1px' 
                     }}
                   >
                     {!ready ? '' : 
-                     (!authenticated || walletLoadTimeout) ? 'Connect Wallet' :
-                     !hasWallet ? 'Loading Wallet...' :
+                     !hasWallet ? 'Connect Wallet' :
                      !hasEnoughBalance ? 'Insufficient Balance' :
                      isMinting ? 'Minting...' : 
                      `Mint for ${MINT_PRICE} ETH`}
@@ -527,11 +507,9 @@ export default function NeuralMintPage() {
                   {error && <p style={{ color: '#ef4444', marginTop: '12px', fontSize: '0.9rem' }}>{error}</p>}
                   
                   <p style={{ fontSize: '0.8rem', color: '#555', marginTop: '10px' }}>
-                    {(!authenticated || walletLoadTimeout)
-                      ? 'Connect via Twitter, Email, or Wallet' 
-                      : hasWallet 
-                        ? 'Mint directly on Base network'
-                        : 'Setting up your wallet...'}
+                    {hasWallet 
+                      ? 'Mint directly on Base network'
+                      : 'Connect via Twitter, Email, or Wallet'}
                   </p>
                 </>
               )}
