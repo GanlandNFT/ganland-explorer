@@ -4,9 +4,9 @@ import { useEffect, useState, useRef } from 'react';
 import { usePrivy, useWallets, useDelegatedActions } from '@privy-io/react-auth';
 
 export default function GanSignerSetup() {
-  const { ready, authenticated, user, getAccessToken } = usePrivy();
+  const { ready, authenticated, user } = usePrivy();
   const { wallets } = useWallets();
-  const { delegateWallet } = useDelegatedActions();
+  const delegatedActions = useDelegatedActions();
   const [status, setStatus] = useState('idle');
   const [error, setError] = useState(null);
   const [dismissed, setDismissed] = useState(false);
@@ -15,16 +15,21 @@ export default function GanSignerSetup() {
   const embeddedWallet = wallets?.find(w => w.walletClientType === 'privy');
 
   useEffect(() => {
-    if (!ready || !authenticated || !embeddedWallet || dismissed) return;
+    if (!ready || !authenticated || dismissed) return;
     if (checkedRef.current) return;
     checkedRef.current = true;
     
-    // Log wallet info for debugging
-    console.log('[GanSignerSetup] Wallet object:', embeddedWallet);
-    console.log('[GanSignerSetup] Wallet address:', embeddedWallet.address);
-    console.log('[GanSignerSetup] delegateWallet available:', !!delegateWallet);
+    console.log('[GanSignerSetup] wallets:', wallets);
+    console.log('[GanSignerSetup] embeddedWallet:', embeddedWallet);
+    console.log('[GanSignerSetup] delegatedActions:', delegatedActions);
+    console.log('[GanSignerSetup] delegateWallet fn:', typeof delegatedActions?.delegateWallet);
     
-    // Check if already delegated
+    if (!embeddedWallet) {
+      console.log('[GanSignerSetup] No embedded wallet yet');
+      setStatus('no_wallet');
+      return;
+    }
+    
     if (embeddedWallet.delegated) {
       console.log('[GanSignerSetup] Already delegated!');
       setStatus('complete');
@@ -32,42 +37,57 @@ export default function GanSignerSetup() {
     }
     
     setStatus('needs_setup');
-  }, [ready, authenticated, embeddedWallet, dismissed, delegateWallet]);
+  }, [ready, authenticated, embeddedWallet, dismissed, wallets, delegatedActions]);
 
   async function enableDelegation() {
     setStatus('adding');
     setError(null);
 
     try {
-      console.log('[GanSignerSetup] Starting delegation via SDK...');
+      console.log('[GanSignerSetup] Starting delegation...');
+      console.log('[GanSignerSetup] delegatedActions object:', delegatedActions);
+      
+      const { delegateWallet } = delegatedActions || {};
       
       if (!delegateWallet) {
-        throw new Error('Delegation not available. Enable "Delegated Actions" in Privy Dashboard.');
+        throw new Error('delegateWallet not available. Make sure "Delegated Actions" is enabled in Privy Dashboard → Embedded Wallets settings.');
       }
       
       if (!embeddedWallet) {
         throw new Error('No embedded wallet found');
       }
 
-      // Use Privy's built-in delegation!
-      // This should prompt the user and enable delegation without needing wallet ID
-      const result = await delegateWallet({
+      console.log('[GanSignerSetup] Calling delegateWallet for:', embeddedWallet.address);
+      
+      // Add timeout
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Delegation timed out after 30s. Check Privy Dashboard config.')), 30000)
+      );
+      
+      const delegatePromise = delegateWallet({
         address: embeddedWallet.address,
       });
+      
+      const result = await Promise.race([delegatePromise, timeoutPromise]);
       
       console.log('[GanSignerSetup] Delegation result:', result);
       setStatus('complete');
 
     } catch (err) {
-      console.error('[GanSignerSetup] Delegation error:', err);
+      console.error('[GanSignerSetup] Error:', err);
       setError(err.message || 'Delegation failed');
       setStatus('needs_setup');
       checkedRef.current = false;
     }
   }
 
-  if (!authenticated || status === 'complete' || status === 'idle' || dismissed) {
+  // Don't show anything if complete, dismissed, or checking
+  if (status === 'complete' || status === 'idle' || dismissed) {
     return null;
+  }
+  
+  if (status === 'no_wallet') {
+    return null; // No wallet yet, wait
   }
 
   if (status === 'needs_setup') {
@@ -81,7 +101,7 @@ export default function GanSignerSetup() {
               Allow GAN to mint NFTs and execute transactions on your behalf.
             </p>
             {error && (
-              <p className="text-xs text-red-400 mb-2">{error}</p>
+              <p className="text-xs text-red-400 mb-2 break-words">{error}</p>
             )}
             <div className="flex gap-2">
               <button
@@ -103,14 +123,12 @@ export default function GanSignerSetup() {
     );
   }
 
-  if (status === 'checking' || status === 'adding') {
+  if (status === 'adding') {
     return (
       <div className="fixed bottom-4 right-4 bg-gray-900 border border-gray-700 rounded-lg p-4 max-w-sm shadow-xl z-50">
         <div className="flex items-center gap-3">
           <div className="animate-spin w-5 h-5 border-2 border-gan-yellow border-t-transparent rounded-full" />
-          <span className="text-sm text-gray-400">
-            {status === 'adding' ? 'Enabling GAN...' : 'Checking...'}
-          </span>
+          <span className="text-sm text-gray-400">Enabling GAN... (may take a moment)</span>
         </div>
       </div>
     );
