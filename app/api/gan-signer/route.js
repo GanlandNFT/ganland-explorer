@@ -21,6 +21,45 @@ function getPrivyClient() {
 }
 
 /**
+ * Find the wallet ID from Privy user object
+ * Privy stores wallet IDs in different places depending on SDK version
+ */
+function findWalletId(user) {
+  // Method 1: Check user.wallet (newer SDK)
+  if (user.wallet?.id) {
+    return { walletId: user.wallet.id, source: 'user.wallet.id' };
+  }
+  
+  // Method 2: Check linkedAccounts for embedded wallet with ID
+  const embeddedWallet = user.linkedAccounts?.find(
+    a => a.type === 'wallet' && a.walletClientType === 'privy'
+  );
+  
+  if (embeddedWallet) {
+    // Try various field names
+    const walletId = embeddedWallet.id 
+      || embeddedWallet.walletId 
+      || embeddedWallet.wallet_id
+      || embeddedWallet.embedded_wallet_id;
+    
+    if (walletId) {
+      return { walletId, source: 'linkedAccounts', embeddedWallet };
+    }
+    
+    // If no ID but we have address, the wallet might need to be fetched separately
+    return { 
+      walletId: null, 
+      address: embeddedWallet.address,
+      source: 'linkedAccounts_no_id',
+      embeddedWallet,
+      availableFields: Object.keys(embeddedWallet)
+    };
+  }
+  
+  return { walletId: null, source: 'not_found' };
+}
+
+/**
  * POST /api/gan-signer
  * Add GAN as a signer to user's wallet
  */
@@ -61,47 +100,54 @@ export async function POST(request) {
     const userId = verifiedClaims.userId;
     console.log('[gan-signer] Verified user:', userId);
 
-    // Get request body
-    const body = await request.json();
-    const { walletAddress } = body;
-    console.log('[gan-signer] Wallet address:', walletAddress);
-
-    // Get user's wallets
+    // Get user's data
     const user = await privy.getUser(userId);
-    console.log('[gan-signer] User linked accounts:', user.linkedAccounts?.length);
+    console.log('[gan-signer] User object keys:', Object.keys(user));
+    console.log('[gan-signer] User linkedAccounts count:', user.linkedAccounts?.length);
     
-    // Find the embedded wallet
-    const embeddedWallet = user.linkedAccounts?.find(
-      a => a.type === 'wallet' && a.walletClientType === 'privy'
-    );
+    // Log full user object for debugging (remove in production)
+    console.log('[gan-signer] Full user:', JSON.stringify(user, null, 2));
 
-    if (!embeddedWallet) {
-      return Response.json({ error: 'No embedded wallet found' }, { status: 404 });
-    }
+    // Find wallet ID
+    const walletInfo = findWalletId(user);
+    console.log('[gan-signer] Wallet info:', JSON.stringify(walletInfo, null, 2));
 
-    // Log all available fields to find the right wallet ID field
-    console.log('[gan-signer] Embedded wallet object keys:', Object.keys(embeddedWallet));
-    console.log('[gan-signer] Embedded wallet:', JSON.stringify(embeddedWallet, null, 2));
-
-    // Try multiple possible field names for wallet ID
-    const walletId = embeddedWallet.id || embeddedWallet.walletId || embeddedWallet.wallet_id;
-    const walletAddress = embeddedWallet.address;
-    
-    console.log('[gan-signer] Wallet ID:', walletId);
-    console.log('[gan-signer] Wallet Address:', walletAddress);
-    
-    if (!walletId) {
-      // If no wallet ID, we might need to use a different API approach
-      console.log('[gan-signer] No wallet ID found, trying address-based approach');
+    if (!walletInfo.walletId) {
+      // Try using the Privy SDK's wallet delegation method instead of REST
+      if (walletInfo.address) {
+        // Attempt to use SDK method if available
+        try {
+          // Try walletApi if available in SDK
+          if (privy.walletApi?.addSigner) {
+            const result = await privy.walletApi.addSigner({
+              address: walletInfo.address,
+              authorizationKeyId: GAN_AUTHORIZATION_KEY_ID
+            });
+            return Response.json({ 
+              success: true, 
+              message: 'GAN signer enabled via SDK',
+              ...result 
+            });
+          }
+        } catch (sdkError) {
+          console.log('[gan-signer] SDK method failed:', sdkError.message);
+        }
+      }
+      
       return Response.json({ 
-        error: 'Wallet ID not available. Privy may require dashboard configuration for delegation.',
-        walletAddress: walletAddress,
-        availableFields: Object.keys(embeddedWallet)
+        error: 'Wallet ID not found in user object',
+        details: 'The Privy user object does not contain a wallet ID. This may require enabling delegation in the Privy Dashboard first.',
+        debug: {
+          source: walletInfo.source,
+          address: walletInfo.address,
+          availableFields: walletInfo.availableFields,
+          userKeys: Object.keys(user)
+        }
       }, { status: 400 });
     }
 
-    // Try to add signer via REST API directly
-    const result = await addSignerViaRest(walletId, privy);
+    // Try to add signer via REST API
+    const result = await addSignerViaRest(walletInfo.walletId, privy);
     
     return Response.json(result);
 
@@ -141,7 +187,6 @@ async function addSignerViaRest(walletId, privy) {
   console.log('[gan-signer] Privy API response:', response.status, responseText);
 
   if (!response.ok) {
-    // Try to parse error
     let errorData;
     try {
       errorData = JSON.parse(responseText);
@@ -203,6 +248,12 @@ export async function GET(request) {
     const userId = verifiedClaims.userId;
     const user = await privy.getUser(userId);
     
+    // Log full user for debugging
+    console.log('[gan-signer] GET - Full user:', JSON.stringify(user, null, 2));
+    
+    // Find wallet info
+    const walletInfo = findWalletId(user);
+    
     const embeddedWallet = user.linkedAccounts?.find(
       a => a.type === 'wallet' && a.walletClientType === 'privy'
     );
@@ -216,16 +267,15 @@ export async function GET(request) {
 
     // Check if wallet has delegation
     const isEnabled = embeddedWallet.delegated === true;
-    
-    // Try multiple possible field names for wallet ID
-    const walletId = embeddedWallet.id || embeddedWallet.walletId || embeddedWallet.wallet_id;
 
     return Response.json({
       enabled: isEnabled,
       walletAddress: embeddedWallet.address,
-      walletId: walletId,
+      walletId: walletInfo.walletId,
+      walletIdSource: walletInfo.source,
       delegated: embeddedWallet.delegated,
       availableFields: Object.keys(embeddedWallet),
+      userKeys: Object.keys(user),
     });
 
   } catch (error) {
