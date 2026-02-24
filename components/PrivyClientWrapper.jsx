@@ -40,11 +40,11 @@ export default function PrivyClientWrapper({ children }) {
           logo: 'https://ganland.ai/gan-logo.jpg',
           showWalletLoginFirst: false,
         },
-        // Embedded wallets - we'll create them server-side with GAN signer
+        // Embedded wallets
         embeddedWallets: {
-          // Don't auto-create - we create via API with signer attached
-          createOnLogin: 'off',
-          // Don't show UI prompts for embedded wallet signatures
+          // Create for users who don't have one yet
+          createOnLogin: 'users-without-wallets',
+          // Don't show UI prompts for embedded wallet signatures  
           noPromptOnSignature: true,
         },
         // External wallet settings
