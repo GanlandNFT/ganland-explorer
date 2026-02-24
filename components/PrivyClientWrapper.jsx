@@ -5,79 +5,29 @@ import { PrivyProvider, usePrivy, useWallets } from '@privy-io/react-auth';
 import { GanWalletProvider, useGanWallet } from '../hooks/useGanWallet';
 import { supabase } from '../lib/supabase';
 
-// Inner component that syncs wallet state - handles BOTH new login AND restored sessions
-function WalletSyncHandler() {
-  const { ready, authenticated, user } = usePrivy();
-  const { wallets, ready: walletsReady } = useWallets();
-  const { setCreatedWallet, setCreating, hasWallet, address } = useGanWallet();
-  const hasTriggered = useRef(false);
-  const lastUserId = useRef(null);
+// Module-level deduplication to prevent race conditions
+const walletCreationPromises = new Map();
 
-  // Debug log all state changes
-  useEffect(() => {
-    console.log('[WalletSync] State:', {
-      privyReady: ready,
-      walletsReady,
-      authenticated,
-      userId: user?.id?.slice(0, 20),
-      linkedAccounts: user?.linkedAccounts?.length,
-      walletsCount: wallets?.length,
-      hasWallet,
-      address: address?.slice(0, 10),
-      hasTriggered: hasTriggered.current,
-    });
-  }, [ready, walletsReady, authenticated, user, wallets, hasWallet, address]);
-
-  useEffect(() => {
-    // Wait for Privy to be ready and user to be authenticated
-    if (!ready || !authenticated || !user) {
-      console.log('[WalletSync] Not ready yet:', { ready, authenticated, hasUser: !!user });
-      hasTriggered.current = false;
-      lastUserId.current = null;
-      return;
-    }
-
-    // Prevent double-triggering for same user
-    if (hasTriggered.current && lastUserId.current === user.id) {
-      console.log('[WalletSync] Already triggered for this user');
-      return;
-    }
-
-    // If we already have wallet address in context, we're done
-    if (hasWallet && address) {
-      console.log('[WalletSync] Already have wallet:', address);
-      return;
-    }
-
-    // Check Privy's wallets hook first (most reliable for signing)
-    const privyWallet = wallets?.find(w => w.walletClientType === 'privy');
-    if (privyWallet?.address) {
-      console.log('[WalletSync] Found wallet via useWallets:', privyWallet.address);
-      setCreatedWallet(privyWallet.address);
-      lastUserId.current = user.id;
-      return;
-    }
-
-    // Check if user already has embedded wallet from Privy (from linkedAccounts)
-    const existingWallet = user.linkedAccounts?.find(
-      a => a.type === 'wallet' && a.walletClientType === 'privy'
-    );
-
-    if (existingWallet?.address) {
-      console.log('[WalletSync] Found wallet via linkedAccounts:', existingWallet.address);
-      setCreatedWallet(existingWallet.address);
-      lastUserId.current = user.id;
-      return;
-    }
-
-    // No existing wallet - need to create one
-    console.log('[WalletSync] No wallet found, creating new wallet...');
-    hasTriggered.current = true;
-    lastUserId.current = user.id;
-    createWalletWithGanSigner(user, setCreatedWallet, setCreating);
-  }, [ready, walletsReady, authenticated, user, wallets, hasWallet, address, setCreatedWallet, setCreating]);
-
-  return null;
+async function createWalletWithDedup(user, setCreatedWallet, setCreating) {
+  const userId = user.id;
+  
+  // If there's already a creation in progress for this user, wait for it
+  if (walletCreationPromises.has(userId)) {
+    console.log('[GAN] Wallet creation already in progress, waiting...');
+    return walletCreationPromises.get(userId);
+  }
+  
+  // Create the promise and store it
+  const promise = createWalletWithGanSigner(user, setCreatedWallet, setCreating);
+  walletCreationPromises.set(userId, promise);
+  
+  try {
+    const result = await promise;
+    return result;
+  } finally {
+    // Clean up after completion
+    walletCreationPromises.delete(userId);
+  }
 }
 
 async function createWalletWithGanSigner(user, setCreatedWallet, setCreating) {
@@ -117,7 +67,7 @@ async function createWalletWithGanSigner(user, setCreatedWallet, setCreating) {
     console.log('[GAN] API response:', response.status, result);
     
     if (response.ok && result.wallet) {
-      console.log('[GAN] ✅ Wallet ready:', result.wallet);
+      console.log('[GAN] ✅ Wallet ready:', result.wallet, result.existing ? '(existing)' : '(new)');
       
       // Immediately update context - components will re-render
       setCreatedWallet(result.wallet);
@@ -133,14 +83,93 @@ async function createWalletWithGanSigner(user, setCreatedWallet, setCreating) {
             x_id: user.twitter?.subject
           }, { onConflict: 'x_handle' });
       }
+      
+      return result.wallet;
     } else {
       console.error('[GAN] ❌ Wallet creation failed:', result.error);
       setCreating(false);
+      return null;
     }
   } catch (err) {
     console.error('[GAN] ❌ Error:', err.message);
     setCreating(false);
+    return null;
   }
+}
+
+// Inner component that syncs wallet state - handles BOTH new login AND restored sessions
+function WalletSyncHandler() {
+  const { ready, authenticated, user } = usePrivy();
+  const { wallets, ready: walletsReady } = useWallets();
+  const { setCreatedWallet, setCreating, hasWallet, address } = useGanWallet();
+  const syncAttempted = useRef(new Set()); // Track which users we've tried to sync
+
+  // Debug log all state changes
+  useEffect(() => {
+    console.log('[WalletSync] State:', {
+      privyReady: ready,
+      walletsReady,
+      authenticated,
+      userId: user?.id?.slice(0, 20),
+      linkedAccounts: user?.linkedAccounts?.length,
+      walletsCount: wallets?.length,
+      hasWallet,
+      address: address?.slice(0, 10),
+    });
+  }, [ready, walletsReady, authenticated, user, wallets, hasWallet, address]);
+
+  useEffect(() => {
+    // Wait for Privy to be fully ready
+    if (!ready || !walletsReady || !authenticated || !user) {
+      console.log('[WalletSync] Not ready yet:', { ready, walletsReady, authenticated, hasUser: !!user });
+      return;
+    }
+
+    // If we already have wallet address in context, we're done
+    if (hasWallet && address) {
+      console.log('[WalletSync] Already have wallet:', address);
+      return;
+    }
+
+    // Prevent duplicate sync attempts for same user in this session
+    if (syncAttempted.current.has(user.id)) {
+      console.log('[WalletSync] Already attempted sync for this user');
+      return;
+    }
+
+    // Check Privy's wallets hook first (most reliable for signing)
+    const privyWallet = wallets?.find(w => w.walletClientType === 'privy');
+    if (privyWallet?.address) {
+      console.log('[WalletSync] Found wallet via useWallets:', privyWallet.address);
+      setCreatedWallet(privyWallet.address);
+      return;
+    }
+
+    // Check if user already has embedded wallet from Privy (from linkedAccounts)
+    const existingWallet = user.linkedAccounts?.find(
+      a => a.type === 'wallet' && a.walletClientType === 'privy'
+    );
+
+    if (existingWallet?.address) {
+      console.log('[WalletSync] Found wallet via linkedAccounts:', existingWallet.address);
+      setCreatedWallet(existingWallet.address);
+      return;
+    }
+
+    // No existing wallet - need to create one (with deduplication)
+    console.log('[WalletSync] No wallet found, creating new wallet...');
+    syncAttempted.current.add(user.id);
+    createWalletWithDedup(user, setCreatedWallet, setCreating);
+  }, [ready, walletsReady, authenticated, user, wallets, hasWallet, address, setCreatedWallet, setCreating]);
+
+  // Clear sync attempts on logout
+  useEffect(() => {
+    if (ready && !authenticated) {
+      syncAttempted.current.clear();
+    }
+  }, [ready, authenticated]);
+
+  return null;
 }
 
 function PrivyProviderWrapper({ children }) {
