@@ -121,8 +121,13 @@ function PrivyProviderWrapper({ children }) {
     setMounted(true);
   }, []);
 
+  // Don't render children until mounted - prevents useWallets from being called outside PrivyProvider
   if (!mounted) {
-    return <>{children}</>;
+    return (
+      <div className="min-h-screen bg-gan-black">
+        {/* Minimal loading state while hydrating */}
+      </div>
+    );
   }
 
   const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
