@@ -79,8 +79,26 @@ export async function POST(request) {
       return Response.json({ error: 'No embedded wallet found' }, { status: 404 });
     }
 
-    const walletId = embeddedWallet.id;
+    // Log all available fields to find the right wallet ID field
+    console.log('[gan-signer] Embedded wallet object keys:', Object.keys(embeddedWallet));
+    console.log('[gan-signer] Embedded wallet:', JSON.stringify(embeddedWallet, null, 2));
+
+    // Try multiple possible field names for wallet ID
+    const walletId = embeddedWallet.id || embeddedWallet.walletId || embeddedWallet.wallet_id;
+    const walletAddress = embeddedWallet.address;
+    
     console.log('[gan-signer] Wallet ID:', walletId);
+    console.log('[gan-signer] Wallet Address:', walletAddress);
+    
+    if (!walletId) {
+      // If no wallet ID, we might need to use a different API approach
+      console.log('[gan-signer] No wallet ID found, trying address-based approach');
+      return Response.json({ 
+        error: 'Wallet ID not available. Privy may require dashboard configuration for delegation.',
+        walletAddress: walletAddress,
+        availableFields: Object.keys(embeddedWallet)
+      }, { status: 400 });
+    }
 
     // Try to add signer via REST API directly
     const result = await addSignerViaRest(walletId, privy);
@@ -198,11 +216,16 @@ export async function GET(request) {
 
     // Check if wallet has delegation
     const isEnabled = embeddedWallet.delegated === true;
+    
+    // Try multiple possible field names for wallet ID
+    const walletId = embeddedWallet.id || embeddedWallet.walletId || embeddedWallet.wallet_id;
 
     return Response.json({
       enabled: isEnabled,
       walletAddress: embeddedWallet.address,
-      walletId: embeddedWallet.id,
+      walletId: walletId,
+      delegated: embeddedWallet.delegated,
+      availableFields: Object.keys(embeddedWallet),
     });
 
   } catch (error) {
