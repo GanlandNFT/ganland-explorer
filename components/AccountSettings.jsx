@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { usePrivy, useLinkAccount, useWallets } from '@privy-io/react-auth';
+import { useGanSigner } from '../hooks/useGanSigner';
 
 // Generate a short referral code from user ID
 function generateReferralCode(userId) {
@@ -26,10 +27,12 @@ export default function AccountSettings({ isOpen, onClose }) {
     }
   });
   const { wallets } = useWallets();
+  const { isGanEnabled, status: signerStatus, addGanSigner, error: signerError } = useGanSigner();
   const [isLinking, setIsLinking] = useState(null);
   const [toast, setToast] = useState(null);
   const [referralStats, setReferralStats] = useState({ points: 0, referrals: 0 });
   const [copied, setCopied] = useState(false);
+  const [togglingGan, setTogglingGan] = useState(false);
 
   // Auto-clear toast
   useEffect(() => {
@@ -231,6 +234,76 @@ export default function AccountSettings({ isOpen, onClose }) {
             type="farcaster"
             comingSoon={true}
           />
+        </div>
+
+        {/* GAN Agent Settings */}
+        <div style={{ marginBottom: '24px' }}>
+          <div style={{ fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', color: '#888', marginBottom: '8px' }}>
+            🤖 GAN Agent Settings
+          </div>
+          <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '16px' }}>
+            Control whether GAN can execute transactions on your behalf
+          </div>
+          
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '16px',
+            background: isGanEnabled ? 'rgba(16, 185, 129, 0.1)' : 'rgba(255, 255, 255, 0.03)',
+            border: `1px solid ${isGanEnabled ? 'rgba(16, 185, 129, 0.3)' : '#222'}`,
+            borderRadius: '12px',
+          }}>
+            <div>
+              <div style={{ fontWeight: 600, marginBottom: '4px' }}>
+                GAN Transactions
+              </div>
+              <div style={{ fontSize: '0.8rem', color: isGanEnabled ? '#10b981' : '#666' }}>
+                {isGanEnabled ? 'GAN can mint NFTs for you' : 'Enable to let GAN mint on your behalf'}
+              </div>
+            </div>
+            
+            {/* Toggle Switch */}
+            <button
+              onClick={async () => {
+                if (isGanEnabled) {
+                  // TODO: Implement remove signer
+                  setToast({ message: 'Disabling coming soon', type: 'warning' });
+                } else {
+                  setTogglingGan(true);
+                  const success = await addGanSigner();
+                  setTogglingGan(false);
+                  if (success) {
+                    setToast({ message: 'GAN agent enabled!', type: 'success' });
+                  } else if (signerError) {
+                    setToast({ message: signerError, type: 'error' });
+                  }
+                }
+              }}
+              disabled={togglingGan || signerStatus === 'checking'}
+              style={{
+                width: '52px',
+                height: '28px',
+                borderRadius: '14px',
+                border: 'none',
+                padding: '2px',
+                cursor: togglingGan ? 'wait' : 'pointer',
+                background: isGanEnabled ? '#10b981' : '#333',
+                transition: 'background 0.2s ease',
+                position: 'relative',
+              }}
+            >
+              <div style={{
+                width: '24px',
+                height: '24px',
+                borderRadius: '12px',
+                background: '#fff',
+                transition: 'transform 0.2s ease',
+                transform: isGanEnabled ? 'translateX(24px)' : 'translateX(0)',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+              }} />
+            </button>
+          </div>
         </div>
 
         {/* Referral System */}
