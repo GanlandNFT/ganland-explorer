@@ -20,13 +20,18 @@ export function GanWalletProvider({ children }) {
   const [isCreating, setIsCreating] = useState(false);
   const [justCreated, setJustCreated] = useState(false);
 
-  // Get Privy's embedded wallet
+  // Get Privy's embedded wallet from useWallets hook
   const privyWallet = wallets?.find(w => w.walletClientType === 'privy');
 
-  // Sync from Privy when it catches up
+  // Also check user.linkedAccounts for the wallet (more reliable on session restore)
+  const linkedWallet = user?.linkedAccounts?.find(
+    a => a.type === 'wallet' && a.walletClientType === 'privy'
+  );
+
+  // Sync from Privy useWallets when it catches up
   useEffect(() => {
     if (privyWallet?.address && !ganWallet) {
-      console.log('[GanWallet] Synced from Privy:', privyWallet.address);
+      console.log('[GanWallet] Synced from useWallets:', privyWallet.address);
       setGanWallet({
         address: privyWallet.address,
         wallet: privyWallet, // Full Privy wallet object for signing
@@ -34,11 +39,33 @@ export function GanWalletProvider({ children }) {
     }
   }, [privyWallet, ganWallet]);
 
+  // Sync from linkedAccounts (fires faster on session restore)
+  useEffect(() => {
+    if (linkedWallet?.address && !ganWallet && !privyWallet) {
+      console.log('[GanWallet] Synced from linkedAccounts:', linkedWallet.address);
+      setGanWallet({
+        address: linkedWallet.address,
+        wallet: null, // Will be upgraded when useWallets catches up
+      });
+    }
+  }, [linkedWallet, ganWallet, privyWallet]);
+
+  // Upgrade wallet object when useWallets catches up (for signing capability)
+  useEffect(() => {
+    if (ganWallet?.address && privyWallet?.address && !ganWallet.wallet) {
+      console.log('[GanWallet] Upgrading with full wallet object');
+      setGanWallet({
+        address: privyWallet.address,
+        wallet: privyWallet,
+      });
+    }
+  }, [ganWallet, privyWallet]);
+
   // Check sessionStorage for just-created wallet on mount
   useEffect(() => {
     const created = sessionStorage.getItem('gan_wallet_just_created');
     if (created && !ganWallet) {
-      console.log('[GanWallet] Found just-created wallet:', created);
+      console.log('[GanWallet] Found just-created wallet in session:', created);
       setGanWallet({ address: created, wallet: null });
       setJustCreated(true);
     }
@@ -60,15 +87,20 @@ export function GanWalletProvider({ children }) {
   // Clear on logout
   useEffect(() => {
     if (ready && !authenticated) {
+      console.log('[GanWallet] User logged out, clearing state');
       setGanWallet(null);
       setJustCreated(false);
+      sessionStorage.removeItem('gan_wallet_just_created');
     }
   }, [ready, authenticated]);
 
-  // Manual wallet creation trigger (called from PrivyClientWrapper)
+  // Manual wallet creation trigger (called from WalletSyncHandler)
   const setCreatedWallet = useCallback((address) => {
-    console.log('[GanWallet] Wallet created:', address);
-    setGanWallet({ address, wallet: null });
+    console.log('[GanWallet] setCreatedWallet:', address);
+    setGanWallet(prev => ({
+      address,
+      wallet: prev?.wallet || null, // Keep existing wallet object if we have one
+    }));
     setJustCreated(true);
     setIsCreating(false);
   }, []);
@@ -77,15 +109,18 @@ export function GanWalletProvider({ children }) {
     setIsCreating(creating);
   }, []);
 
+  // Compute final address (prefer ganWallet, fall back to privy)
+  const finalAddress = ganWallet?.address || privyWallet?.address || linkedWallet?.address || null;
+
   const value = {
     // Wallet state
-    address: ganWallet?.address || null,
+    address: finalAddress,
     wallet: ganWallet?.wallet || privyWallet || null,
     
-    // Status flags
+    // Status flags  
     ready: ready && walletsReady,
     authenticated,
-    hasWallet: !!(ganWallet?.address || privyWallet?.address),
+    hasWallet: !!finalAddress,
     isCreating,
     justCreated,
     

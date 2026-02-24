@@ -1,33 +1,54 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { PrivyProvider } from '@privy-io/react-auth';
+import { PrivyProvider, usePrivy } from '@privy-io/react-auth';
 import { GanWalletProvider, useGanWallet } from '../hooks/useGanWallet';
 import { supabase } from '../lib/supabase';
 
-// Inner component that has access to GanWallet context
-function WalletCreationHandler({ user }) {
-  const { setCreatedWallet, setCreating, hasWallet } = useGanWallet();
+// Inner component that syncs wallet state - handles BOTH new login AND restored sessions
+function WalletSyncHandler() {
+  const { ready, authenticated, user } = usePrivy();
+  const { setCreatedWallet, setCreating, hasWallet, address } = useGanWallet();
   const hasTriggered = useRef(false);
+  const lastUserId = useRef(null);
 
   useEffect(() => {
-    if (!user || hasWallet || hasTriggered.current) return;
-    
-    // Check if user already has embedded wallet from Privy
-    const existingWallet = user.linkedAccounts?.find(
-      a => a.type === 'wallet' && a.walletClientType === 'privy'
-    );
-    
-    if (existingWallet) {
-      console.log('[GAN] User has existing wallet:', existingWallet.address);
-      setCreatedWallet(existingWallet.address);
+    // Wait for Privy to be ready and user to be authenticated
+    if (!ready || !authenticated || !user) {
+      hasTriggered.current = false;
+      lastUserId.current = null;
       return;
     }
 
-    // Create wallet with GAN signer
+    // Prevent double-triggering for same user
+    if (hasTriggered.current && lastUserId.current === user.id) {
+      return;
+    }
+
+    // If we already have wallet address in context, we're done
+    if (hasWallet && address) {
+      console.log('[GAN] Wallet already in context:', address);
+      return;
+    }
+
+    // Check if user already has embedded wallet from Privy (from linkedAccounts)
+    const existingWallet = user.linkedAccounts?.find(
+      a => a.type === 'wallet' && a.walletClientType === 'privy'
+    );
+
+    if (existingWallet?.address) {
+      console.log('[GAN] Found existing Privy wallet:', existingWallet.address);
+      setCreatedWallet(existingWallet.address);
+      lastUserId.current = user.id;
+      return;
+    }
+
+    // No existing wallet - need to create one
+    console.log('[GAN] No wallet found, creating...');
     hasTriggered.current = true;
+    lastUserId.current = user.id;
     createWalletWithGanSigner(user, setCreatedWallet, setCreating);
-  }, [user, hasWallet, setCreatedWallet, setCreating]);
+  }, [ready, authenticated, user, hasWallet, address, setCreatedWallet, setCreating]);
 
   return null;
 }
@@ -95,15 +116,9 @@ async function createWalletWithGanSigner(user, setCreatedWallet, setCreating) {
 
 function PrivyProviderWrapper({ children }) {
   const [mounted, setMounted] = useState(false);
-  const [currentUser, setCurrentUser] = useState(null);
 
   useEffect(() => {
     setMounted(true);
-  }, []);
-
-  const handleLoginSuccess = useCallback((user, isNewUser) => {
-    console.log('[Privy] Login success:', user?.twitter?.username || user?.email?.address || 'user');
-    setCurrentUser(user);
   }, []);
 
   if (!mounted) {
@@ -120,7 +135,6 @@ function PrivyProviderWrapper({ children }) {
   return (
     <PrivyProvider
       appId={appId}
-      onSuccess={handleLoginSuccess}
       config={{
         loginMethods: ['twitter', 'email', 'farcaster'],
         appearance: {
@@ -139,8 +153,8 @@ function PrivyProviderWrapper({ children }) {
       }}
     >
       <GanWalletProvider>
+        <WalletSyncHandler />
         {children}
-        {currentUser && <WalletCreationHandler user={currentUser} />}
       </GanWalletProvider>
     </PrivyProvider>
   );
