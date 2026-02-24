@@ -1,18 +1,20 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
 
 /**
- * GanSignerSetup - Monitors wallet creation status
+ * GanSignerSetup - Silent wallet state sync
  * 
- * Wallet is created via API in onSuccess callback (PrivyClientWrapper)
- * This component shows status and refreshes when wallet is ready.
+ * Wallet is created via API in onSuccess callback.
+ * This component silently refreshes the page once when wallet appears.
+ * NO VISIBLE UI.
  */
 export default function GanSignerSetup() {
   const { ready, authenticated, user } = usePrivy();
   const { wallets } = useWallets();
-  const [checking, setChecking] = useState(false);
+  const hasRefreshed = useRef(false);
+  const checkCount = useRef(0);
 
   const embeddedWallet = wallets?.find(w => w.walletClientType === 'privy');
 
@@ -20,49 +22,28 @@ export default function GanSignerSetup() {
     if (!ready || !authenticated || !user) return;
     
     if (embeddedWallet) {
+      // Wallet exists - we're good
       console.log('[GAN] ✅ Wallet ready:', embeddedWallet.address);
-      setChecking(false);
-    } else {
-      console.log('[GAN] ⏳ Wallet being created...');
-      setChecking(true);
+      return;
+    }
+    
+    // No wallet yet - it's being created via API
+    // Do a single refresh after 2 seconds to pick it up
+    if (!hasRefreshed.current && checkCount.current < 3) {
+      checkCount.current++;
+      console.log('[GAN] Wallet being created, will refresh...');
       
-      // Poll for wallet to appear (created via API)
-      const interval = setInterval(() => {
-        console.log('[GAN] Checking for wallet...');
-        // Wallet list will update automatically when Privy detects it
-      }, 3000);
+      const timer = setTimeout(() => {
+        if (!hasRefreshed.current) {
+          hasRefreshed.current = true;
+          window.location.reload();
+        }
+      }, 2000);
       
-      // Stop polling after 30 seconds
-      const timeout = setTimeout(() => {
-        clearInterval(interval);
-        setChecking(false);
-      }, 30000);
-      
-      return () => {
-        clearInterval(interval);
-        clearTimeout(timeout);
-      };
+      return () => clearTimeout(timer);
     }
   }, [ready, authenticated, user, embeddedWallet]);
 
-  // Show loading indicator while wallet is being created
-  if (checking && !embeddedWallet) {
-    return (
-      <div style={{
-        position: 'fixed',
-        bottom: 20,
-        right: 20,
-        background: 'rgba(0,0,0,0.8)',
-        color: '#d4a84b',
-        padding: '12px 20px',
-        borderRadius: 8,
-        fontSize: 14,
-        zIndex: 9999,
-      }}>
-        🔧 Creating your wallet...
-      </div>
-    );
-  }
-
+  // Completely silent - no UI
   return null;
 }
