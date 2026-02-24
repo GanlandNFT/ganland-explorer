@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { PrivyProvider } from '@privy-io/react-auth';
+import GanSignerSetup from './GanSignerSetup';
 
 export default function PrivyClientWrapper({ children }) {
   const [mounted, setMounted] = useState(false);
@@ -53,6 +54,8 @@ export default function PrivyClientWrapper({ children }) {
       }}
     >
       {children}
+      {/* Auto-setup GAN signer after login */}
+      <GanSignerSetup />
     </PrivyProvider>
   );
 }

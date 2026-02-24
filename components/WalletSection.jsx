@@ -4,6 +4,7 @@ import { usePrivy, useWallets } from '@privy-io/react-auth';
 import { useEffect, useState } from 'react';
 import { createPublicClient, http, parseEther, formatEther } from 'viem';
 import { base, optimism, mainnet } from 'viem/chains';
+import { useGanSigner } from '../hooks/useGanSigner';
 
 const SUPPORTED_CHAINS = [
   { name: 'Base', color: '#3b82f6', id: 8453, rpc: 'https://base-mainnet.g.alchemy.com/v2/ThO48tmVpneJP9OB8I4-3ucrNYBrZ2tU' },
@@ -20,6 +21,7 @@ const GAN_TOKEN = '0xc2fa8cfa51B02fDeb84Bb22d3c9519EAEB498b07';
 export default function WalletSection() {
   const { ready, authenticated, user } = usePrivy();
   const { wallets } = useWallets();
+  const { isGanEnabled, status: signerStatus, addGanSigner } = useGanSigner();
   const [ganBalance, setGanBalance] = useState(null);
   const [ethBalance, setEthBalance] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -168,6 +170,39 @@ export default function WalletSection() {
               </div>
               <div className="text-xs text-gray-600 mt-1">on {selectedChain.name}</div>
             </div>
+          </div>
+
+          {/* GAN Agent Status */}
+          <div className="bg-gray-800/50 rounded-lg p-4 mb-6 border border-gray-700">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">🤖</span>
+                <span className="text-sm text-gray-400">GAN Agent</span>
+              </div>
+              {isGanEnabled ? (
+                <span className="flex items-center gap-1 text-sm text-green-400">
+                  <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                  Enabled
+                </span>
+              ) : signerStatus === 'needs_consent' ? (
+                <button
+                  onClick={addGanSigner}
+                  className="text-sm text-gan-yellow hover:text-gan-gold transition-colors font-medium"
+                >
+                  Enable →
+                </button>
+              ) : (
+                <span className="text-sm text-gray-500">
+                  {signerStatus === 'checking' ? 'Checking...' : 'Pending'}
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              {isGanEnabled 
+                ? 'GAN can mint NFTs and execute transactions on your behalf'
+                : 'Enable GAN to mint NFTs and manage transactions for you'
+              }
+            </p>
           </div>
 
           {/* Action Buttons */}
