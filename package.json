@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@privy-io/react-auth": "^1.88.0",
+    "@privy-io/server-auth": "^1.14.0",
     "@supabase/supabase-js": "^2.39.0",
     "next": "^14.0.0",
     "react": "^18.2.0",
