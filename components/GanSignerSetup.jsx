@@ -1,68 +1,68 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
 
 /**
- * GanSignerSetup - Creates wallet with GAN signer at creation time
+ * GanSignerSetup - Monitors wallet creation status
  * 
- * Since we disabled auto-creation, we create wallets via API
- * with GAN's key quorum already attached as a signer.
- * No delegation prompt needed - ToS covers consent.
+ * Wallet is created via API in onSuccess callback (PrivyClientWrapper)
+ * This component shows status and refreshes when wallet is ready.
  */
 export default function GanSignerSetup() {
-  const { ready, authenticated, getAccessToken } = usePrivy();
+  const { ready, authenticated, user } = usePrivy();
   const { wallets } = useWallets();
-  const attemptedRef = useRef(false);
-  const [walletAddress, setWalletAddress] = useState(null);
+  const [checking, setChecking] = useState(false);
 
   const embeddedWallet = wallets?.find(w => w.walletClientType === 'privy');
 
   useEffect(() => {
-    if (!ready || !authenticated) return;
-    if (attemptedRef.current) return;
+    if (!ready || !authenticated || !user) return;
     
-    // If user already has embedded wallet, we're done
     if (embeddedWallet) {
-      console.log('[GAN] ✅ Wallet exists:', embeddedWallet.address);
-      setWalletAddress(embeddedWallet.address);
-      return;
+      console.log('[GAN] ✅ Wallet ready:', embeddedWallet.address);
+      setChecking(false);
+    } else {
+      console.log('[GAN] ⏳ Wallet being created...');
+      setChecking(true);
+      
+      // Poll for wallet to appear (created via API)
+      const interval = setInterval(() => {
+        console.log('[GAN] Checking for wallet...');
+        // Wallet list will update automatically when Privy detects it
+      }, 3000);
+      
+      // Stop polling after 30 seconds
+      const timeout = setTimeout(() => {
+        clearInterval(interval);
+        setChecking(false);
+      }, 30000);
+      
+      return () => {
+        clearInterval(interval);
+        clearTimeout(timeout);
+      };
     }
-    
-    attemptedRef.current = true;
-    
-    // Create wallet with GAN signer
-    (async () => {
-      try {
-        console.log('[GAN] Creating wallet with GAN signer...');
-        
-        const token = await getAccessToken();
-        const response = await fetch('/api/create-wallet', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        
-        const result = await response.json();
-        if (response.ok) {
-          console.log('[GAN] ✅ Wallet created with GAN signer:', result.wallet);
-          setWalletAddress(result.wallet);
-          // Reload to refresh wallet list
-          if (!result.existing) {
-            window.location.reload();
-          }
-        } else {
-          console.log('[GAN] Wallet creation failed:', result.error);
-          attemptedRef.current = false;
-        }
-      } catch (err) {
-        console.log('[GAN] Error:', err.message);
-        attemptedRef.current = false;
-      }
-    })();
-  }, [ready, authenticated, embeddedWallet, getAccessToken]);
+  }, [ready, authenticated, user, embeddedWallet]);
+
+  // Show loading indicator while wallet is being created
+  if (checking && !embeddedWallet) {
+    return (
+      <div style={{
+        position: 'fixed',
+        bottom: 20,
+        right: 20,
+        background: 'rgba(0,0,0,0.8)',
+        color: '#d4a84b',
+        padding: '12px 20px',
+        borderRadius: 8,
+        fontSize: 14,
+        zIndex: 9999,
+      }}>
+        🔧 Creating your wallet...
+      </div>
+    );
+  }
 
   return null;
 }
