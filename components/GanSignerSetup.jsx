@@ -3,9 +3,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
 
-/**
- * GanSignerSetup - Prompts user to enable GAN as a signer via API
- */
 export default function GanSignerSetup() {
   const { ready, authenticated, user, getAccessToken } = usePrivy();
   const { wallets } = useWallets();
@@ -13,18 +10,26 @@ export default function GanSignerSetup() {
   const [error, setError] = useState(null);
   const attemptedRef = useRef(false);
   const [dismissed, setDismissed] = useState(false);
+  const [debugInfo, setDebugInfo] = useState(null);
 
-  // Find the embedded wallet
   const embeddedWallet = wallets?.find(w => w.walletClientType === 'privy');
 
   useEffect(() => {
-    if (!ready || !authenticated || !embeddedWallet || dismissed) {
-      return;
-    }
-
-    // Don't re-attempt if already done
+    if (!ready || !authenticated || !embeddedWallet || dismissed) return;
     if (attemptedRef.current) return;
-
+    
+    // Log all wallet properties for debugging
+    console.log('[GanSignerSetup] Embedded wallet object:', embeddedWallet);
+    console.log('[GanSignerSetup] Wallet keys:', Object.keys(embeddedWallet));
+    console.log('[GanSignerSetup] All wallets:', wallets);
+    
+    // Try to find wallet ID from various places
+    const possibleId = embeddedWallet.id || 
+                       embeddedWallet.walletId || 
+                       embeddedWallet._id ||
+                       embeddedWallet.meta?.id;
+    console.log('[GanSignerSetup] Possible wallet ID:', possibleId);
+    
     checkSignerStatus();
   }, [ready, authenticated, embeddedWallet, dismissed]);
 
@@ -33,9 +38,25 @@ export default function GanSignerSetup() {
     setStatus('checking');
 
     try {
-      // Check via API
       const token = await getAccessToken();
-      const response = await fetch('/api/gan-signer', {
+      
+      // Send wallet info from frontend
+      const walletData = {
+        address: embeddedWallet?.address,
+        // Try all possible ID fields
+        walletId: embeddedWallet?.id || embeddedWallet?.walletId || embeddedWallet?._id,
+        // Send all keys for debugging
+        availableKeys: Object.keys(embeddedWallet || {}),
+        // Send the full wallet object (serialized)
+        walletJson: JSON.stringify(embeddedWallet),
+      };
+      
+      console.log('[GanSignerSetup] Sending wallet data:', walletData);
+      
+      const response = await fetch('/api/gan-signer?' + new URLSearchParams({
+        walletId: walletData.walletId || '',
+        debug: 'true',
+      }), {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -44,12 +65,11 @@ export default function GanSignerSetup() {
 
       const data = await response.json();
       console.log('[GanSignerSetup] Status check:', data);
+      setDebugInfo(data);
 
       if (data.enabled) {
-        console.log('[GanSignerSetup] ✅ Already enabled');
         setStatus('complete');
       } else {
-        console.log('[GanSignerSetup] Needs setup');
         setStatus('needs_setup');
       }
     } catch (err) {
@@ -65,7 +85,10 @@ export default function GanSignerSetup() {
     try {
       const token = await getAccessToken();
       
-      console.log('[GanSignerSetup] Adding GAN signer via API...');
+      // Get wallet ID from frontend if available
+      const walletId = embeddedWallet?.id || embeddedWallet?.walletId || embeddedWallet?._id;
+      
+      console.log('[GanSignerSetup] Adding GAN signer, walletId from frontend:', walletId);
       
       const response = await fetch('/api/gan-signer', {
         method: 'POST',
@@ -75,6 +98,10 @@ export default function GanSignerSetup() {
         },
         body: JSON.stringify({
           walletAddress: embeddedWallet?.address,
+          // Pass wallet ID from frontend!
+          walletId: walletId,
+          // Pass all wallet data for debugging
+          walletKeys: Object.keys(embeddedWallet || {}),
         }),
       });
 
@@ -82,31 +109,22 @@ export default function GanSignerSetup() {
       console.log('[GanSignerSetup] API response:', response.status, data);
 
       if (!response.ok) {
-        throw new Error(data.error || `API error: ${response.status}`);
+        throw new Error(data.error || data.details || `API error: ${response.status}`);
       }
 
-      console.log('[GanSignerSetup] ✅ Signer added');
       setStatus('complete');
 
     } catch (err) {
       console.error('[GanSignerSetup] Error:', err);
-      
-      if (err.message?.includes('rejected') || err.message?.includes('cancelled')) {
-        setStatus('needs_setup');
-        attemptedRef.current = false;
-      } else {
-        setError(err.message);
-        setStatus('needs_setup');
-      }
+      setError(err.message);
+      setStatus('needs_setup');
     }
   }
 
-  // Don't render if not logged in, already complete, or dismissed
   if (!authenticated || status === 'complete' || status === 'idle' || dismissed) {
     return null;
   }
 
-  // Show setup prompt
   if (status === 'needs_setup') {
     return (
       <div className="fixed bottom-4 right-4 bg-gray-900 border border-gan-yellow/30 rounded-lg p-4 max-w-sm shadow-xl z-50">
@@ -140,7 +158,6 @@ export default function GanSignerSetup() {
     );
   }
 
-  // Show loading state
   if (status === 'checking' || status === 'adding') {
     return (
       <div className="fixed bottom-4 right-4 bg-gray-900 border border-gray-700 rounded-lg p-4 max-w-sm shadow-xl z-50">
@@ -156,4 +173,3 @@ export default function GanSignerSetup() {
 
   return null;
 }
-// Build: 1771912733
