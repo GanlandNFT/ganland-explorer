@@ -48,7 +48,7 @@ export function useGanSigner() {
     }
   }, [embeddedWallet]);
 
-  // Add GAN as signer
+  // Add GAN as signer using the wallet's delegate method
   const addGanSigner = useCallback(async () => {
     if (!embeddedWallet) {
       setError('No wallet found');
@@ -59,8 +59,20 @@ export function useGanSigner() {
     setError(null);
 
     try {
-      // Method 1: Direct wallet method (Privy SDK >= 1.70)
+      // Method 1: Try wallet.delegate() for Privy SDK >= 1.80
+      if (typeof embeddedWallet.delegate === 'function') {
+        console.log('[useGanSigner] Using wallet.delegate()...');
+        await embeddedWallet.delegate({
+          chainType: 'ethereum',
+        });
+        setIsGanEnabled(true);
+        setStatus('ready');
+        return true;
+      }
+
+      // Method 2: Try wallet.addSigners() (older API)
       if (typeof embeddedWallet.addSigners === 'function') {
+        console.log('[useGanSigner] Using wallet.addSigners()...');
         await embeddedWallet.addSigners({
           signers: [{ signerId: GAN_KEY_QUORUM_ID }]
         });
@@ -69,20 +81,23 @@ export function useGanSigner() {
         return true;
       }
 
-      // Method 2: Fallback - mark as needs consent
+      // Check available methods for debugging
+      console.log('[useGanSigner] Available wallet methods:', Object.keys(embeddedWallet).filter(k => typeof embeddedWallet[k] === 'function'));
+      
+      // No method available
       setStatus('needs_consent');
-      setError('Please update to the latest version for signer support');
+      setError('Signer setup requires Privy consent. Please contact support.');
       return false;
 
     } catch (err) {
       console.error('[useGanSigner] Error:', err);
       
-      if (err.message?.includes('rejected') || err.message?.includes('cancelled')) {
+      if (err.message?.includes('rejected') || err.message?.includes('cancelled') || err.message?.includes('denied')) {
         setStatus('needs_consent');
         setError('Consent required to enable GAN transactions');
       } else {
         setStatus('error');
-        setError(err.message);
+        setError(err.message || 'Failed to enable GAN signer');
       }
       return false;
     }

@@ -4,32 +4,24 @@ import { useEffect, useState, useRef } from 'react';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
 
 // GAN's key quorum ID - created via Privy API
-// This allows GAN to sign transactions on behalf of users for minting, transfers, etc.
 const GAN_KEY_QUORUM_ID = 'cxz88rx36g27l2eo8fgwo6h8';
 
 /**
- * GanSignerSetup - Automatically adds GAN as a signer to user's embedded wallet
- * 
- * This component should be rendered after login. It:
- * 1. Detects when user has an embedded wallet
- * 2. Checks if GAN is already a signer
- * 3. If not, prompts user to add GAN (with consent modal)
- * 
- * For wallets created via X timeline (@GanlandNFT create wallet),
- * GAN is added at creation time, so this is a no-op.
+ * GanSignerSetup - Automatically prompts user to enable GAN as a signer
  */
 export default function GanSignerSetup() {
   const { ready, authenticated, user } = usePrivy();
   const { wallets } = useWallets();
-  const [status, setStatus] = useState('idle'); // idle | checking | needs_setup | adding | complete | error
+  const [status, setStatus] = useState('idle');
   const [error, setError] = useState(null);
   const attemptedRef = useRef(false);
+  const [dismissed, setDismissed] = useState(false);
 
   // Find the embedded wallet
   const embeddedWallet = wallets.find(w => w.walletClientType === 'privy');
 
   useEffect(() => {
-    if (!ready || !authenticated || !embeddedWallet) {
+    if (!ready || !authenticated || !embeddedWallet || dismissed) {
       return;
     }
 
@@ -37,14 +29,14 @@ export default function GanSignerSetup() {
     if (attemptedRef.current) return;
 
     checkSignerStatus();
-  }, [ready, authenticated, embeddedWallet]);
+  }, [ready, authenticated, embeddedWallet, dismissed]);
 
   async function checkSignerStatus() {
     attemptedRef.current = true;
     setStatus('checking');
 
     try {
-      // Check if wallet has delegated: true (GAN can already sign)
+      // Check if wallet has delegation enabled
       if (embeddedWallet.delegated === true) {
         console.log('[GanSigner] ✅ Already set up - GAN can sign transactions');
         setStatus('complete');
@@ -54,10 +46,6 @@ export default function GanSignerSetup() {
       // Wallet doesn't have GAN as signer yet
       console.log('[GanSigner] Wallet needs GAN signer setup');
       setStatus('needs_setup');
-
-      // Auto-attempt to add if the method is available
-      // This will trigger Privy's consent modal
-      await addGanSigner();
 
     } catch (err) {
       console.error('[GanSigner] Error checking status:', err);
@@ -71,39 +59,39 @@ export default function GanSignerSetup() {
     setError(null);
 
     try {
-      // Try using the wallet's addSigners method if available
-      if (typeof embeddedWallet.addSigners === 'function') {
-        await embeddedWallet.addSigners({
-          signers: [{
-            signerId: GAN_KEY_QUORUM_ID,
-            // Optional: Add policy restrictions here
-            // policyIds: ['policy-id-for-minting-only']
-          }]
+      // Try delegate() method first (Privy SDK >= 1.80)
+      if (typeof embeddedWallet.delegate === 'function') {
+        console.log('[GanSigner] Using delegate()...');
+        await embeddedWallet.delegate({
+          chainType: 'ethereum',
         });
-        
-        console.log('[GanSigner] ✅ GAN signer added successfully');
+        console.log('[GanSigner] ✅ Delegation enabled');
         setStatus('complete');
         return;
       }
 
-      // Fallback: Try importing useSigners dynamically
-      // This handles different Privy SDK versions
-      try {
-        const { useSigners } = await import('@privy-io/react-auth');
-        // Note: hooks can't be called dynamically, this is just for documentation
-        // The actual implementation would need to be in a parent component
-        console.log('[GanSigner] useSigners hook available but needs component refactor');
-        setStatus('needs_setup');
-      } catch {
-        console.log('[GanSigner] useSigners not available in this SDK version');
-        setStatus('needs_setup');
+      // Try addSigners() as fallback
+      if (typeof embeddedWallet.addSigners === 'function') {
+        console.log('[GanSigner] Using addSigners()...');
+        await embeddedWallet.addSigners({
+          signers: [{ signerId: GAN_KEY_QUORUM_ID }]
+        });
+        console.log('[GanSigner] ✅ Signer added');
+        setStatus('complete');
+        return;
       }
 
+      // Log available methods for debugging
+      const methods = Object.keys(embeddedWallet).filter(k => typeof embeddedWallet[k] === 'function');
+      console.log('[GanSigner] Available wallet methods:', methods);
+
+      setError('Signer setup not available. Check console for details.');
+      setStatus('needs_setup');
+
     } catch (err) {
-      console.error('[GanSigner] Error adding signer:', err);
+      console.error('[GanSigner] Error:', err);
       
-      if (err.message?.includes('rejected') || err.message?.includes('cancelled')) {
-        // User cancelled - allow retry
+      if (err.message?.includes('rejected') || err.message?.includes('cancelled') || err.message?.includes('denied')) {
         setStatus('needs_setup');
         attemptedRef.current = false;
       } else {
@@ -113,12 +101,12 @@ export default function GanSignerSetup() {
     }
   }
 
-  // Don't render anything if not logged in or already complete
-  if (!authenticated || status === 'complete' || status === 'idle') {
+  // Don't render if not logged in, already complete, or dismissed
+  if (!authenticated || status === 'complete' || status === 'idle' || dismissed) {
     return null;
   }
 
-  // Show setup prompt if needed
+  // Show setup prompt
   if (status === 'needs_setup') {
     return (
       <div className="fixed bottom-4 right-4 bg-gray-900 border border-gan-yellow/30 rounded-lg p-4 max-w-sm shadow-xl z-50">
@@ -129,6 +117,9 @@ export default function GanSignerSetup() {
             <p className="text-sm text-gray-400 mb-3">
               Allow GAN to mint NFTs and execute transactions on your behalf.
             </p>
+            {error && (
+              <p className="text-xs text-red-400 mb-2">{error}</p>
+            )}
             <div className="flex gap-2">
               <button
                 onClick={addGanSigner}
@@ -137,7 +128,7 @@ export default function GanSignerSetup() {
                 Enable
               </button>
               <button
-                onClick={() => setStatus('complete')}
+                onClick={() => setDismissed(true)}
                 className="px-4 py-2 text-gray-400 text-sm hover:text-white transition-colors"
               >
                 Skip
@@ -156,7 +147,7 @@ export default function GanSignerSetup() {
         <div className="flex items-center gap-3">
           <div className="animate-spin w-5 h-5 border-2 border-gan-yellow border-t-transparent rounded-full" />
           <span className="text-sm text-gray-400">
-            {status === 'checking' ? 'Checking signer status...' : 'Adding GAN as signer...'}
+            {status === 'checking' ? 'Checking...' : 'Enabling GAN...'}
           </span>
         </div>
       </div>
