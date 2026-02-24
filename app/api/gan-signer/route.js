@@ -1,6 +1,6 @@
 import { PrivyClient } from '@privy-io/server-auth';
 
-// GAN's authorization key ID - created in Privy Dashboard
+// GAN's authorization key ID
 const GAN_AUTHORIZATION_KEY_ID = 'cxz88rx36g27l2eo8fgwo6h8';
 
 let privyClient = null;
@@ -9,27 +9,23 @@ function getPrivyClient() {
   if (!privyClient) {
     const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
     const appSecret = process.env.PRIVY_APP_SECRET;
-    
-    if (!appId || !appSecret) {
-      throw new Error('Missing Privy credentials');
-    }
-    
+    if (!appId || !appSecret) throw new Error('Missing Privy credentials');
     privyClient = new PrivyClient(appId, appSecret);
   }
   return privyClient;
 }
 
 /**
- * Get wallet ID from Privy API using wallet address
+ * Get wallet ID from Privy Admin API - list all wallets and find by address
  */
-async function getWalletIdByAddress(address) {
+async function getWalletIdFromAdmin(address) {
   const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
   const appSecret = process.env.PRIVY_APP_SECRET;
   
-  console.log('[gan-signer] Fetching wallet ID for address:', address);
+  console.log('[gan-signer] Searching wallets for address:', address);
   
-  // List wallets from Privy API
-  const response = await fetch(`https://auth.privy.io/api/v1/wallets?address=${address}`, {
+  // Try the embedded wallets list endpoint
+  const response = await fetch(`https://auth.privy.io/api/v1/apps/${appId}/embedded_wallets`, {
     method: 'GET',
     headers: {
       'privy-app-id': appId,
@@ -37,42 +33,26 @@ async function getWalletIdByAddress(address) {
     },
   });
   
-  const responseText = await response.text();
-  console.log('[gan-signer] Wallets API response:', response.status, responseText);
+  console.log('[gan-signer] Embedded wallets API status:', response.status);
   
-  if (!response.ok) {
-    // Try alternative endpoint - get wallet by owner
-    return null;
-  }
-  
-  try {
-    const data = JSON.parse(responseText);
-    // Response could be an array or have a data field
+  if (response.ok) {
+    const data = await response.json();
+    console.log('[gan-signer] Embedded wallets response:', JSON.stringify(data).slice(0, 500));
+    
     const wallets = data.data || data.wallets || data;
-    if (Array.isArray(wallets) && wallets.length > 0) {
-      return wallets[0].id;
+    if (Array.isArray(wallets)) {
+      const match = wallets.find(w => 
+        w.address?.toLowerCase() === address.toLowerCase()
+      );
+      if (match?.id) {
+        console.log('[gan-signer] Found wallet ID from embedded_wallets:', match.id);
+        return match.id;
+      }
     }
-    if (data.id) {
-      return data.id;
-    }
-  } catch (e) {
-    console.log('[gan-signer] Failed to parse wallets response:', e.message);
   }
   
-  return null;
-}
-
-/**
- * Get wallet ID by user ID (alternative approach)
- */
-async function getWalletIdByUserId(userId) {
-  const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
-  const appSecret = process.env.PRIVY_APP_SECRET;
-  
-  console.log('[gan-signer] Fetching wallets for user:', userId);
-  
-  // Try to get user's wallets
-  const response = await fetch(`https://auth.privy.io/api/v1/users/${userId}/wallets`, {
+  // Try the general wallets endpoint
+  const response2 = await fetch(`https://auth.privy.io/api/v1/apps/${appId}/wallets`, {
     method: 'GET',
     headers: {
       'privy-app-id': appId,
@@ -80,150 +60,43 @@ async function getWalletIdByUserId(userId) {
     },
   });
   
-  const responseText = await response.text();
-  console.log('[gan-signer] User wallets API response:', response.status, responseText);
+  console.log('[gan-signer] Wallets API status:', response2.status);
   
-  if (!response.ok) {
-    return null;
-  }
-  
-  try {
-    const data = JSON.parse(responseText);
+  if (response2.ok) {
+    const data = await response2.json();
+    console.log('[gan-signer] Wallets response:', JSON.stringify(data).slice(0, 500));
+    
     const wallets = data.data || data.wallets || data;
-    if (Array.isArray(wallets) && wallets.length > 0) {
-      // Find embedded wallet
-      const embedded = wallets.find(w => w.wallet_type === 'privy' || w.type === 'embedded');
-      return embedded?.id || wallets[0].id;
+    if (Array.isArray(wallets)) {
+      const match = wallets.find(w => 
+        w.address?.toLowerCase() === address.toLowerCase()
+      );
+      if (match?.id) {
+        console.log('[gan-signer] Found wallet ID from wallets:', match.id);
+        return match.id;
+      }
     }
-  } catch (e) {
-    console.log('[gan-signer] Failed to parse user wallets:', e.message);
   }
+
+  // Try v0 API 
+  const response3 = await fetch(`https://auth.privy.io/api/v0/wallets`, {
+    method: 'GET',
+    headers: {
+      'privy-app-id': appId,
+      'Authorization': `Basic ${Buffer.from(`${appId}:${appSecret}`).toString('base64')}`,
+    },
+  });
+  
+  console.log('[gan-signer] v0 Wallets API status:', response3.status);
+  const text3 = await response3.text();
+  console.log('[gan-signer] v0 response:', text3.slice(0, 500));
   
   return null;
 }
 
-/**
- * POST /api/gan-signer
- * Add GAN as a signer to user's wallet
- */
 export async function POST(request) {
   console.log('[gan-signer] POST request received');
   
-  try {
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return Response.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const token = authHeader.replace('Bearer ', '');
-    
-    let privy;
-    try {
-      privy = getPrivyClient();
-    } catch (e) {
-      return Response.json({ error: 'Server configuration error', details: e.message }, { status: 500 });
-    }
-    
-    let verifiedClaims;
-    try {
-      verifiedClaims = await privy.verifyAuthToken(token);
-    } catch (e) {
-      return Response.json({ error: 'Invalid token' }, { status: 401 });
-    }
-
-    const userId = verifiedClaims.userId;
-    console.log('[gan-signer] Verified user:', userId);
-
-    // Get user data
-    const user = await privy.getUser(userId);
-    
-    // Find embedded wallet address
-    const embeddedWallet = user.linkedAccounts?.find(
-      a => a.type === 'wallet' && a.walletClientType === 'privy'
-    );
-
-    if (!embeddedWallet) {
-      return Response.json({ error: 'No embedded wallet found' }, { status: 404 });
-    }
-
-    const walletAddress = embeddedWallet.address;
-    console.log('[gan-signer] Found wallet address:', walletAddress);
-
-    // Try to get wallet ID from address
-    let walletId = await getWalletIdByAddress(walletAddress);
-    
-    // If that fails, try by user ID
-    if (!walletId) {
-      walletId = await getWalletIdByUserId(userId);
-    }
-    
-    // If still no wallet ID, check if SDK has it
-    if (!walletId && user.wallet?.id) {
-      walletId = user.wallet.id;
-    }
-
-    if (!walletId) {
-      return Response.json({ 
-        error: 'Could not find wallet ID',
-        details: 'Wallet address found but Privy API did not return a wallet ID. You may need to enable Delegated Actions in Privy Dashboard.',
-        walletAddress,
-        userId,
-        suggestion: 'Go to Privy Dashboard → Embedded Wallets → Enable Delegated Actions'
-      }, { status: 400 });
-    }
-
-    console.log('[gan-signer] Found wallet ID:', walletId);
-
-    // Add signer
-    const result = await addSignerViaRest(walletId);
-    
-    return Response.json(result);
-
-  } catch (error) {
-    console.error('[gan-signer] Error:', error);
-    return Response.json({ error: error.message || 'Failed to add signer' }, { status: 500 });
-  }
-}
-
-async function addSignerViaRest(walletId) {
-  const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
-  const appSecret = process.env.PRIVY_APP_SECRET;
-  
-  console.log('[gan-signer] Adding signer for wallet:', walletId);
-
-  const response = await fetch(`https://auth.privy.io/api/v1/wallets/${walletId}/signers`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'privy-app-id': appId,
-      'Authorization': `Basic ${Buffer.from(`${appId}:${appSecret}`).toString('base64')}`,
-    },
-    body: JSON.stringify({
-      type: 'authorization_key',
-      authorization_key_id: GAN_AUTHORIZATION_KEY_ID,
-    }),
-  });
-
-  const responseText = await response.text();
-  console.log('[gan-signer] Add signer response:', response.status, responseText);
-
-  if (!response.ok) {
-    let errorData;
-    try {
-      errorData = JSON.parse(responseText);
-    } catch {
-      errorData = { message: responseText };
-    }
-    throw new Error(errorData.message || errorData.error || `API error: ${response.status}`);
-  }
-
-  return { success: true, message: 'GAN signer enabled', walletId };
-}
-
-/**
- * GET /api/gan-signer
- */
-export async function GET(request) {
   try {
     const authHeader = request.headers.get('authorization');
     if (!authHeader?.startsWith('Bearer ')) {
@@ -241,7 +114,90 @@ export async function GET(request) {
     }
 
     const userId = verifiedClaims.userId;
+    console.log('[gan-signer] User ID:', userId);
+
     const user = await privy.getUser(userId);
+    
+    const embeddedWallet = user.linkedAccounts?.find(
+      a => a.type === 'wallet' && a.walletClientType === 'privy'
+    );
+
+    if (!embeddedWallet) {
+      return Response.json({ error: 'No embedded wallet found' }, { status: 404 });
+    }
+
+    const walletAddress = embeddedWallet.address;
+    console.log('[gan-signer] Wallet address:', walletAddress);
+
+    // Get wallet ID from admin API
+    const walletId = await getWalletIdFromAdmin(walletAddress);
+
+    if (!walletId) {
+      // Last resort - provide manual instructions
+      return Response.json({ 
+        error: 'Wallet ID not accessible via API',
+        details: 'Please manually add the GAN Agent Signer to this wallet in Privy Dashboard',
+        walletAddress,
+        instructions: [
+          '1. Go to dashboard.privy.io → Wallets',
+          '2. Find wallet: ' + walletAddress,
+          '3. Click on it → Add signer',
+          '4. Select "GAN Agent Signer"'
+        ]
+      }, { status: 400 });
+    }
+
+    // Add the signer
+    const result = await addSigner(walletId);
+    return Response.json(result);
+
+  } catch (error) {
+    console.error('[gan-signer] Error:', error);
+    return Response.json({ error: error.message }, { status: 500 });
+  }
+}
+
+async function addSigner(walletId) {
+  const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
+  const appSecret = process.env.PRIVY_APP_SECRET;
+  
+  console.log('[gan-signer] Adding signer to wallet:', walletId);
+
+  const response = await fetch(`https://auth.privy.io/api/v1/wallets/${walletId}/signers`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'privy-app-id': appId,
+      'Authorization': `Basic ${Buffer.from(`${appId}:${appSecret}`).toString('base64')}`,
+    },
+    body: JSON.stringify({
+      type: 'authorization_key',
+      authorization_key_id: GAN_AUTHORIZATION_KEY_ID,
+    }),
+  });
+
+  const text = await response.text();
+  console.log('[gan-signer] Add signer response:', response.status, text);
+
+  if (!response.ok) {
+    throw new Error(text || `API error: ${response.status}`);
+  }
+
+  return { success: true, message: 'GAN signer enabled', walletId };
+}
+
+export async function GET(request) {
+  try {
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    const privy = getPrivyClient();
+    
+    const verifiedClaims = await privy.verifyAuthToken(token);
+    const user = await privy.getUser(verifiedClaims.userId);
     
     const embeddedWallet = user.linkedAccounts?.find(
       a => a.type === 'wallet' && a.walletClientType === 'privy'
@@ -251,22 +207,16 @@ export async function GET(request) {
       return Response.json({ enabled: false, reason: 'no_wallet' });
     }
 
-    // Try to get wallet ID
-    let walletId = await getWalletIdByAddress(embeddedWallet.address);
-    if (!walletId) {
-      walletId = await getWalletIdByUserId(userId);
-    }
+    const walletId = await getWalletIdFromAdmin(embeddedWallet.address);
 
     return Response.json({
       enabled: embeddedWallet.delegated === true,
       walletAddress: embeddedWallet.address,
-      walletId: walletId,
+      walletId,
       delegated: embeddedWallet.delegated,
-      hasWalletId: !!walletId,
     });
 
   } catch (error) {
-    console.error('[gan-signer] GET error:', error);
     return Response.json({ enabled: false, reason: 'error', message: error.message });
   }
 }
