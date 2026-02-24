@@ -1,19 +1,18 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
 
 /**
- * GanSignerSetup - Logs wallet status after login
+ * GanSignerSetup - Monitors wallet creation status
  * 
- * Web users: Privy creates wallet normally (no GAN signer by default)
- * X users: Wallets created via API with GAN signer pre-attached
- * 
- * GAN signer can be added later when user wants agent features.
+ * Wallet is created via API in onSuccess callback (PrivyClientWrapper)
+ * This component shows status and refreshes when wallet is ready.
  */
 export default function GanSignerSetup() {
   const { ready, authenticated, user } = usePrivy();
   const { wallets } = useWallets();
+  const [checking, setChecking] = useState(false);
 
   const embeddedWallet = wallets?.find(w => w.walletClientType === 'privy');
 
@@ -22,11 +21,48 @@ export default function GanSignerSetup() {
     
     if (embeddedWallet) {
       console.log('[GAN] ✅ Wallet ready:', embeddedWallet.address);
-      console.log('[GAN] Delegated:', embeddedWallet.delegated ? 'Yes' : 'No');
+      setChecking(false);
     } else {
-      console.log('[GAN] ⏳ Waiting for wallet...');
+      console.log('[GAN] ⏳ Wallet being created...');
+      setChecking(true);
+      
+      // Poll for wallet to appear (created via API)
+      const interval = setInterval(() => {
+        console.log('[GAN] Checking for wallet...');
+        // Wallet list will update automatically when Privy detects it
+      }, 3000);
+      
+      // Stop polling after 30 seconds
+      const timeout = setTimeout(() => {
+        clearInterval(interval);
+        setChecking(false);
+      }, 30000);
+      
+      return () => {
+        clearInterval(interval);
+        clearTimeout(timeout);
+      };
     }
   }, [ready, authenticated, user, embeddedWallet]);
+
+  // Show loading indicator while wallet is being created
+  if (checking && !embeddedWallet) {
+    return (
+      <div style={{
+        position: 'fixed',
+        bottom: 20,
+        right: 20,
+        background: 'rgba(0,0,0,0.8)',
+        color: '#d4a84b',
+        padding: '12px 20px',
+        borderRadius: 8,
+        fontSize: 14,
+        zIndex: 9999,
+      }}>
+        🔧 Creating your wallet...
+      </div>
+    );
+  }
 
   return null;
 }

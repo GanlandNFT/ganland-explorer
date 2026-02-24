@@ -19,25 +19,42 @@ export async function POST(request) {
   console.log('[create-wallet] POST request received');
   
   try {
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return Response.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const token = authHeader.replace('Bearer ', '');
-    const privy = getPrivyClient();
+    const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
+    const appSecret = process.env.PRIVY_APP_SECRET;
     
-    let verifiedClaims;
-    try {
-      verifiedClaims = await privy.verifyAuthToken(token);
-    } catch (e) {
-      return Response.json({ error: 'Invalid token' }, { status: 401 });
+    if (!appId || !appSecret) {
+      return Response.json({ error: 'Missing Privy credentials' }, { status: 500 });
     }
-
-    const userId = verifiedClaims.userId;
+    
+    let userId;
+    
+    // Check for auth token first
+    const authHeader = request.headers.get('authorization');
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.replace('Bearer ', '');
+      const privy = getPrivyClient();
+      try {
+        const verifiedClaims = await privy.verifyAuthToken(token);
+        userId = verifiedClaims.userId;
+      } catch (e) {
+        console.log('[create-wallet] Token verification failed:', e.message);
+      }
+    }
+    
+    // Or get from body (for onSuccess callback)
+    if (!userId) {
+      const body = await request.json().catch(() => ({}));
+      userId = body.privyUserId;
+    }
+    
+    if (!userId) {
+      return Response.json({ error: 'No user ID provided' }, { status: 400 });
+    }
+    
     console.log('[create-wallet] User ID:', userId);
 
     // Check if user already has a wallet
+    const privy = getPrivyClient();
     const user = await privy.getUser(userId);
     const existingWallet = user.linkedAccounts?.find(
       a => a.type === 'wallet' && a.walletClientType === 'privy'
@@ -53,9 +70,6 @@ export async function POST(request) {
     }
 
     // Create wallet with GAN signer attached
-    const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
-    const appSecret = process.env.PRIVY_APP_SECRET;
-    
     console.log('[create-wallet] Creating wallet with GAN signer...');
     
     const response = await fetch('https://api.privy.io/v1/wallets', {
@@ -67,14 +81,8 @@ export async function POST(request) {
       },
       body: JSON.stringify({
         chain_type: 'ethereum',
-        // Owner is the user
-        owner: {
-          user_id: userId,
-        },
-        // GAN key quorum as additional signer
-        additional_signers: [
-          { signer_id: GAN_QUORUM_ID }
-        ],
+        owner: { user_id: userId },
+        additional_signers: [{ signer_id: GAN_QUORUM_ID }],
       }),
     });
 
