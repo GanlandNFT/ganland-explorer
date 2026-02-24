@@ -28,6 +28,19 @@ export function GanWalletProvider({ children }) {
     a => a.type === 'wallet' && a.walletClientType === 'privy'
   );
 
+  // Debug log state changes
+  useEffect(() => {
+    console.log('[GanWalletContext] State:', {
+      ganWallet: ganWallet?.address?.slice(0, 10),
+      privyWallet: privyWallet?.address?.slice(0, 10),
+      linkedWallet: linkedWallet?.address?.slice(0, 10),
+      isCreating,
+      justCreated,
+      ready,
+      authenticated,
+    });
+  }, [ganWallet, privyWallet, linkedWallet, isCreating, justCreated, ready, authenticated]);
+
   // Sync from Privy useWallets when it catches up
   useEffect(() => {
     if (privyWallet?.address && !ganWallet) {
@@ -65,7 +78,7 @@ export function GanWalletProvider({ children }) {
   useEffect(() => {
     const created = sessionStorage.getItem('gan_wallet_just_created');
     if (created && !ganWallet) {
-      console.log('[GanWallet] Found just-created wallet in session:', created);
+      console.log('[GanWallet] Found in sessionStorage:', created);
       setGanWallet({ address: created, wallet: null });
       setJustCreated(true);
     }
@@ -74,7 +87,7 @@ export function GanWalletProvider({ children }) {
   // When Privy wallet appears after creation, upgrade our state
   useEffect(() => {
     if (justCreated && privyWallet?.address) {
-      console.log('[GanWallet] Privy synced, upgrading wallet object');
+      console.log('[GanWallet] Privy synced after creation, upgrading');
       setGanWallet({
         address: privyWallet.address,
         wallet: privyWallet,
@@ -96,7 +109,7 @@ export function GanWalletProvider({ children }) {
 
   // Manual wallet creation trigger (called from WalletSyncHandler)
   const setCreatedWallet = useCallback((address) => {
-    console.log('[GanWallet] setCreatedWallet:', address);
+    console.log('[GanWallet] setCreatedWallet called:', address);
     setGanWallet(prev => ({
       address,
       wallet: prev?.wallet || null, // Keep existing wallet object if we have one
@@ -106,6 +119,7 @@ export function GanWalletProvider({ children }) {
   }, []);
 
   const setCreating = useCallback((creating) => {
+    console.log('[GanWallet] setCreating:', creating);
     setIsCreating(creating);
   }, []);
 
