@@ -250,24 +250,34 @@ export default function AccountSettings({ isOpen, onClose }) {
             justifyContent: 'space-between',
             alignItems: 'center',
             padding: '16px',
-            background: isGanEnabled ? 'rgba(16, 185, 129, 0.1)' : 'rgba(255, 255, 255, 0.03)',
-            border: `1px solid ${isGanEnabled ? 'rgba(16, 185, 129, 0.3)' : '#222'}`,
+            background: isGanEnabled ? 'rgba(16, 185, 129, 0.1)' : signerStatus === 'unavailable' ? 'rgba(239, 68, 68, 0.05)' : 'rgba(255, 255, 255, 0.03)',
+            border: `1px solid ${isGanEnabled ? 'rgba(16, 185, 129, 0.3)' : signerStatus === 'unavailable' ? 'rgba(239, 68, 68, 0.3)' : '#222'}`,
             borderRadius: '12px',
           }}>
             <div>
               <div style={{ fontWeight: 600, marginBottom: '4px' }}>
                 GAN Transactions
               </div>
-              <div style={{ fontSize: '0.8rem', color: isGanEnabled ? '#10b981' : '#666' }}>
-                {isGanEnabled ? 'GAN can mint NFTs for you' : 'Enable to let GAN mint on your behalf'}
+              <div style={{ fontSize: '0.8rem', color: isGanEnabled ? '#10b981' : signerStatus === 'unavailable' ? '#f87171' : '#666' }}>
+                {isGanEnabled 
+                  ? 'GAN can mint NFTs for you' 
+                  : signerStatus === 'unavailable'
+                    ? 'Not available (check Privy Dashboard)'
+                    : 'Enable to let GAN mint on your behalf'}
               </div>
             </div>
             
             {/* Toggle Switch */}
             <button
               onClick={async () => {
+                if (signerStatus === 'unavailable') {
+                  setToast({ 
+                    message: 'Enable "Delegated Actions" in Privy Dashboard → Authorization', 
+                    type: 'warning' 
+                  });
+                  return;
+                }
                 if (isGanEnabled) {
-                  // TODO: Implement remove signer
                   setToast({ message: 'Disabling coming soon', type: 'warning' });
                 } else {
                   setTogglingGan(true);
@@ -287,10 +297,11 @@ export default function AccountSettings({ isOpen, onClose }) {
                 borderRadius: '14px',
                 border: 'none',
                 padding: '2px',
-                cursor: togglingGan ? 'wait' : 'pointer',
-                background: isGanEnabled ? '#10b981' : '#333',
+                cursor: signerStatus === 'unavailable' ? 'help' : togglingGan ? 'wait' : 'pointer',
+                background: isGanEnabled ? '#10b981' : signerStatus === 'unavailable' ? '#4b5563' : '#333',
                 transition: 'background 0.2s ease',
                 position: 'relative',
+                opacity: signerStatus === 'unavailable' ? 0.5 : 1,
               }}
             >
               <div style={{
@@ -304,6 +315,30 @@ export default function AccountSettings({ isOpen, onClose }) {
               }} />
             </button>
           </div>
+          
+          {/* Error/Help message */}
+          {signerStatus === 'unavailable' && (
+            <div style={{
+              marginTop: '12px',
+              padding: '12px',
+              background: 'rgba(239, 68, 68, 0.1)',
+              border: '1px solid rgba(239, 68, 68, 0.2)',
+              borderRadius: '8px',
+              fontSize: '0.8rem',
+              color: '#f87171'
+            }}>
+              <strong>Setup Required:</strong> Go to{' '}
+              <a 
+                href="https://dashboard.privy.io" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                style={{ color: '#5ce1e6', textDecoration: 'underline' }}
+              >
+                Privy Dashboard
+              </a>
+              {' '}→ Wallet infrastructure → Authorization → Enable "Delegated Actions"
+            </div>
+          )}
         </div>
 
         {/* Referral System */}

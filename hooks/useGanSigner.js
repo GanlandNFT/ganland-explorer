@@ -3,20 +3,11 @@
 import { useEffect, useState, useCallback } from 'react';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
 
-// GAN's key quorum ID for signing transactions
-const GAN_KEY_QUORUM_ID = 'cxz88rx36g27l2eo8fgwo6h8';
-
-// Try to import useDelegatedActions if available
-let useDelegatedActions;
-try {
-  const privy = require('@privy-io/react-auth');
-  useDelegatedActions = privy.useDelegatedActions;
-} catch (e) {
-  console.log('[useGanSigner] useDelegatedActions not available');
-}
-
 /**
  * Hook to manage GAN signer status for the user's embedded wallet
+ * 
+ * Privy Delegated Actions must be enabled in Dashboard → Embedded Wallets → Authorization
+ * to allow server-side signing.
  */
 export function useGanSigner() {
   const { ready, authenticated, user } = usePrivy();
@@ -24,27 +15,27 @@ export function useGanSigner() {
   const [status, setStatus] = useState('idle');
   const [isGanEnabled, setIsGanEnabled] = useState(false);
   const [error, setError] = useState(null);
-
-  // Try to use delegated actions hook if available
-  let delegatedActions = null;
-  try {
-    if (useDelegatedActions) {
-      delegatedActions = useDelegatedActions();
-    }
-  } catch (e) {
-    // Hook not available or called incorrectly
-  }
+  const [availableMethods, setAvailableMethods] = useState([]);
 
   // Find embedded wallet
-  const embeddedWallet = wallets.find(w => w.walletClientType === 'privy');
+  const embeddedWallet = wallets?.find(w => w.walletClientType === 'privy');
 
   // Check signer status
   const checkStatus = useCallback(async () => {
-    if (!embeddedWallet) return;
+    if (!embeddedWallet) {
+      setStatus('no_wallet');
+      return;
+    }
     
     setStatus('checking');
     
     try {
+      // Log available wallet methods for debugging
+      const methods = Object.keys(embeddedWallet).filter(k => typeof embeddedWallet[k] === 'function');
+      setAvailableMethods(methods);
+      console.log('[useGanSigner] Wallet methods:', methods);
+      console.log('[useGanSigner] Wallet delegated status:', embeddedWallet.delegated);
+
       // Check if wallet has delegation enabled
       if (embeddedWallet.delegated === true) {
         setIsGanEnabled(true);
@@ -53,11 +44,17 @@ export function useGanSigner() {
         return;
       }
 
-      // Need to add signer
-      setIsGanEnabled(false);
-      setStatus('needs_consent');
-      console.log('[useGanSigner] Wallet needs delegation setup');
+      // Need to add signer - check if method is available
+      if (typeof embeddedWallet.delegate === 'function') {
+        setStatus('needs_consent');
+        console.log('[useGanSigner] Wallet needs delegation setup (delegate available)');
+      } else {
+        setStatus('unavailable');
+        setError('Delegation not available. Enable "Delegated Actions" in Privy Dashboard → Authorization');
+        console.log('[useGanSigner] ⚠️ delegate() method not available on wallet');
+      }
     } catch (err) {
+      console.error('[useGanSigner] Check error:', err);
       setError(err.message);
       setStatus('error');
     }
@@ -66,7 +63,7 @@ export function useGanSigner() {
   // Add GAN as signer
   const addGanSigner = useCallback(async () => {
     if (!embeddedWallet) {
-      setError('No wallet found');
+      setError('No embedded wallet found. Please log in with X or email.');
       return false;
     }
 
@@ -74,32 +71,17 @@ export function useGanSigner() {
     setError(null);
 
     try {
-      // Log available methods for debugging
-      const walletMethods = Object.keys(embeddedWallet).filter(k => typeof embeddedWallet[k] === 'function');
-      console.log('[useGanSigner] Wallet methods:', walletMethods);
-
-      // Method 1: Try useDelegatedActions hook
-      if (delegatedActions?.delegateWallet) {
-        console.log('[useGanSigner] Using delegateWallet()...');
-        await delegatedActions.delegateWallet({
-          address: embeddedWallet.address,
-          chainType: 'ethereum',
-        });
-        setIsGanEnabled(true);
-        setStatus('ready');
-        return true;
-      }
-
-      // Method 2: Try wallet.delegate()
+      // Method 1: wallet.delegate() - standard Privy method
       if (typeof embeddedWallet.delegate === 'function') {
         console.log('[useGanSigner] Using wallet.delegate()...');
         await embeddedWallet.delegate();
         setIsGanEnabled(true);
         setStatus('ready');
+        console.log('[useGanSigner] ✅ Delegation enabled successfully');
         return true;
       }
 
-      // Method 3: Try wallet.enableDelegation()
+      // Method 2: wallet.enableDelegation() - older API
       if (typeof embeddedWallet.enableDelegation === 'function') {
         console.log('[useGanSigner] Using wallet.enableDelegation()...');
         await embeddedWallet.enableDelegation();
@@ -108,33 +90,39 @@ export function useGanSigner() {
         return true;
       }
 
-      // No method available - need dashboard configuration
-      console.log('[useGanSigner] No delegation method found. Available:', walletMethods);
-      setStatus('needs_consent');
-      setError('Please enable Delegated Actions in Privy Dashboard → Embedded Wallets');
+      // No method available
+      console.log('[useGanSigner] No delegation method available');
+      console.log('[useGanSigner] Available methods:', availableMethods);
+      setStatus('unavailable');
+      setError('Signer setup not available. Check console for details.');
       return false;
 
     } catch (err) {
       console.error('[useGanSigner] Error:', err);
       
+      // Handle common error cases
       if (err.message?.includes('rejected') || err.message?.includes('cancelled') || err.message?.includes('denied')) {
         setStatus('needs_consent');
-        setError('User cancelled. Try again when ready.');
+        setError('Request cancelled. Try again when ready.');
+      } else if (err.message?.includes('PrivyProvider') || err.message?.includes('wrap your application')) {
+        setStatus('error');
+        setError('App configuration error. Please refresh the page.');
       } else {
         setStatus('error');
         setError(err.message || 'Failed to enable delegation');
       }
       return false;
     }
-  }, [embeddedWallet, delegatedActions]);
+  }, [embeddedWallet, availableMethods]);
 
   // Auto-check on wallet change
   useEffect(() => {
     if (ready && authenticated && embeddedWallet) {
       checkStatus();
-    } else {
+    } else if (ready && !authenticated) {
       setStatus('idle');
       setIsGanEnabled(false);
+      setError(null);
     }
   }, [ready, authenticated, embeddedWallet, checkStatus]);
 
@@ -144,6 +132,8 @@ export function useGanSigner() {
     addGanSigner,
     error,
     walletAddress: embeddedWallet?.address,
+    availableMethods,
+    checkStatus,
   };
 }
 

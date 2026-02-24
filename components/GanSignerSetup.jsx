@@ -108,22 +108,35 @@ export default function GanSignerSetup() {
 
   // Show setup prompt
   if (status === 'needs_setup') {
+    const isUnavailable = error?.includes('not available');
+    
     return (
-      <div className="fixed bottom-4 right-4 bg-gray-900 border border-gan-yellow/30 rounded-lg p-4 max-w-sm shadow-xl z-50">
+      <div className={`fixed bottom-4 right-4 bg-gray-900 border ${isUnavailable ? 'border-red-500/30' : 'border-gan-yellow/30'} rounded-lg p-4 max-w-sm shadow-xl z-50`}>
         <div className="flex items-start gap-3">
           <span className="text-2xl">🤖</span>
           <div className="flex-1">
-            <h4 className="font-bold text-gan-yellow mb-1">Enable GAN Transactions</h4>
+            <h4 className={`font-bold ${isUnavailable ? 'text-red-400' : 'text-gan-yellow'} mb-1`}>
+              Enable GAN Transactions
+            </h4>
             <p className="text-sm text-gray-400 mb-3">
               Allow GAN to mint NFTs and execute transactions on your behalf.
             </p>
-            {error && (
+            {isUnavailable ? (
+              <p className="text-xs text-red-400 mb-2">
+                Signer setup not available. Check console for details.
+              </p>
+            ) : error && (
               <p className="text-xs text-red-400 mb-2">{error}</p>
             )}
             <div className="flex gap-2">
               <button
                 onClick={addGanSigner}
-                className="px-4 py-2 bg-gan-yellow text-black font-bold rounded-lg text-sm hover:bg-gan-gold transition-colors"
+                disabled={isUnavailable}
+                className={`px-4 py-2 font-bold rounded-lg text-sm transition-colors ${
+                  isUnavailable 
+                    ? 'bg-gray-700 text-gray-400 cursor-not-allowed' 
+                    : 'bg-gan-yellow text-black hover:bg-gan-gold'
+                }`}
               >
                 Enable
               </button>
