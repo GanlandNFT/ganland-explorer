@@ -1,123 +1,68 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { usePrivy, useWallets } from '@privy-io/react-auth';
+import { usePrivy, useWallets, useDelegatedActions } from '@privy-io/react-auth';
 
 export default function GanSignerSetup() {
   const { ready, authenticated, user, getAccessToken } = usePrivy();
   const { wallets } = useWallets();
+  const { delegateWallet } = useDelegatedActions();
   const [status, setStatus] = useState('idle');
   const [error, setError] = useState(null);
-  const attemptedRef = useRef(false);
   const [dismissed, setDismissed] = useState(false);
-  const [debugInfo, setDebugInfo] = useState(null);
+  const checkedRef = useRef(false);
 
   const embeddedWallet = wallets?.find(w => w.walletClientType === 'privy');
 
   useEffect(() => {
     if (!ready || !authenticated || !embeddedWallet || dismissed) return;
-    if (attemptedRef.current) return;
+    if (checkedRef.current) return;
+    checkedRef.current = true;
     
-    // Log all wallet properties for debugging
-    console.log('[GanSignerSetup] Embedded wallet object:', embeddedWallet);
-    console.log('[GanSignerSetup] Wallet keys:', Object.keys(embeddedWallet));
-    console.log('[GanSignerSetup] All wallets:', wallets);
+    // Log wallet info for debugging
+    console.log('[GanSignerSetup] Wallet object:', embeddedWallet);
+    console.log('[GanSignerSetup] Wallet address:', embeddedWallet.address);
+    console.log('[GanSignerSetup] delegateWallet available:', !!delegateWallet);
     
-    // Try to find wallet ID from various places
-    const possibleId = embeddedWallet.id || 
-                       embeddedWallet.walletId || 
-                       embeddedWallet._id ||
-                       embeddedWallet.meta?.id;
-    console.log('[GanSignerSetup] Possible wallet ID:', possibleId);
-    
-    checkSignerStatus();
-  }, [ready, authenticated, embeddedWallet, dismissed]);
-
-  async function checkSignerStatus() {
-    attemptedRef.current = true;
-    setStatus('checking');
-
-    try {
-      const token = await getAccessToken();
-      
-      // Send wallet info from frontend
-      const walletData = {
-        address: embeddedWallet?.address,
-        // Try all possible ID fields
-        walletId: embeddedWallet?.id || embeddedWallet?.walletId || embeddedWallet?._id,
-        // Send all keys for debugging
-        availableKeys: Object.keys(embeddedWallet || {}),
-        // Send the full wallet object (serialized)
-        walletJson: JSON.stringify(embeddedWallet),
-      };
-      
-      console.log('[GanSignerSetup] Sending wallet data:', walletData);
-      
-      const response = await fetch('/api/gan-signer?' + new URLSearchParams({
-        walletId: walletData.walletId || '',
-        debug: 'true',
-      }), {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      const data = await response.json();
-      console.log('[GanSignerSetup] Status check:', data);
-      setDebugInfo(data);
-
-      if (data.enabled) {
-        setStatus('complete');
-      } else {
-        setStatus('needs_setup');
-      }
-    } catch (err) {
-      console.error('[GanSignerSetup] Check error:', err);
-      setStatus('needs_setup');
+    // Check if already delegated
+    if (embeddedWallet.delegated) {
+      console.log('[GanSignerSetup] Already delegated!');
+      setStatus('complete');
+      return;
     }
-  }
+    
+    setStatus('needs_setup');
+  }, [ready, authenticated, embeddedWallet, dismissed, delegateWallet]);
 
-  async function addGanSigner() {
+  async function enableDelegation() {
     setStatus('adding');
     setError(null);
 
     try {
-      const token = await getAccessToken();
+      console.log('[GanSignerSetup] Starting delegation via SDK...');
       
-      // Get wallet ID from frontend if available
-      const walletId = embeddedWallet?.id || embeddedWallet?.walletId || embeddedWallet?._id;
+      if (!delegateWallet) {
+        throw new Error('Delegation not available. Enable "Delegated Actions" in Privy Dashboard.');
+      }
       
-      console.log('[GanSignerSetup] Adding GAN signer, walletId from frontend:', walletId);
-      
-      const response = await fetch('/api/gan-signer', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          walletAddress: embeddedWallet?.address,
-          // Pass wallet ID from frontend!
-          walletId: walletId,
-          // Pass all wallet data for debugging
-          walletKeys: Object.keys(embeddedWallet || {}),
-        }),
-      });
-
-      const data = await response.json();
-      console.log('[GanSignerSetup] API response:', response.status, data);
-
-      if (!response.ok) {
-        throw new Error(data.error || data.details || `API error: ${response.status}`);
+      if (!embeddedWallet) {
+        throw new Error('No embedded wallet found');
       }
 
+      // Use Privy's built-in delegation!
+      // This should prompt the user and enable delegation without needing wallet ID
+      const result = await delegateWallet({
+        address: embeddedWallet.address,
+      });
+      
+      console.log('[GanSignerSetup] Delegation result:', result);
       setStatus('complete');
 
     } catch (err) {
-      console.error('[GanSignerSetup] Error:', err);
-      setError(err.message);
+      console.error('[GanSignerSetup] Delegation error:', err);
+      setError(err.message || 'Delegation failed');
       setStatus('needs_setup');
+      checkedRef.current = false;
     }
   }
 
@@ -140,7 +85,7 @@ export default function GanSignerSetup() {
             )}
             <div className="flex gap-2">
               <button
-                onClick={addGanSigner}
+                onClick={enableDelegation}
                 className="px-4 py-2 bg-gan-yellow text-black font-bold rounded-lg text-sm hover:bg-gan-gold transition-colors"
               >
                 Enable
@@ -164,7 +109,7 @@ export default function GanSignerSetup() {
         <div className="flex items-center gap-3">
           <div className="animate-spin w-5 h-5 border-2 border-gan-yellow border-t-transparent rounded-full" />
           <span className="text-sm text-gray-400">
-            {status === 'checking' ? 'Checking...' : 'Enabling GAN...'}
+            {status === 'adding' ? 'Enabling GAN...' : 'Checking...'}
           </span>
         </div>
       </div>
