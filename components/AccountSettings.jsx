@@ -18,29 +18,17 @@ export default function AccountSettings({ isOpen, onClose }) {
     onSuccess: (user, linkedAccount) => {
       console.log('Successfully linked:', linkedAccount);
       setIsLinking(null);
-      setToast({ message: `Successfully linked ${linkedAccount.type}`, type: 'success' });
     },
     onError: (error) => {
       console.error('Link error:', error);
       setIsLinking(null);
-      setToast({ message: 'Failed to link account', type: 'error' });
     }
   });
   const { wallets } = useWallets();
   
   const [isLinking, setIsLinking] = useState(null);
-  const [toast, setToast] = useState(null);
   const [referralStats, setReferralStats] = useState({ points: 0, referrals: 0 });
   const [copied, setCopied] = useState(false);
-  
-
-  // Auto-clear toast
-  useEffect(() => {
-    if (toast) {
-      const timer = setTimeout(() => setToast(null), 4000);
-      return () => clearTimeout(timer);
-    }
-  }, [toast]);
 
   // Generate referral code
   const referralCode = generateReferralCode(user?.id);
@@ -91,10 +79,8 @@ export default function AccountSettings({ isOpen, onClose }) {
         case 'email': await unlinkEmail(linkedEmail); break;
         case 'twitter': await unlinkTwitter(user.twitter?.subject); break;
       }
-      setToast({ message: `Unlinked ${type}`, type: 'success' });
     } catch (e) {
       console.error(`Failed to unlink ${type}:`, e);
-      setToast({ message: `Failed to unlink ${type}`, type: 'error' });
     }
     setIsLinking(null);
   };
@@ -327,27 +313,6 @@ export default function AccountSettings({ isOpen, onClose }) {
         </p>
       </div>
 
-      {/* Toast */}
-      {toast && (
-        <div style={{
-          position: 'fixed',
-          bottom: '24px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          padding: '12px 20px',
-          borderRadius: '8px',
-          background: toast.type === 'success' ? '#10b981' : toast.type === 'warning' ? '#f59e0b' : '#ef4444',
-          color: toast.type === 'warning' ? '#000' : '#fff',
-          fontSize: '0.9rem',
-          fontWeight: 500,
-          maxWidth: '90vw',
-          textAlign: 'center',
-          zIndex: 1001,
-          boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
-        }}>
-          {toast.message}
-        </div>
-      )}
     </div>
   );
 }
