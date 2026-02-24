@@ -1,6 +1,7 @@
 import { PrivyClient } from '@privy-io/server-auth';
 
-const GAN_AUTHORIZATION_KEY_ID = 'cxz88rx36g27l2eo8fgwo6h8';
+// GAN Agent Key Quorum - created via Privy API
+const GAN_QUORUM_ID = 'bisl2gjkwgmzhp1x8p98c72o';
 
 let privyClient = null;
 
@@ -82,18 +83,20 @@ async function addSigner(walletId) {
   const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
   const appSecret = process.env.PRIVY_APP_SECRET;
   
-  console.log('[gan-signer] Adding signer to wallet:', walletId);
+  console.log('[gan-signer] Adding GAN quorum signer to wallet:', walletId);
 
-  const response = await fetch(`https://api.privy.io/v1/wallets/${walletId}/signers`, {
-    method: 'POST',
+  // Use PATCH to update wallet with additional_signers
+  const response = await fetch(`https://api.privy.io/v1/wallets/${walletId}`, {
+    method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
       'privy-app-id': appId,
       'Authorization': `Basic ${Buffer.from(`${appId}:${appSecret}`).toString('base64')}`,
     },
     body: JSON.stringify({
-      type: 'authorization_key',
-      authorization_key_id: GAN_AUTHORIZATION_KEY_ID,
+      additional_signers: [
+        { signer_id: GAN_QUORUM_ID }
+      ],
     }),
   });
 
