@@ -84,7 +84,7 @@ async function addSigner(walletId) {
   
   console.log('[gan-signer] Adding signer to wallet:', walletId);
 
-  const response = await fetch(`https://auth.privy.io/api/v1/wallets/${walletId}/signers`, {
+  const response = await fetch(`https://api.privy.io/v1/wallets/${walletId}/signers`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
