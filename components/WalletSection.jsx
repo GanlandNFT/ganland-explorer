@@ -28,7 +28,9 @@ export default function WalletSection() {
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const walletAddress = user?.wallet?.address;
+  // Get embedded wallet from Privy (NOT user.wallet which doesn't exist)
+  const embeddedWallet = wallets?.find(w => w.walletClientType === 'privy');
+  const walletAddress = embeddedWallet?.address;
 
   useEffect(() => {
     if (walletAddress) {
