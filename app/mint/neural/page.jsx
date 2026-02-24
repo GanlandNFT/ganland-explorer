@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { usePrivy, useWallets } from '@privy-io/react-auth';
+import { usePrivy } from '@privy-io/react-auth';
 import { createPublicClient, http, parseEther, encodeFunctionData } from 'viem';
 import { base } from 'viem/chains';
 import TransactionModal from '../../../components/TransactionModal';
+import { useGanWallet } from '../../../hooks/useGanWallet';
 
 const NEURAL_CONTRACT = '0xd1415559a3eCA34694a38A123a12cC6AC17CaFea';
 const MINT_PRICE = '0.008';
@@ -119,8 +120,9 @@ const publicClient = createPublicClient({
 });
 
 export default function NeuralMintPage() {
-  const { ready, authenticated, login, logout } = usePrivy();
-  const { wallets } = useWallets();
+  const { login } = usePrivy();
+  // Use GanWallet for immediate updates after wallet creation
+  const { ready, authenticated, address: walletAddress, wallet, isCreating } = useGanWallet();
   
   const [isMinting, setIsMinting] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
@@ -131,16 +133,15 @@ export default function NeuralMintPage() {
   const [copied, setCopied] = useState(false);
   const [balance, setBalance] = useState(null);
 
-  // Use embedded wallet only (Privy-created)
-  const wallet = wallets?.find(w => w.walletClientType === 'privy') || null;
-  const hasWallet = wallet?.address;
+  // Wallet address from GanWallet context
+  const hasWallet = !!walletAddress;
 
   // Fetch balance when wallet connects
   useEffect(() => {
     const fetchBalance = async () => {
-      if (wallet?.address) {
+      if (walletAddress) {
         try {
-          const bal = await publicClient.getBalance({ address: wallet.address });
+          const bal = await publicClient.getBalance({ address: walletAddress });
           setBalance(bal);
         } catch (e) {
           console.error('Balance fetch failed:', e);
@@ -150,7 +151,7 @@ export default function NeuralMintPage() {
       }
     };
     fetchBalance();
-  }, [wallet?.address]);
+  }, [walletAddress]);
 
   // Check if user has enough balance
   const mintCost = parseEther(MINT_PRICE);
@@ -165,8 +166,8 @@ export default function NeuralMintPage() {
     }
 
     // Must have a wallet connected
-    if (!wallet?.address) {
-      setError('Please connect a wallet first');
+    if (!walletAddress) {
+      setError(isCreating ? 'Wallet is being created...' : 'Please connect a wallet first');
       return;
     }
 
@@ -190,7 +191,7 @@ export default function NeuralMintPage() {
       abi: CLAIM_ABI,
       functionName: 'claim',
       args: [
-        wallet.address,
+        walletAddress,
         1n,
         '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
         parseEther(MINT_PRICE),
@@ -373,7 +374,7 @@ export default function NeuralMintPage() {
           onClose={handleCloseModal}
           onConfirm={handleConfirmTransaction}
           transaction={pendingTx}
-          walletAddress={wallet?.address}
+          walletAddress={walletAddress}
           isLoading={isConfirming}
         />
 
@@ -431,7 +432,7 @@ export default function NeuralMintPage() {
                   {/* Show embedded wallet address */}
                   {hasWallet && (
                     <p style={{ fontSize: '0.8rem', color: '#666', marginBottom: '12px' }}>
-                      🔐 <span style={{ color: '#5ce1e6', fontFamily: '"Share Tech Mono", monospace' }}>{wallet.address.slice(0, 6)}...{wallet.address.slice(-4)}</span>
+                      🔐 <span style={{ color: '#5ce1e6', fontFamily: '"Share Tech Mono", monospace' }}>{walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}</span>
                       <span style={{ color: '#444', marginLeft: '8px' }}>(Embedded Wallet)</span>
                     </p>
                   )}

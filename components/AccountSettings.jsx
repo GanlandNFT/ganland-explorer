@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { usePrivy, useLinkAccount, useWallets } from '@privy-io/react-auth';
-
+import { useState } from 'react';
+import { usePrivy, useLinkAccount } from '@privy-io/react-auth';
+import { useGanWallet } from '../hooks/useGanWallet';
 
 // Generate a short referral code from user ID
 function generateReferralCode(userId) {
@@ -24,7 +24,9 @@ export default function AccountSettings({ isOpen, onClose }) {
       setIsLinking(null);
     }
   });
-  const { wallets } = useWallets();
+  
+  // Use GanWallet for immediate wallet state
+  const { address: walletAddress, isCreating } = useGanWallet();
   
   const [isLinking, setIsLinking] = useState(null);
   const [referralStats, setReferralStats] = useState({ points: 0, referrals: 0 });
@@ -51,9 +53,6 @@ export default function AccountSettings({ isOpen, onClose }) {
   // Get linked accounts
   const linkedEmail = user.email?.address;
   const linkedTwitter = user.twitter?.username;
-  
-  // Get embedded wallet (Privy-created)
-  const embeddedWallet = wallets?.find(w => w.walletClientType === 'privy');
 
   const handleLink = async (type) => {
     setIsLinking(type);
@@ -166,7 +165,7 @@ export default function AccountSettings({ isOpen, onClose }) {
         </div>
 
         {/* Embedded Wallet */}
-        {embeddedWallet && (
+        {(walletAddress || isCreating) && (
           <div style={{
             background: 'rgba(212, 168, 75, 0.1)',
             border: '1px solid rgba(212, 168, 75, 0.3)',
@@ -178,7 +177,7 @@ export default function AccountSettings({ isOpen, onClose }) {
               🔐 Your Embedded Wallet
             </div>
             <div style={{ fontFamily: '"Share Tech Mono", monospace', color: '#d4a84b', fontSize: '0.9rem', wordBreak: 'break-all' }}>
-              {embeddedWallet.address}
+              {isCreating ? '🔧 Creating wallet...' : walletAddress}
             </div>
           </div>
         )}

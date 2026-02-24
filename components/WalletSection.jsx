@@ -1,10 +1,9 @@
 'use client';
 
-import { usePrivy, useWallets } from '@privy-io/react-auth';
+import { usePrivy } from '@privy-io/react-auth';
 import { useEffect, useState } from 'react';
-import { createPublicClient, http, parseEther, formatEther } from 'viem';
-import { base, optimism, mainnet } from 'viem/chains';
-// GAN signer is now managed in AccountSettings
+import { parseEther } from 'viem';
+import { useGanWallet } from '../hooks/useGanWallet';
 
 const SUPPORTED_CHAINS = [
   { name: 'Base', color: '#3b82f6', id: 8453, rpc: 'https://base-mainnet.g.alchemy.com/v2/ThO48tmVpneJP9OB8I4-3ucrNYBrZ2tU' },
@@ -19,18 +18,15 @@ const SUPPORTED_CHAINS = [
 const GAN_TOKEN = '0xc2fa8cfa51B02fDeb84Bb22d3c9519EAEB498b07';
 
 export default function WalletSection() {
-  const { ready, authenticated, user } = usePrivy();
-  const { wallets } = useWallets();
+  // Use GanWallet context for immediate updates
+  const { ready, authenticated, address: walletAddress, wallet, user, isCreating } = useGanWallet();
+  
   const [ganBalance, setGanBalance] = useState(null);
   const [ethBalance, setEthBalance] = useState(null);
   const [loading, setLoading] = useState(false);
   const [selectedChain, setSelectedChain] = useState(SUPPORTED_CHAINS[0]); // Base default
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [copied, setCopied] = useState(false);
-
-  // Get embedded wallet from Privy (NOT user.wallet which doesn't exist)
-  const embeddedWallet = wallets?.find(w => w.walletClientType === 'privy');
-  const walletAddress = embeddedWallet?.address;
 
   useEffect(() => {
     if (walletAddress) {
@@ -220,7 +216,7 @@ export default function WalletSection() {
           <TransferModal
             walletAddress={walletAddress}
             selectedChain={selectedChain}
-            wallets={wallets}
+            wallet={wallet}
             onClose={() => setShowTransferModal(false)}
           />
         )}
@@ -273,7 +269,7 @@ export default function WalletSection() {
 }
 
 // Transfer Modal Component
-function TransferModal({ walletAddress, selectedChain, wallets, onClose }) {
+function TransferModal({ walletAddress, selectedChain, wallet, onClose }) {
   const [recipient, setRecipient] = useState('');
   const [amount, setAmount] = useState('');
   const [sending, setSending] = useState(false);
@@ -291,9 +287,8 @@ function TransferModal({ walletAddress, selectedChain, wallets, onClose }) {
       return;
     }
 
-    const wallet = wallets?.[0];
     if (!wallet) {
-      setError('No wallet connected');
+      setError('Wallet not ready yet - please wait a moment');
       return;
     }
 
