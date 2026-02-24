@@ -236,37 +236,6 @@ export default function AccountSettings({ isOpen, onClose }) {
           />
         </div>
 
-        {/* GAN Agent Status - Auto-enabled via ToS acceptance */}
-        <div style={{ marginBottom: '24px' }}>
-          <div style={{ fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', color: '#888', marginBottom: '8px' }}>
-            🤖 GAN Agent
-          </div>
-          <div style={{
-            padding: '16px',
-            background: 'rgba(16, 185, 129, 0.1)',
-            border: '1px solid rgba(16, 185, 129, 0.3)',
-            borderRadius: '12px',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div style={{
-                width: '10px',
-                height: '10px',
-                borderRadius: '50%',
-                background: '#10b981',
-                boxShadow: '0 0 8px rgba(16, 185, 129, 0.5)',
-              }} />
-              <div>
-                <div style={{ fontWeight: 600, color: '#10b981' }}>
-                  GAN Enabled
-                </div>
-                <div style={{ fontSize: '0.8rem', color: '#666' }}>
-                  GAN can mint NFTs and execute transactions on your behalf
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* Referral System */}
         <div style={{
           background: 'rgba(92, 225, 230, 0.05)',
