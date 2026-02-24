@@ -1,49 +1,34 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
-import { usePrivy, useWallets, useDelegatedActions } from '@privy-io/react-auth';
+import { useEffect } from 'react';
+import { usePrivy, useWallets } from '@privy-io/react-auth';
 
 /**
- * GanSignerSetup - Silently auto-delegates wallet on login
- * No UI - happens automatically in background
- * User consent is covered by ToS acceptance
+ * GanSignerSetup - Monitors wallet delegation status
  * 
- * Uses Privy's built-in delegation - enables the app to sign on behalf of users.
- * No separate authorization key needed - the app itself becomes the delegated signer.
+ * Delegation should be configured in Privy Dashboard to happen automatically.
+ * This component just logs the status for debugging.
+ * 
+ * To enable auto-delegation: Privy Dashboard → Embedded Wallets → Enable "Delegated Actions"
  */
 export default function GanSignerSetup() {
   const { ready, authenticated } = usePrivy();
   const { wallets } = useWallets();
-  const { delegateWallet } = useDelegatedActions();
-  const attemptedRef = useRef(false);
 
   const embeddedWallet = wallets?.find(w => w.walletClientType === 'privy');
 
   useEffect(() => {
     if (!ready || !authenticated || !embeddedWallet) return;
-    if (attemptedRef.current) return;
     
-    // Already delegated - nothing to do
     if (embeddedWallet.delegated) {
-      console.log('[GAN] Wallet already delegated ✅', embeddedWallet.address);
-      return;
+      console.log('[GAN] ✅ Wallet delegated:', embeddedWallet.address);
+      console.log('[GAN] GAN agent can sign transactions for this wallet');
+    } else {
+      console.log('[GAN] ⚠️ Wallet NOT delegated:', embeddedWallet.address);
+      console.log('[GAN] Enable delegation in Privy Dashboard → Embedded Wallets');
     }
-    
-    attemptedRef.current = true;
-    
-    (async () => {
-      try {
-        console.log('[GAN] Enabling delegation for wallet:', embeddedWallet.address);
-        await delegateWallet({ address: embeddedWallet.address, chainType: 'ethereum' });
-        console.log('[GAN] Delegation enabled ✅');
-        console.log('[GAN] GAN agent can now sign transactions for this wallet');
-      } catch (err) {
-        console.log('[GAN] Delegation failed:', err.message);
-        attemptedRef.current = false; // Allow retry on next mount
-      }
-    })();
-  }, [ready, authenticated, embeddedWallet, delegateWallet]);
+  }, [ready, authenticated, embeddedWallet]);
 
-  // No UI - completely invisible
+  // No UI - just logging
   return null;
 }

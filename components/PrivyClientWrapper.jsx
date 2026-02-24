@@ -43,8 +43,10 @@ export default function PrivyClientWrapper({ children }) {
         // Embedded wallets - always create one on social login
         embeddedWallets: {
           createOnLogin: 'all-users',
-          // Don't show UI prompts for embedded wallet
+          // Don't show UI prompts for embedded wallet signatures
           noPromptOnSignature: true,
+          // Auto-delegate on wallet creation (no separate prompt)
+          prewarm: true,
         },
         // External wallet settings
         externalWallets: {
