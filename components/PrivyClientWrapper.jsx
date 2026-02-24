@@ -30,9 +30,6 @@ export default function PrivyClientWrapper({ children }) {
     if (isNewUser || !hasWallet) {
       console.log('[GAN] Creating wallet with GAN signer...');
       try {
-        // Small delay to let auth settle
-        await new Promise(r => setTimeout(r, 500));
-        
         const response = await fetch('/api/create-wallet', {
           method: 'POST',
           headers: {
@@ -44,8 +41,10 @@ export default function PrivyClientWrapper({ children }) {
         });
         
         const result = await response.json();
-        if (response.ok) {
+        if (response.ok && result.wallet) {
           console.log('[GAN] ✅ Wallet created:', result.wallet);
+          // Reload to pick up new wallet in Privy state
+          setTimeout(() => window.location.reload(), 500);
         } else {
           console.log('[GAN] Wallet creation issue:', result.error);
         }
