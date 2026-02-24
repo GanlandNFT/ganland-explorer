@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { usePrivy, useLinkAccount, useWallets } from '@privy-io/react-auth';
-import { useGanSigner } from '../hooks/useGanSigner';
+
 
 // Generate a short referral code from user ID
 function generateReferralCode(userId) {
@@ -27,12 +27,12 @@ export default function AccountSettings({ isOpen, onClose }) {
     }
   });
   const { wallets } = useWallets();
-  const { isGanEnabled, status: signerStatus, addGanSigner, error: signerError } = useGanSigner();
+  
   const [isLinking, setIsLinking] = useState(null);
   const [toast, setToast] = useState(null);
   const [referralStats, setReferralStats] = useState({ points: 0, referrals: 0 });
   const [copied, setCopied] = useState(false);
-  const [togglingGan, setTogglingGan] = useState(false);
+  
 
   // Auto-clear toast
   useEffect(() => {
@@ -236,109 +236,35 @@ export default function AccountSettings({ isOpen, onClose }) {
           />
         </div>
 
-        {/* GAN Agent Settings */}
+        {/* GAN Agent Status - Auto-enabled via ToS acceptance */}
         <div style={{ marginBottom: '24px' }}>
           <div style={{ fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', color: '#888', marginBottom: '8px' }}>
-            🤖 GAN Agent Settings
+            🤖 GAN Agent
           </div>
-          <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '16px' }}>
-            Control whether GAN can execute transactions on your behalf
-          </div>
-          
           <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
             padding: '16px',
-            background: isGanEnabled ? 'rgba(16, 185, 129, 0.1)' : signerStatus === 'unavailable' ? 'rgba(239, 68, 68, 0.05)' : 'rgba(255, 255, 255, 0.03)',
-            border: `1px solid ${isGanEnabled ? 'rgba(16, 185, 129, 0.3)' : signerStatus === 'unavailable' ? 'rgba(239, 68, 68, 0.3)' : '#222'}`,
+            background: 'rgba(16, 185, 129, 0.1)',
+            border: '1px solid rgba(16, 185, 129, 0.3)',
             borderRadius: '12px',
           }}>
-            <div>
-              <div style={{ fontWeight: 600, marginBottom: '4px' }}>
-                GAN Transactions
-              </div>
-              <div style={{ fontSize: '0.8rem', color: isGanEnabled ? '#10b981' : signerStatus === 'unavailable' ? '#f87171' : '#666' }}>
-                {isGanEnabled 
-                  ? 'GAN can mint NFTs for you' 
-                  : signerStatus === 'unavailable'
-                    ? 'Not available (check Privy Dashboard)'
-                    : 'Enable to let GAN mint on your behalf'}
-              </div>
-            </div>
-            
-            {/* Toggle Switch */}
-            <button
-              onClick={async () => {
-                if (signerStatus === 'unavailable') {
-                  setToast({ 
-                    message: 'Enable "Delegated Actions" in Privy Dashboard → Authorization', 
-                    type: 'warning' 
-                  });
-                  return;
-                }
-                if (isGanEnabled) {
-                  setToast({ message: 'Disabling coming soon', type: 'warning' });
-                } else {
-                  setTogglingGan(true);
-                  const success = await addGanSigner();
-                  setTogglingGan(false);
-                  if (success) {
-                    setToast({ message: 'GAN agent enabled!', type: 'success' });
-                  } else if (signerError) {
-                    setToast({ message: signerError, type: 'error' });
-                  }
-                }
-              }}
-              disabled={togglingGan || signerStatus === 'checking'}
-              style={{
-                width: '52px',
-                height: '28px',
-                borderRadius: '14px',
-                border: 'none',
-                padding: '2px',
-                cursor: signerStatus === 'unavailable' ? 'help' : togglingGan ? 'wait' : 'pointer',
-                background: isGanEnabled ? '#10b981' : signerStatus === 'unavailable' ? '#4b5563' : '#333',
-                transition: 'background 0.2s ease',
-                position: 'relative',
-                opacity: signerStatus === 'unavailable' ? 0.5 : 1,
-              }}
-            >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <div style={{
-                width: '24px',
-                height: '24px',
-                borderRadius: '12px',
-                background: '#fff',
-                transition: 'transform 0.2s ease',
-                transform: isGanEnabled ? 'translateX(24px)' : 'translateX(0)',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                width: '10px',
+                height: '10px',
+                borderRadius: '50%',
+                background: '#10b981',
+                boxShadow: '0 0 8px rgba(16, 185, 129, 0.5)',
               }} />
-            </button>
-          </div>
-          
-          {/* Error/Help message */}
-          {signerStatus === 'unavailable' && (
-            <div style={{
-              marginTop: '12px',
-              padding: '12px',
-              background: 'rgba(239, 68, 68, 0.1)',
-              border: '1px solid rgba(239, 68, 68, 0.2)',
-              borderRadius: '8px',
-              fontSize: '0.8rem',
-              color: '#f87171'
-            }}>
-              <strong>Setup Required:</strong> Go to{' '}
-              <a 
-                href="https://dashboard.privy.io" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                style={{ color: '#5ce1e6', textDecoration: 'underline' }}
-              >
-                Privy Dashboard
-              </a>
-              {' '}→ Wallet infrastructure → Authorization → Enable "Delegated Actions"
+              <div>
+                <div style={{ fontWeight: 600, color: '#10b981' }}>
+                  GAN Enabled
+                </div>
+                <div style={{ fontSize: '0.8rem', color: '#666' }}>
+                  GAN can mint NFTs and execute transactions on your behalf
+                </div>
+              </div>
             </div>
-          )}
+          </div>
         </div>
 
         {/* Referral System */}
