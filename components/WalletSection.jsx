@@ -253,12 +253,39 @@ export default function WalletSection() {
           </div>
 
           {/* NFTs / Tokens Toggle - Bottom of module */}
-          <button
-            onClick={() => setViewMode(viewMode === 'tokens' ? 'nfts' : 'tokens')}
-            className="w-full mt-4 py-3 text-sm font-medium border-t border-gray-800 text-gray-400 hover:text-white hover:bg-gray-800/50 transition-all"
-          >
-            {viewMode === 'tokens' ? '🖼️ View NFTs' : '💰 View Tokens'}
-          </button>
+          <div className="flex justify-center mt-6">
+            <button
+              onClick={() => setViewMode(viewMode === 'tokens' ? 'nfts' : 'tokens')}
+              className="group relative px-8 py-2.5 rounded-full bg-gray-800/80 border border-cyan-500/30 hover:border-cyan-400/60 transition-all overflow-hidden"
+            >
+              {/* Electric pulse animation */}
+              <span className="absolute inset-0 rounded-full bg-gradient-to-r from-transparent via-cyan-500/20 to-transparent animate-pulse-slide" />
+              <span className="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                <span className="absolute inset-[-2px] rounded-full bg-gradient-to-r from-cyan-500/0 via-cyan-500/40 to-cyan-500/0 animate-pulse-slide" />
+              </span>
+              
+              {/* Content */}
+              <span className="relative flex items-center gap-2 text-sm font-medium text-gray-300 group-hover:text-white">
+                {viewMode === 'tokens' ? (
+                  <>
+                    {/* Grid icon for NFTs */}
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                    </svg>
+                    NFTs
+                  </>
+                ) : (
+                  <>
+                    {/* X icon to hide */}
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    Hide NFTs
+                  </>
+                )}
+              </span>
+            </button>
+          </div>
         </div>
 
         {/* NFT Grid View */}

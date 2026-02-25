@@ -253,3 +253,22 @@ div[role="dialog"][aria-modal="true"] {
   overflow-wrap: anywhere;
   word-break: break-word;
 }
+
+/* Electric pulse animation for buttons */
+@keyframes pulse-slide {
+  0% {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+.animate-pulse-slide {
+  animation: pulse-slide 2s ease-in-out infinite;
+}
