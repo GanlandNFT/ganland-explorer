@@ -205,20 +205,52 @@ export default function AccountSettings({ isOpen, onClose }) {
           />
           
           <AccountRow 
-            label="Discord" 
-            value={null}
-            linked={false}
-            type="discord"
-            comingSoon={true}
-          />
-          
-          <AccountRow 
             label="Farcaster" 
             value={null}
             linked={false}
             type="farcaster"
             comingSoon={true}
           />
+        </div>
+
+        {/* Backup Email Strip */}
+        <div style={{
+          background: '#0a0a0a',
+          borderRadius: '12px',
+          padding: '16px',
+          marginBottom: '24px',
+          border: '1px solid #222'
+        }}>
+          <div style={{ fontSize: '0.75rem', color: '#666', marginBottom: '6px' }}>
+            Your backup email is:
+          </div>
+          {linkedEmail ? (
+            <div style={{ 
+              fontFamily: '"Share Tech Mono", monospace', 
+              color: '#fff',
+              fontSize: '0.95rem'
+            }}>
+              {linkedEmail}
+            </div>
+          ) : (
+            <button
+              onClick={() => handleLink('email')}
+              disabled={isLinking === 'email'}
+              style={{
+                background: 'rgba(92, 225, 230, 0.15)',
+                border: '1px solid rgba(92, 225, 230, 0.3)',
+                borderRadius: '8px',
+                padding: '10px 16px',
+                color: '#5ce1e6',
+                fontWeight: 600,
+                fontSize: '0.85rem',
+                cursor: isLinking === 'email' ? 'wait' : 'pointer',
+                width: '100%'
+              }}
+            >
+              {isLinking === 'email' ? 'Linking...' : 'Set backup email'}
+            </button>
+          )}
         </div>
 
         {/* Referral System */}
