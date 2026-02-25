@@ -13,8 +13,8 @@ function generateReferralCode(userId) {
 }
 
 export default function AccountSettings({ isOpen, onClose }) {
-  const { user, unlinkEmail, unlinkTwitter } = usePrivy();
-  const { linkEmail, linkTwitter } = useLinkAccount({
+  const { user, unlinkEmail, unlinkTwitter, unlinkFarcaster } = usePrivy();
+  const { linkEmail, linkTwitter, linkFarcaster } = useLinkAccount({
     onSuccess: (user, linkedAccount) => {
       console.log('Successfully linked:', linkedAccount);
       setIsLinking(null);
@@ -64,6 +64,9 @@ export default function AccountSettings({ isOpen, onClose }) {
         case 'twitter': 
           await linkTwitter(); 
           break;
+        case 'farcaster':
+          await linkFarcaster();
+          break;
       }
     } catch (e) {
       console.error(`Failed to link ${type}:`, e);
@@ -77,6 +80,7 @@ export default function AccountSettings({ isOpen, onClose }) {
       switch (type) {
         case 'email': await unlinkEmail(linkedEmail); break;
         case 'twitter': await unlinkTwitter(user.twitter?.subject); break;
+        case 'farcaster': await unlinkFarcaster(user.farcaster?.fid); break;
       }
     } catch (e) {
       console.error(`Failed to unlink ${type}:`, e);
@@ -205,20 +209,52 @@ export default function AccountSettings({ isOpen, onClose }) {
           />
           
           <AccountRow 
-            label="Discord" 
-            value={null}
-            linked={false}
-            type="discord"
-            comingSoon={true}
-          />
-          
-          <AccountRow 
             label="Farcaster" 
-            value={null}
-            linked={false}
+            value={user.farcaster?.username ? `@${user.farcaster.username}` : null}
+            linked={!!user.farcaster?.fid}
             type="farcaster"
-            comingSoon={true}
+            canUnlink={!!linkedEmail || !!linkedTwitter}
           />
+        </div>
+
+        {/* Backup Email Strip */}
+        <div style={{
+          background: '#0a0a0a',
+          borderRadius: '12px',
+          padding: '16px',
+          marginBottom: '24px',
+          border: '1px solid #222'
+        }}>
+          <div style={{ fontSize: '0.75rem', color: '#666', marginBottom: '6px' }}>
+            Your backup email is:
+          </div>
+          {linkedEmail ? (
+            <div style={{ 
+              fontFamily: '"Share Tech Mono", monospace', 
+              color: '#fff',
+              fontSize: '0.95rem'
+            }}>
+              {linkedEmail}
+            </div>
+          ) : (
+            <button
+              onClick={() => handleLink('email')}
+              disabled={isLinking === 'email'}
+              style={{
+                background: 'rgba(92, 225, 230, 0.15)',
+                border: '1px solid rgba(92, 225, 230, 0.3)',
+                borderRadius: '8px',
+                padding: '10px 16px',
+                color: '#5ce1e6',
+                fontWeight: 600,
+                fontSize: '0.85rem',
+                cursor: isLinking === 'email' ? 'wait' : 'pointer',
+                width: '100%'
+              }}
+            >
+              {isLinking === 'email' ? 'Linking...' : 'Set backup email'}
+            </button>
+          )}
         </div>
 
         {/* Referral System */}

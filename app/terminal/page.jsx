@@ -2,17 +2,16 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
-import { createPublicClient, http, formatEther, parseEther } from 'viem';
+import { createPublicClient, http, formatEther } from 'viem';
 import { base } from 'viem/chains';
+import Image from 'next/image';
 
 // Constants
 const GAN_TOKEN = '0xc2fa8cfa51B02fDeb84Bb22d3c9519EAEB498b07';
-const REQUIRED_GAN = 6900000n * 10n ** 18n; // 6,900,000 $GAN
+const REQUIRED_GAN = 6900000n * 10n ** 18n;
 const FREE_HANDLES = ['iglivision', 'artfractalicia'];
-const SUBSCRIPTION_WALLET = '0xDd32A567bc09384057A1F260086618D88b28E64F'; // ganland.eth
-const SUBSCRIPTION_PRICE = 0.015; // ~$30 in ETH
+const GANLAND_ETH = '0xDd32A567bc09384057A1F260086618D88b28E64F';
 
-// ERC-20 ABI for balanceOf
 const ERC20_ABI = [
   {
     name: 'balanceOf',
@@ -28,26 +27,77 @@ const publicClient = createPublicClient({
   transport: http()
 });
 
+// Quick command buttons
+const QUICK_COMMANDS = [
+  'Buy me $20 of $GAN',
+  'Send $5 to Ganland.eth', 
+  'List NFT on Fractal Visions',
+  'balance',
+  'help',
+];
+
 export default function TerminalPage() {
   const { ready, authenticated, login, user } = usePrivy();
   const { wallets } = useWallets();
   
-  const [accessStatus, setAccessStatus] = useState('checking'); // checking, granted, denied
+  const [accessStatus, setAccessStatus] = useState('checking');
   const [ganBalance, setGanBalance] = useState(null);
-  const [history, setHistory] = useState([
-    { type: 'system', text: 'Welcome to GAN Terminal v1.0' },
-    { type: 'system', text: 'Type "help" for available commands.' },
-  ]);
+  const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [activityLogs, setActivityLogs] = useState([]);
+  const [supabaseData, setSupabaseData] = useState({ collections: [], tokenStats: null });
   
   const inputRef = useRef(null);
-  const terminalRef = useRef(null);
+  const chatRef = useRef(null);
 
-  // Get X handle from Privy user
   const xHandle = user?.twitter?.username?.toLowerCase();
 
-  // Check access on auth change
+  // Add activity log
+  const addLog = (message, type = 'info') => {
+    setActivityLogs(prev => [...prev.slice(-4), { message, type, timestamp: Date.now() }]);
+  };
+
+  // Fetch activity from Supabase on mount
+  useEffect(() => {
+    async function fetchActivity() {
+      try {
+        const res = await fetch('/api/activity?type=recent&limit=5');
+        const data = await res.json();
+        if (data.success) {
+          setSupabaseData({
+            collections: data.data.collections || [],
+            tokenStats: data.data.tokenStats
+          });
+          
+          // Show recent on-chain activity in logs
+          if (data.data.activity?.length > 0) {
+            data.data.activity.slice(0, 3).forEach(a => {
+              const type = a.activity_type === 'mint' ? '🎨' : 
+                          a.activity_type === 'transfer' ? '📤' : 
+                          a.activity_type === 'list' ? '🏷️' : '📝';
+              addLog(`${type} ${a.activity_type}: ${a.wallet_address?.slice(0, 8)}...`, 'info');
+            });
+          }
+          
+          // Show token stats
+          if (data.data.tokenStats) {
+            const stats = data.data.tokenStats;
+            addLog(`$GAN: $${stats.price_usd?.toFixed(6) || '—'} (${stats.price_change_24h > 0 ? '+' : ''}${stats.price_change_24h?.toFixed(2) || '0'}%)`, 'info');
+          }
+        }
+      } catch (e) {
+        console.error('Failed to fetch activity:', e);
+      }
+    }
+    
+    fetchActivity();
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchActivity, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Check access
   useEffect(() => {
     async function checkAccess() {
       if (!ready) return;
@@ -57,14 +107,18 @@ export default function TerminalPage() {
         return;
       }
 
-      // Check free list first
+      // Featured artists get free access
       if (xHandle && FREE_HANDLES.includes(xHandle)) {
         setAccessStatus('granted');
-        addSystemMessage(`🎉 Welcome back, @${xHandle}! (Featured Artist - Free Access)`);
+        addLog('✓ Featured artist access granted', 'success');
+        setMessages([{
+          role: 'assistant',
+          content: `Hey @${xHandle}! 🍄\n\nGAN at your service. Choose a command or ask a question.`,
+          timestamp: Date.now()
+        }]);
         return;
       }
 
-      // Check $GAN balance
       const wallet = wallets?.[0];
       if (!wallet) {
         setAccessStatus('no_wallet');
@@ -72,6 +126,7 @@ export default function TerminalPage() {
       }
 
       try {
+        addLog('Checking $GAN balance...', 'info');
         const balance = await publicClient.readContract({
           address: GAN_TOKEN,
           abi: ERC20_ABI,
@@ -81,19 +136,22 @@ export default function TerminalPage() {
         
         setGanBalance(balance);
         
-        // Check if user has BOTH: $GAN balance AND subscription
-        // TODO: Check subscription status in Supabase
         const hasTokens = balance >= REQUIRED_GAN;
-        const hasSubscription = false; // TODO: implement subscription check
-        
-        if (hasTokens && hasSubscription) {
+        if (hasTokens) {
           setAccessStatus('granted');
-          addSystemMessage(`🔓 Access granted! Balance: ${formatGan(balance)} $GAN + Active Subscription`);
+          addLog(`✓ Token gate passed: ${formatGan(balance)} $GAN`, 'success');
+          setMessages([{
+            role: 'assistant',
+            content: `Hey! 🍄\n\nGAN at your service. Choose a command or ask a question.`,
+            timestamp: Date.now()
+          }]);
         } else {
+          addLog(`✗ Insufficient balance: ${formatGan(balance)} $GAN`, 'error');
           setAccessStatus('insufficient_balance');
         }
       } catch (e) {
         console.error('Failed to check balance:', e);
+        addLog(`Error: ${e.message}`, 'error');
         setAccessStatus('error');
       }
     }
@@ -101,52 +159,41 @@ export default function TerminalPage() {
     checkAccess();
   }, [ready, authenticated, wallets, xHandle]);
 
-  // Auto-scroll terminal
+  // Auto-scroll
   useEffect(() => {
-    if (terminalRef.current) {
-      terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
+    if (chatRef.current) {
+      chatRef.current.scrollTop = chatRef.current.scrollHeight;
     }
-  }, [history]);
+  }, [messages]);
 
-  // Focus input on click
-  const focusInput = () => inputRef.current?.focus();
-
-  // Add message to history
-  const addMessage = (type, text) => {
-    setHistory(prev => [...prev, { type, text, timestamp: Date.now() }]);
+  const addMessage = (role, content, handle = null) => {
+    setMessages(prev => [...prev, { role, content, handle, timestamp: Date.now() }]);
   };
 
-  const addSystemMessage = (text) => addMessage('system', text);
-  const addUserMessage = (text) => addMessage('user', text);
-  const addResponse = (text) => addMessage('response', text);
-  const addError = (text) => addMessage('error', text);
-
-  // Process command
   const processCommand = async (cmd) => {
-    const command = cmd.trim().toLowerCase();
-    
+    const command = cmd.trim();
     if (!command) return;
 
-    addUserMessage(cmd);
+    addMessage('user', command, xHandle);
     setIsProcessing(true);
+    addLog(`Processing: ${command}`, 'info');
 
     try {
-      // Parse and execute command
-      const result = await executeCommand(command, wallets?.[0]?.address);
-      
+      const result = await executeCommand(command.toLowerCase(), wallets?.[0]?.address, addLog, supabaseData);
+      addMessage('assistant', result.error || result.message);
       if (result.error) {
-        addError(result.error);
+        addLog(`Error: ${result.error}`, 'error');
       } else {
-        addResponse(result.message);
+        addLog('✓ Command completed', 'success');
       }
     } catch (e) {
-      addError(`Error: ${e.message}`);
+      addMessage('assistant', `Error: ${e.message}`);
+      addLog(`Error: ${e.message}`, 'error');
     } finally {
       setIsProcessing(false);
     }
   };
 
-  // Handle input submit
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!input.trim() || isProcessing) return;
@@ -154,108 +201,155 @@ export default function TerminalPage() {
     setInput('');
   };
 
-  // Render based on access status
-  if (!ready) {
-    return <LoadingScreen message="Initializing..." />;
-  }
+  // Access screens
+  if (!ready) return <LoadingScreen message="Initializing..." />;
+  if (accessStatus === 'login_required') return <LoginScreen onLogin={login} />;
+  if (accessStatus === 'no_wallet') return <NoWalletScreen />;
+  if (accessStatus === 'insufficient_balance') return <PaywallScreen balance={ganBalance} required={REQUIRED_GAN} />;
+  if (accessStatus === 'checking') return <LoadingScreen message="Checking access..." />;
 
-  if (accessStatus === 'login_required') {
-    return <LoginScreen onLogin={login} />;
-  }
-
-  if (accessStatus === 'no_wallet') {
-    return <NoWalletScreen />;
-  }
-
-  if (accessStatus === 'insufficient_balance') {
-    return <PaywallScreen balance={ganBalance} required={REQUIRED_GAN} onSubscribe={() => {}} />;
-  }
-
-  if (accessStatus === 'checking') {
-    return <LoadingScreen message="Checking access..." />;
-  }
-
-  // Terminal UI
+  // Main Terminal UI
   return (
-    <div className="min-h-[80vh] flex flex-col">
-      {/* Terminal Header */}
-      <div className="flex items-center justify-between bg-gray-900 border border-gray-800 rounded-t-xl px-4 py-2">
-        <div className="flex items-center gap-2">
-          <div className="flex gap-1.5">
-            <div className="w-3 h-3 rounded-full bg-red-500" />
-            <div className="w-3 h-3 rounded-full bg-yellow-500" />
-            <div className="w-3 h-3 rounded-full bg-green-500" />
-          </div>
-          <span className="text-gray-500 text-sm ml-2">GAN Terminal</span>
-        </div>
-        <div className="flex items-center gap-4 text-xs text-gray-500">
-          <span>@{xHandle || 'anonymous'}</span>
-          <span className="text-gan-yellow">{ganBalance ? formatGan(ganBalance) : '—'} $GAN</span>
-        </div>
-      </div>
-
-      {/* Terminal Body */}
-      <div 
-        ref={terminalRef}
-        onClick={focusInput}
-        className="flex-1 bg-gray-950 border-x border-gray-800 p-4 font-mono text-sm overflow-y-auto cursor-text"
-        style={{ minHeight: '400px' }}
-      >
-        {history.map((entry, i) => (
-          <TerminalLine key={i} entry={entry} />
-        ))}
+    <div className="min-h-[80vh] flex flex-col items-center justify-start pt-4 pb-20 md:pb-4 md:justify-center px-4">
+      {/* Terminal Container with Laser Border */}
+      <div className="relative w-full max-w-2xl">
+        {/* Animated Laser Glow Border */}
+        <div className="absolute -inset-[2px] rounded-3xl laser-border" />
         
-        {isProcessing && (
-          <div className="text-gray-500 animate-pulse">Processing...</div>
-        )}
+        {/* Inner glow */}
+        <div className="absolute -inset-[1px] rounded-3xl bg-cyan-500/10 blur-md" />
+        
+        {/* Main Container */}
+        <div className="relative bg-black/80 backdrop-blur-2xl rounded-3xl border border-white/10 overflow-hidden">
+          {/* Header */}
+          <div className="px-6 py-3 border-b border-white/10 bg-white/5">
+            <h1 className="text-center text-xs font-medium tracking-widest text-white/70 uppercase">
+              Agentic Interface
+            </h1>
+          </div>
+
+          {/* Chat Area */}
+          <div 
+            ref={chatRef}
+            className="h-[300px] md:h-[350px] overflow-y-auto p-4 space-y-4 scrollbar-thin"
+          >
+            {messages.map((msg, i) => (
+              <ChatMessage key={i} message={msg} />
+            ))}
+            
+            {isProcessing && (
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
+                  <Image src="/gan-logo.jpg" alt="GAN" width={32} height={32} className="w-full h-full object-cover" />
+                </div>
+                <div className="bg-cyan-500/10 backdrop-blur-xl border border-cyan-400/20 rounded-2xl rounded-tl-sm px-4 py-3">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Input Area - Moved up with less padding */}
+          <div className="p-3 border-t border-white/10 bg-white/5">
+            <form onSubmit={handleSubmit} className="relative">
+              <input
+                ref={inputRef}
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                disabled={isProcessing}
+                placeholder="Ask GAN anything..."
+                className="w-full px-4 py-2.5 pr-12 bg-white/5 backdrop-blur border border-white/10 focus:border-cyan-400/50 rounded-2xl outline-none text-white text-sm placeholder-white/30 transition-all"
+                autoFocus
+              />
+              <button
+                type="submit"
+                disabled={!input.trim() || isProcessing}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-cyan-500/80 hover:bg-cyan-400 disabled:bg-white/10 disabled:cursor-not-allowed rounded-xl transition-all"
+              >
+                <svg className="w-4 h-4 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                </svg>
+              </button>
+            </form>
+            
+            {/* Quick Commands - Small buttons */}
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {QUICK_COMMANDS.map(cmd => (
+                <button
+                  key={cmd}
+                  onClick={() => processCommand(cmd)}
+                  disabled={isProcessing}
+                  className="px-2 py-0.5 text-[9px] bg-white/5 hover:bg-white/10 border border-white/10 hover:border-cyan-400/30 rounded-full text-white/60 hover:text-white transition-all"
+                >
+                  {cmd}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Terminal Input */}
-      <form onSubmit={handleSubmit} className="bg-gray-900 border border-gray-800 rounded-b-xl px-4 py-3">
-        <div className="flex items-center gap-2">
-          <span className="text-green-400">❯</span>
-          <input
-            ref={inputRef}
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            disabled={isProcessing}
-            placeholder="Enter command..."
-            className="flex-1 bg-transparent outline-none text-white font-mono"
-            autoFocus
-          />
+      {/* Activity Log Module - Yellow */}
+      <div className="w-full max-w-2xl mt-3">
+        <div className="bg-gan-yellow/10 border border-gan-yellow/30 rounded-2xl p-3">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-2 h-2 bg-gan-yellow rounded-full animate-pulse" />
+            <span className="text-[10px] text-gan-yellow font-medium uppercase tracking-wider">Activity Log</span>
+          </div>
+          <div className="space-y-1 max-h-[80px] overflow-y-auto scrollbar-thin">
+            {activityLogs.length === 0 ? (
+              <p className="text-[11px] text-white/30">Waiting for activity...</p>
+            ) : (
+              activityLogs.map((log, i) => (
+                <div key={i} className={`text-[11px] font-mono ${
+                  log.type === 'error' ? 'text-red-400' : 
+                  log.type === 'success' ? 'text-green-400' : 
+                  'text-white/50'
+                }`}>
+                  {log.message}
+                </div>
+              ))
+            )}
+          </div>
         </div>
-      </form>
-
-      {/* Quick Commands */}
-      <div className="mt-4 flex flex-wrap gap-2">
-        {['help', 'balance', 'my address', 'show my NFTs', 'trending NFT collections'].map(cmd => (
-          <button
-            key={cmd}
-            onClick={() => { setInput(cmd); inputRef.current?.focus(); }}
-            className="px-3 py-1 text-xs bg-gray-800 hover:bg-gray-700 rounded-full transition-colors"
-          >
-            {cmd}
-          </button>
-        ))}
       </div>
     </div>
   );
 }
 
-// Terminal line component
-function TerminalLine({ entry }) {
-  const colors = {
-    system: 'text-gray-500',
-    user: 'text-white',
-    response: 'text-green-400',
-    error: 'text-red-400',
-  };
-
+// Chat message with glass effect
+function ChatMessage({ message }) {
+  const isUser = message.role === 'user';
+  
   return (
-    <div className={`mb-1 ${colors[entry.type] || 'text-white'}`}>
-      {entry.type === 'user' && <span className="text-blue-400">❯ </span>}
-      <span className="whitespace-pre-wrap">{entry.text}</span>
+    <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'}`}>
+      <div className={`flex items-end gap-2 max-w-[85%] ${isUser ? 'flex-row-reverse' : ''}`}>
+        {/* GAN Avatar */}
+        {!isUser && (
+          <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 mb-1">
+            <Image src="/gan-logo.jpg" alt="GAN" width={32} height={32} className="w-full h-full object-cover" />
+          </div>
+        )}
+        
+        {/* Glass Bubble */}
+        <div className={`backdrop-blur-xl px-4 py-2.5 ${
+          isUser 
+            ? 'bg-gan-yellow/20 border border-gan-yellow/30 rounded-2xl rounded-br-sm text-white' 
+            : 'bg-cyan-500/10 border border-cyan-400/20 rounded-2xl rounded-bl-sm text-cyan-50'
+        }`}>
+          <p className="whitespace-pre-wrap text-sm leading-relaxed break-words overflow-wrap-anywhere">{message.content}</p>
+        </div>
+      </div>
+      
+      {/* User handle below bubble */}
+      {isUser && message.handle && (
+        <span className="text-[10px] text-white/30 mt-1 mr-2">@{message.handle}</span>
+      )}
     </div>
   );
 }
@@ -265,29 +359,36 @@ function LoadingScreen({ message }) {
   return (
     <div className="min-h-[60vh] flex items-center justify-center">
       <div className="text-center">
-        <div className="w-12 h-12 border-4 border-gray-700 border-t-gan-yellow rounded-full animate-spin mx-auto mb-4" />
-        <p className="text-gray-400">{message}</p>
+        <div className="w-10 h-10 border-2 border-white/20 border-t-cyan-400 rounded-full animate-spin mx-auto mb-4" />
+        <p className="text-white/50 text-sm">{message}</p>
       </div>
     </div>
   );
 }
 
-// Login required screen
+// Login screen
 function LoginScreen({ onLogin }) {
   return (
-    <div className="min-h-[60vh] flex items-center justify-center">
-      <div className="max-w-md text-center">
-        <div className="text-6xl mb-6">🔐</div>
-        <h1 className="text-3xl font-bold mb-4">GAN Terminal</h1>
-        <p className="text-gray-400 mb-6">
-          Connect with X to access the Ganland command interface.
-        </p>
-        <button
-          onClick={onLogin}
-          className="px-8 py-3 bg-gan-yellow text-black font-bold rounded-lg hover:bg-gan-gold transition-colors"
-        >
-          Connect with X
-        </button>
+    <div className="min-h-[60vh] flex items-center justify-center p-4">
+      <div className="relative">
+        <div className="absolute -inset-[2px] rounded-3xl overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-r from-cyan-400 via-purple-500 to-cyan-400 animate-pulse opacity-50" />
+        </div>
+        <div className="relative bg-black/90 backdrop-blur-2xl rounded-3xl border border-white/10 p-8 max-w-sm text-center">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full overflow-hidden">
+            <Image src="/gan-logo.jpg" alt="GAN" width={64} height={64} className="w-full h-full object-cover" />
+          </div>
+          <h1 className="text-xl font-bold mb-2 text-white">Agentic Interface</h1>
+          <p className="text-white/50 text-sm mb-6">
+            Connect with X to access the terminal.
+          </p>
+          <button
+            onClick={onLogin}
+            className="w-full px-6 py-3 bg-cyan-500 hover:bg-cyan-400 text-black font-medium rounded-xl transition-colors"
+          >
+            Connect with X
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -297,85 +398,60 @@ function LoginScreen({ onLogin }) {
 function NoWalletScreen() {
   return (
     <div className="min-h-[60vh] flex items-center justify-center">
-      <div className="max-w-md text-center">
-        <div className="text-6xl mb-6">💰</div>
-        <h1 className="text-3xl font-bold mb-4">Wallet Required</h1>
-        <p className="text-gray-400 mb-6">
-          Please connect a wallet to access the terminal.
-        </p>
+      <div className="text-center">
+        <div className="text-4xl mb-4">💰</div>
+        <h1 className="text-xl font-bold mb-2">Wallet Required</h1>
+        <p className="text-white/50 text-sm">Connect a wallet to continue.</p>
       </div>
     </div>
   );
 }
 
 // Paywall screen
-function PaywallScreen({ balance, required, onSubscribe }) {
+function PaywallScreen({ balance, required }) {
   const hasTokens = balance && balance >= required;
   
   return (
-    <div className="min-h-[60vh] flex items-center justify-center">
-      <div className="max-w-lg text-center">
-        <div className="text-6xl mb-6">🎟️</div>
-        <h1 className="text-3xl font-bold mb-4">Access Required</h1>
-        <p className="text-gray-400 mb-6">
-          To use GAN Terminal, you need <strong>both</strong> of the following:
-        </p>
-        
-        <div className="grid md:grid-cols-2 gap-4 mb-8">
-          <div className={`p-6 bg-gray-900/50 border rounded-xl ${hasTokens ? 'border-green-500/50' : 'border-gray-800'}`}>
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-2xl font-bold text-gan-yellow">Hold $GAN</div>
-              {hasTokens && <span className="text-green-400">✓</span>}
-            </div>
-            <div className="text-gray-400 text-sm mb-4">
-              Minimum 6,900,000 $GAN
-            </div>
-            <div className="text-xs text-gray-500 mb-4">
-              Your balance: {balance ? formatGan(balance) : '0'} $GAN
-            </div>
-            <a 
-              href="https://app.uniswap.org/swap?chain=base&outputCurrency=0xc2fa8cfa51B02fDeb84Bb22d3c9519EAEB498b07"
-              target="_blank"
-              className="block w-full px-4 py-2 bg-gan-yellow text-black font-bold rounded-lg hover:bg-gan-gold transition-colors"
-            >
-              Buy $GAN
-            </a>
+    <div className="min-h-[60vh] flex items-center justify-center p-4">
+      <div className="relative">
+        <div className="absolute -inset-[2px] rounded-3xl bg-gradient-to-r from-purple-500/50 to-cyan-500/50 blur-sm" />
+        <div className="relative bg-black/90 backdrop-blur-2xl rounded-3xl border border-white/10 p-8 max-w-md">
+          <div className="text-center mb-6">
+            <div className="text-4xl mb-3">🔐</div>
+            <h1 className="text-xl font-bold">Access Required</h1>
+            <p className="text-white/50 text-sm mt-2">Hold $GAN tokens to unlock the Agentic Interface</p>
           </div>
           
-          <div className="p-6 bg-gray-900/50 border border-gray-800 rounded-xl">
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-2xl font-bold text-purple-400">Subscribe</div>
+          <div className={`p-4 rounded-2xl border ${hasTokens ? 'border-green-500/50 bg-green-500/10' : 'border-white/10 bg-white/5'}`}>
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-white/70 text-sm">Required</span>
+              <span className="text-gan-yellow font-mono">6,900,000 $GAN</span>
             </div>
-            <div className="text-gray-400 text-sm mb-4">
-              $30/month in ETH
+            <div className="flex justify-between items-center">
+              <span className="text-white/70 text-sm">Your Balance</span>
+              <span className={`font-mono ${hasTokens ? 'text-green-400' : 'text-red-400'}`}>
+                {balance ? formatGan(balance) : '0'} $GAN
+              </span>
             </div>
-            <div className="text-xs text-gray-500 mb-4">
-              Paid to ganland.eth
-            </div>
-            <button 
-              onClick={onSubscribe}
-              className="w-full px-4 py-2 bg-purple-500 text-white font-bold rounded-lg hover:bg-purple-600 transition-colors"
-            >
-              Subscribe
-            </button>
           </div>
+          
+          <a 
+            href="https://app.uniswap.org/swap?chain=base&outputCurrency=0xc2fa8cfa51B02fDeb84Bb22d3c9519EAEB498b07"
+            target="_blank"
+            className="block w-full mt-4 px-6 py-3 bg-gan-yellow hover:bg-gan-gold text-black font-medium rounded-xl text-center transition-colors"
+          >
+            Buy $GAN on Uniswap
+          </a>
+          
+          <p className="text-white/30 text-xs text-center mt-4">
+            Featured artists get free access. DM @IGLIVISION to apply.
+          </p>
         </div>
-        
-        <div className="p-4 bg-gray-900/50 border border-gray-800 rounded-lg text-sm text-gray-400 mb-4">
-          <strong className="text-white">Both requirements must be met:</strong>
-          <br />• Hold 6,900,000 $GAN in your wallet
-          <br />• Maintain active $30/month subscription
-        </div>
-
-        <p className="text-gray-500 text-sm">
-          Featured artists get free access. Contact @IGLIVISION to apply.
-        </p>
       </div>
     </div>
   );
 }
 
-// Format $GAN balance
 function formatGan(balance) {
   const num = Number(balance) / 1e18;
   if (num >= 1000000) return (num / 1000000).toFixed(2) + 'M';
@@ -383,96 +459,106 @@ function formatGan(balance) {
   return num.toFixed(2);
 }
 
-// Command execution
-async function executeCommand(command, walletAddress) {
+// Command execution with natural language
+async function executeCommand(command, walletAddress, addLog, supabaseData) {
+  const cmd = command.toLowerCase();
+  
   // Help
-  if (command === 'help') {
-    return {
-      message: `
-Available Commands:
-
-WALLET
-  create wallet       Create your Ganland wallet
-  my address          Show your wallet address
-  balance             Check token balances
-
-TRANSFERS
-  send [amt] $GAN to @user    Transfer tokens
-  send [amt] ETH to 0x...     Send to address
-
-NFTS
-  show my NFTs                View your collection
-  my NFTs on [chain]          Filter by chain
-  buy this: [link]            Buy an NFT
-  buy floor [collection]      Buy cheapest
-  list my [col] #[id] for [x] ETH
-  transfer [col] #[id] to @user
-
-ART
-  generate [prompt]           Create AI art
-
-Type "docs" for full documentation.
-      `.trim()
-    };
+  if (cmd === 'help') {
+    return { message: `💰 buy $GAN\n📤 send to ganland.eth\n🖼️ list NFT\n📊 balance\n🎨 collections` };
   }
 
-  // Docs link
-  if (command === 'docs') {
-    return { message: 'Documentation: https://ganland.ai/docs' };
+  // Buy $GAN - short response
+  if (cmd.includes('buy') && (cmd.includes('gan') || cmd.includes('token'))) {
+    addLog('Opening Uniswap...', 'info');
+    return { message: `💰 Buy $GAN on Uniswap (Base chain)\n\nuniswap.org → swap ETH for $GAN` };
   }
 
-  // Balance
-  if (command === 'balance' || command === 'check balance') {
-    if (!walletAddress) return { error: 'No wallet connected' };
-    
+  // Send to Ganland.eth
+  if (cmd.includes('send') && cmd.includes('ganland')) {
+    addLog('Preparing transfer...', 'info');
+    return { message: `📤 ganland.eth\n0xDd32...E64F\n\nSend from your wallet directly.` };
+  }
+
+  // List NFT
+  if (cmd.includes('list') && cmd.includes('nft')) {
+    addLog('Connecting to FV...', 'info');
+    return { message: `🖼️ List at fractalvisions.io\n\nListing feature coming soon!` };
+  }
+
+  // Collections
+  if (cmd === 'collections' || cmd.includes('collection')) {
+    addLog('Fetching collections...', 'info');
     try {
-      const ganBalance = await publicClient.readContract({
-        address: GAN_TOKEN,
-        abi: ERC20_ABI,
-        functionName: 'balanceOf',
-        args: [walletAddress]
-      });
-      
-      const ethBalance = await publicClient.getBalance({ address: walletAddress });
-      
-      return {
-        message: `
-💰 Wallet Balance
-
-ETH:  ${Number(formatEther(ethBalance)).toFixed(6)} ETH
-$GAN: ${formatGan(ganBalance)} $GAN
-
-Wallet: ${walletAddress}
-Chain: Base (8453)
-        `.trim()
-      };
+      const res = await fetch('/api/activity?type=collections');
+      const data = await res.json();
+      if (data.success && data.data?.length > 0) {
+        addLog(`✓ ${data.data.length} found`, 'success');
+        const list = data.data.slice(0, 4).map(c => `• ${c.name}`).join('\n');
+        return { message: `🎨 Collections:\n${list}` };
+      }
+      return { message: '🎨 No collections yet.' };
     } catch (e) {
-      return { error: `Failed to fetch balance: ${e.message}` };
+      return { error: 'Failed to load' };
     }
   }
 
-  // My address
-  if (command === 'my address' || command === 'show my address') {
-    if (!walletAddress) return { error: 'No wallet connected' };
-    return { message: `Your Ganland wallet: ${walletAddress}` };
+  // Balance
+  if (cmd === 'balance' || cmd.includes('balance')) {
+    if (!walletAddress) return { error: 'No wallet' };
+    try {
+      addLog('Fetching...', 'info');
+      const ganBalance = await publicClient.readContract({
+        address: GAN_TOKEN, abi: ERC20_ABI, functionName: 'balanceOf', args: [walletAddress]
+      });
+      const ethBalance = await publicClient.getBalance({ address: walletAddress });
+      addLog('✓ Done', 'success');
+      return { message: `💰 ${Number(formatEther(ethBalance)).toFixed(4)} ETH\n${formatGan(ganBalance)} $GAN` };
+    } catch (e) {
+      return { error: 'Failed to fetch' };
+    }
   }
 
-  // Show NFTs
-  if (command.includes('show my nfts') || command.includes('what nfts do i own')) {
-    return { message: 'Fetching NFTs... (Coming soon - will integrate with Zapper API)' };
+  // NFTs
+  if (cmd.includes('nft') && !cmd.includes('list')) {
+    return { message: '🖼️ NFT viewer coming soon!' };
   }
 
-  // Trending collections
-  if (command.includes('trending')) {
-    return { message: 'Trending collections on Fractal Visions:\n• Neural Networkers (Base)\n• Gan Frens (Base)\n• Micro Cosms (Optimism)' };
+  // === NATURAL LANGUAGE ABOUT GANLAND/FV ===
+  
+  // What is Ganland/GAN
+  if (cmd.includes('what is') && (cmd.includes('ganland') || cmd.includes('gan'))) {
+    return { message: `🍄 Ganland is an AI-powered NFT ecosystem on Base.\n\n$GAN is our token. I'm the AI agent!` };
+  }
+  
+  // What is Fractal Visions
+  if (cmd.includes('what is') && cmd.includes('fractal')) {
+    return { message: `✨ Fractal Visions is our NFT marketplace for AI-generated art.\n\nfractalvisions.io` };
+  }
+  
+  // Who made this / founders
+  if (cmd.includes('who') && (cmd.includes('made') || cmd.includes('created') || cmd.includes('founder'))) {
+    return { message: `🧑‍🎨 Built by @IGLIVISION & @artfractalicia\n\nCofounders of Fractal Visions.` };
+  }
+  
+  // Token info
+  if (cmd.includes('token') || cmd.includes('$gan') || cmd.includes('price')) {
+    return { message: `💰 $GAN on Base\n\nBuy on Uniswap. Hold 6.9M for terminal access!` };
+  }
+  
+  // How to mint
+  if (cmd.includes('how') && cmd.includes('mint')) {
+    return { message: `🎨 Minting:\n1. Connect wallet\n2. Pick a collection\n3. Mint!\n\nTry "collections" to see what's available.` };
+  }
+  
+  // Greetings
+  if (cmd === 'hi' || cmd === 'hello' || cmd === 'hey' || cmd === 'gm') {
+    return { message: `👋 Hey! What can I help you with today?` };
   }
 
-  // Generate art
-  if (command.startsWith('generate ')) {
-    const prompt = command.replace('generate ', '');
-    return { message: `🎨 Art generation queued!\n\nPrompt: "${prompt}"\nCost: 500,000 $GAN\n\nTo complete, tweet this to @GanlandNFT on X.` };
-  }
-
-  // Unknown command
-  return { error: `Unknown command: "${command}"\nType "help" for available commands.` };
+  // === OFF-TOPIC → REDIRECT TO COLLECTIONS ===
+  addLog('Redirecting...', 'info');
+  return { 
+    message: `🍄 I focus on Ganland & Fractal Visions!\n\nTry:\n• "collections" - see NFTs\n• "balance" - check wallet\n• "buy $GAN" - get tokens`
+  };
 }
