@@ -229,30 +229,6 @@ export default function WalletSection() {
             </button>
           </div>
 
-          {/* View Toggle: Tokens / NFTs */}
-          <div className="flex justify-center gap-2 mb-4">
-            <button
-              onClick={() => setViewMode('tokens')}
-              className={`px-6 py-2 rounded-lg font-medium transition-all ${
-                viewMode === 'tokens'
-                  ? 'bg-gan-yellow text-black'
-                  : 'bg-gray-800 text-gray-400 hover:text-white'
-              }`}
-            >
-              Tokens
-            </button>
-            <button
-              onClick={() => setViewMode('nfts')}
-              className={`px-6 py-2 rounded-lg font-medium transition-all ${
-                viewMode === 'nfts'
-                  ? 'bg-purple-500 text-white'
-                  : 'bg-gray-800 text-gray-400 hover:text-white'
-              }`}
-            >
-              NFTs
-            </button>
-          </div>
-
           {/* Chain Selection */}
           <div className="flex flex-wrap justify-center gap-2 pt-4 border-t border-gray-800">
             {SUPPORTED_CHAINS.map((chain) => {
@@ -275,6 +251,14 @@ export default function WalletSection() {
               );
             })}
           </div>
+
+          {/* NFTs / Tokens Toggle - Bottom of module */}
+          <button
+            onClick={() => setViewMode(viewMode === 'tokens' ? 'nfts' : 'tokens')}
+            className="w-full mt-4 py-3 text-sm font-medium border-t border-gray-800 text-gray-400 hover:text-white hover:bg-gray-800/50 transition-all"
+          >
+            {viewMode === 'tokens' ? '🖼️ View NFTs' : '💰 View Tokens'}
+          </button>
         </div>
 
         {/* NFT Grid View */}
