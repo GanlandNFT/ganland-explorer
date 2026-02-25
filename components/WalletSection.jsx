@@ -27,6 +27,10 @@ export default function WalletSection() {
   const [selectedChain, setSelectedChain] = useState(SUPPORTED_CHAINS[0]); // Base default
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [viewMode, setViewMode] = useState('tokens'); // 'tokens' or 'nfts'
+  const [nfts, setNfts] = useState([]);
+  const [loadingNfts, setLoadingNfts] = useState(false);
+  const [selectedNft, setSelectedNft] = useState(null); // For transfer/list modal
 
   useEffect(() => {
     if (walletAddress) {
@@ -34,6 +38,38 @@ export default function WalletSection() {
       fetchEthBalance(walletAddress, selectedChain);
     }
   }, [walletAddress]);
+
+  // Fetch NFTs when switching to NFT view
+  useEffect(() => {
+    if (viewMode === 'nfts' && walletAddress && nfts.length === 0) {
+      fetchNfts(walletAddress);
+    }
+  }, [viewMode, walletAddress]);
+
+  async function fetchNfts(address) {
+    setLoadingNfts(true);
+    try {
+      // Try Alchemy NFT API for Base
+      const res = await fetch(`https://base-mainnet.g.alchemy.com/nft/v3/ThO48tmVpneJP9OB8I4-3ucrNYBrZ2tU/getNFTsForOwner?owner=${address}&withMetadata=true&pageSize=20`);
+      const data = await res.json();
+      if (data.ownedNfts) {
+        setNfts(data.ownedNfts.map(nft => ({
+          id: `${nft.contract.address}-${nft.tokenId}`,
+          name: nft.name || nft.title || `#${nft.tokenId}`,
+          image: nft.image?.thumbnailUrl || nft.image?.cachedUrl || nft.raw?.metadata?.image || '/gan-logo.jpg',
+          collection: nft.contract.name || 'Unknown',
+          tokenId: nft.tokenId,
+          contract: nft.contract.address,
+          chain: 'base'
+        })));
+      }
+    } catch (e) {
+      console.error('Failed to fetch NFTs:', e);
+      setNfts([]);
+    } finally {
+      setLoadingNfts(false);
+    }
+  }
 
   useEffect(() => {
     if (walletAddress && selectedChain) {
@@ -193,6 +229,30 @@ export default function WalletSection() {
             </button>
           </div>
 
+          {/* View Toggle: Tokens / NFTs */}
+          <div className="flex justify-center gap-2 mb-4">
+            <button
+              onClick={() => setViewMode('tokens')}
+              className={`px-6 py-2 rounded-lg font-medium transition-all ${
+                viewMode === 'tokens'
+                  ? 'bg-gan-yellow text-black'
+                  : 'bg-gray-800 text-gray-400 hover:text-white'
+              }`}
+            >
+              Tokens
+            </button>
+            <button
+              onClick={() => setViewMode('nfts')}
+              className={`px-6 py-2 rounded-lg font-medium transition-all ${
+                viewMode === 'nfts'
+                  ? 'bg-purple-500 text-white'
+                  : 'bg-gray-800 text-gray-400 hover:text-white'
+              }`}
+            >
+              NFTs
+            </button>
+          </div>
+
           {/* Chain Selection */}
           <div className="flex flex-wrap justify-center gap-2 pt-4 border-t border-gray-800">
             {SUPPORTED_CHAINS.map((chain) => {
@@ -217,6 +277,34 @@ export default function WalletSection() {
           </div>
         </div>
 
+        {/* NFT Grid View */}
+        {viewMode === 'nfts' && (
+          <div className="max-w-4xl mx-auto mt-6">
+            {loadingNfts ? (
+              <div className="text-center py-8">
+                <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                <p className="text-gray-500 text-sm">Loading NFTs...</p>
+              </div>
+            ) : nfts.length === 0 ? (
+              <div className="text-center py-8 bg-gray-900/50 rounded-xl border border-gray-800">
+                <p className="text-gray-500">No NFTs found on {selectedChain.name}</p>
+                <p className="text-gray-600 text-sm mt-2">Mint some from our collections!</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {nfts.map((nft) => (
+                  <NftCard 
+                    key={nft.id} 
+                    nft={nft} 
+                    onTransfer={() => setSelectedNft({ ...nft, action: 'transfer' })}
+                    onList={() => setSelectedNft({ ...nft, action: 'list' })}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Transfer Modal */}
         {showTransferModal && (
           <TransferModal
@@ -224,6 +312,15 @@ export default function WalletSection() {
             selectedChain={selectedChain}
             wallet={wallet}
             onClose={() => setShowTransferModal(false)}
+          />
+        )}
+
+        {/* NFT Action Modal */}
+        {selectedNft && (
+          <NftActionModal
+            nft={selectedNft}
+            wallet={wallet}
+            onClose={() => setSelectedNft(null)}
           />
         )}
       </>
@@ -536,6 +633,180 @@ function TransferModal({ walletAddress, selectedChain, wallet, onClose }) {
               }`}
             >
               {sending ? 'Sending...' : `Send ${selectedToken}`}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// NFT Card Component
+function NftCard({ nft, onTransfer, onList }) {
+  const [imgError, setImgError] = useState(false);
+  
+  return (
+    <div className="bg-gray-900/50 border border-gray-800 rounded-xl overflow-hidden hover:border-purple-500/50 transition-all group">
+      {/* Image */}
+      <div className="aspect-square bg-gray-800 relative overflow-hidden">
+        <img
+          src={imgError ? '/gan-logo.jpg' : nft.image}
+          alt={nft.name}
+          onError={() => setImgError(true)}
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+        />
+        <div className="absolute top-2 right-2 px-2 py-0.5 bg-black/60 rounded text-[10px] text-gray-300">
+          {nft.chain}
+        </div>
+      </div>
+      
+      {/* Info */}
+      <div className="p-3">
+        <p className="text-xs text-gray-500 truncate">{nft.collection}</p>
+        <p className="font-medium text-sm truncate">{nft.name}</p>
+        
+        {/* Action Buttons */}
+        <div className="flex gap-2 mt-3">
+          <button
+            onClick={onTransfer}
+            className="flex-1 px-2 py-1.5 text-xs bg-purple-500/20 text-purple-400 border border-purple-500/30 rounded-lg hover:bg-purple-500/30 transition-colors"
+          >
+            Transfer
+          </button>
+          <button
+            onClick={onList}
+            className="flex-1 px-2 py-1.5 text-xs bg-gan-yellow/20 text-gan-yellow border border-gan-yellow/30 rounded-lg hover:bg-gan-yellow/30 transition-colors"
+          >
+            List
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// NFT Action Modal (Transfer / List)
+function NftActionModal({ nft, wallet, onClose }) {
+  const [recipient, setRecipient] = useState('');
+  const [price, setPrice] = useState('');
+  const [sending, setSending] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState(null);
+
+  const isTransfer = nft.action === 'transfer';
+
+  const handleAction = async () => {
+    if (isTransfer && !recipient) {
+      setError('Enter recipient address');
+      return;
+    }
+    if (!isTransfer && !price) {
+      setError('Enter listing price');
+      return;
+    }
+
+    setSending(true);
+    setError(null);
+
+    try {
+      if (isTransfer) {
+        // ERC721 transferFrom
+        await wallet.switchChain(8453); // Base
+        const provider = await wallet.getEthersProvider();
+        const signer = provider.getSigner();
+        const from = await signer.getAddress();
+        
+        // safeTransferFrom(from, to, tokenId)
+        const data = `0x42842e0e000000000000000000000000${from.slice(2)}000000000000000000000000${recipient.slice(2)}${BigInt(nft.tokenId).toString(16).padStart(64, '0')}`;
+        
+        const tx = await signer.sendTransaction({
+          to: nft.contract,
+          data: data
+        });
+        await tx.wait();
+        setSuccess(true);
+      } else {
+        // Listing - would call Fractal Visions API
+        // For now, show coming soon
+        setError('Listing on Fractal Visions coming soon!');
+        return;
+      }
+    } catch (e) {
+      console.error('NFT action failed:', e);
+      setError(e.message || 'Action failed');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+      <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 max-w-sm w-full">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold">{isTransfer ? 'Transfer NFT' : 'List NFT'}</h3>
+          <button onClick={onClose} className="text-gray-500 hover:text-white text-2xl">&times;</button>
+        </div>
+
+        {/* NFT Preview */}
+        <div className="flex gap-3 mb-4 p-3 bg-gray-800/50 rounded-lg">
+          <img src={nft.image} alt={nft.name} className="w-16 h-16 rounded-lg object-cover" />
+          <div>
+            <p className="font-medium">{nft.name}</p>
+            <p className="text-xs text-gray-500">{nft.collection}</p>
+          </div>
+        </div>
+
+        {success ? (
+          <div className="text-center py-4">
+            <div className="text-4xl mb-2">✅</div>
+            <p className="text-green-400">NFT Transferred!</p>
+            <button onClick={onClose} className="mt-4 px-6 py-2 bg-gray-800 rounded-lg hover:bg-gray-700">Close</button>
+          </div>
+        ) : (
+          <>
+            {isTransfer ? (
+              <div className="mb-4">
+                <label className="block text-sm text-gray-400 mb-2">Recipient Address</label>
+                <input
+                  type="text"
+                  value={recipient}
+                  onChange={(e) => setRecipient(e.target.value)}
+                  placeholder="0x..."
+                  className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg font-mono text-sm focus:border-purple-500 outline-none"
+                />
+              </div>
+            ) : (
+              <div className="mb-4">
+                <label className="block text-sm text-gray-400 mb-2">Price (ETH)</label>
+                <input
+                  type="number"
+                  step="0.001"
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  placeholder="0.05"
+                  className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg font-mono text-sm focus:border-gan-yellow outline-none"
+                />
+              </div>
+            )}
+
+            {error && (
+              <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
+                {error}
+              </div>
+            )}
+
+            <button
+              onClick={handleAction}
+              disabled={sending}
+              className={`w-full px-4 py-3 rounded-lg font-bold transition-colors ${
+                sending 
+                  ? 'bg-gray-700 text-gray-400 cursor-wait' 
+                  : isTransfer 
+                    ? 'bg-purple-500 text-white hover:bg-purple-600'
+                    : 'bg-gan-yellow text-black hover:bg-gan-gold'
+              }`}
+            >
+              {sending ? 'Processing...' : isTransfer ? 'Transfer' : 'List on Fractal Visions'}
             </button>
           </>
         )}
