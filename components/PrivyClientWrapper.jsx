@@ -5,34 +5,9 @@ import { PrivyProvider, usePrivy, useWallets } from '@privy-io/react-auth';
 import { GanWalletProvider, useGanWallet } from '../hooks/useGanWallet';
 import { supabase } from '../lib/supabase';
 
-// Module-level deduplication to prevent race conditions
-const walletCreationPromises = new Map();
-
-async function createWalletWithDedup(user, setCreatedWallet, setCreating) {
-  const userId = user.id;
-  
-  // If there's already a creation in progress for this user, wait for it
-  if (walletCreationPromises.has(userId)) {
-    console.log('[GAN] Wallet creation already in progress, waiting...');
-    return walletCreationPromises.get(userId);
-  }
-  
-  // Create the promise and store it
-  const promise = createWalletWithGanSigner(user, setCreatedWallet, setCreating);
-  walletCreationPromises.set(userId, promise);
-  
-  try {
-    const result = await promise;
-    return result;
-  } finally {
-    // Clean up after completion
-    walletCreationPromises.delete(userId);
-  }
-}
-
-async function createWalletWithGanSigner(user, setCreatedWallet, setCreating) {
+async function addGanSignerToWallet(user, walletAddress, setCreatedWallet, setCreating) {
   const xHandle = user?.twitter?.username;
-  console.log('[GAN] Creating wallet for:', xHandle || user?.email?.address || user.id);
+  console.log('[GAN] Adding GAN signer to wallet:', walletAddress);
   
   setCreating(true);
   
@@ -55,45 +30,52 @@ async function createWalletWithGanSigner(user, setCreatedWallet, setCreating) {
       }
     }
 
-    // Create wallet via API with GAN signer
-    console.log('[GAN] Calling /api/create-wallet...');
-    const response = await fetch('/api/create-wallet', {
+    // Add GAN signer to existing wallet via API
+    console.log('[GAN] Calling /api/gan-signer...');
+    const response = await fetch('/api/gan-signer', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ privyUserId: user.id })
+      body: JSON.stringify({ 
+        privyUserId: user.id,
+        walletAddress: walletAddress 
+      })
     });
     
     const result = await response.json();
     console.log('[GAN] API response:', response.status, result);
     
-    if (response.ok && result.wallet) {
-      console.log('[GAN] ✅ Wallet ready:', result.wallet, result.existing ? '(existing)' : '(new)');
+    if (response.ok) {
+      console.log('[GAN] ✅ GAN signer added:', result.signerAdded ? 'new' : 'already present');
       
-      // Immediately update context - components will re-render
-      setCreatedWallet(result.wallet);
-      sessionStorage.setItem('gan_wallet_just_created', result.wallet);
+      // Update context
+      setCreatedWallet(walletAddress);
+      sessionStorage.setItem('gan_wallet_just_created', walletAddress);
       
-      // Update Supabase with new Privy wallet
+      // Update Supabase with Privy wallet
       if (xHandle && supabase) {
         await supabase
           .from('users')
           .upsert({
             x_handle: xHandle.toLowerCase(),
-            wallet_address: result.wallet,
+            wallet_address: walletAddress,
             x_id: user.twitter?.subject
           }, { onConflict: 'x_handle' });
       }
       
-      return result.wallet;
+      return walletAddress;
     } else {
-      console.error('[GAN] ❌ Wallet creation failed:', result.error);
-      setCreating(false);
-      return null;
+      console.error('[GAN] ❌ Failed to add signer:', result.error);
+      // Still set the wallet - it works, just without GAN signer
+      setCreatedWallet(walletAddress);
+      return walletAddress;
     }
   } catch (err) {
     console.error('[GAN] ❌ Error:', err.message);
+    // Still set the wallet - it works, just without GAN signer
+    setCreatedWallet(walletAddress);
+    return walletAddress;
+  } finally {
     setCreating(false);
-    return null;
   }
 }
 
@@ -141,7 +123,13 @@ function WalletSyncHandler() {
     const privyWallet = wallets?.find(w => w.walletClientType === 'privy');
     if (privyWallet?.address) {
       console.log('[WalletSync] Found wallet via useWallets:', privyWallet.address);
-      setCreatedWallet(privyWallet.address);
+      // Add GAN signer if not already done
+      if (!sessionStorage.getItem('gan_signer_added_' + privyWallet.address)) {
+        sessionStorage.setItem('gan_signer_added_' + privyWallet.address, 'pending');
+        addGanSignerToWallet(user, privyWallet.address, setCreatedWallet, setCreating);
+      } else {
+        setCreatedWallet(privyWallet.address);
+      }
       return;
     }
 
@@ -152,14 +140,20 @@ function WalletSyncHandler() {
 
     if (existingWallet?.address) {
       console.log('[WalletSync] Found wallet via linkedAccounts:', existingWallet.address);
-      setCreatedWallet(existingWallet.address);
+      // Add GAN signer if not already done
+      if (!sessionStorage.getItem('gan_signer_added_' + existingWallet.address)) {
+        sessionStorage.setItem('gan_signer_added_' + existingWallet.address, 'pending');
+        addGanSignerToWallet(user, existingWallet.address, setCreatedWallet, setCreating);
+      } else {
+        setCreatedWallet(existingWallet.address);
+      }
       return;
     }
 
-    // No existing wallet - need to create one (with deduplication)
-    console.log('[WalletSync] No wallet found, creating new wallet...');
+    // No wallet yet - Privy will create one with createOnLogin: 'users-without-wallets'
+    // We'll catch it on the next render cycle
+    console.log('[WalletSync] No wallet found yet, waiting for Privy to create one...');
     syncAttempted.current.add(user.id);
-    createWalletWithDedup(user, setCreatedWallet, setCreating);
   }, [ready, walletsReady, authenticated, user, wallets, hasWallet, address, setCreatedWallet, setCreating]);
 
   // Clear sync attempts on logout
@@ -210,7 +204,7 @@ function PrivyProviderWrapper({ children }) {
           showWalletLoginFirst: false,
         },
         embeddedWallets: {
-          createOnLogin: 'off',
+          createOnLogin: 'users-without-wallets', // Let Privy handle wallet creation with recovery
           noPromptOnSignature: true,
         },
         externalWallets: {
