@@ -271,6 +271,7 @@ export default function WalletSection() {
 function TransferModal({ walletAddress, selectedChain, onClose }) {
   // Get wallet directly from Privy's useWallets hook for signing capability
   const { wallets, ready: walletsReady } = useWallets();
+  const { sendTransaction } = usePrivy();
   const privyWallet = wallets?.find(w => w.walletClientType === 'privy');
   
   const [recipient, setRecipient] = useState('');
@@ -378,15 +379,46 @@ function TransferModal({ walletAddress, selectedChain, onClose }) {
       return;
     }
 
-    if (!privyWallet) {
-      setError('Wallet not ready for signing. Please try refreshing the page.');
-      return;
-    }
-
     setSending(true);
     setError(null);
 
     try {
+      // Method 1: Try using Privy's sendTransaction (handles wallet connection automatically)
+      if (sendTransaction) {
+        console.log('[Transfer] Using Privy sendTransaction...');
+        
+        // Switch chain first if needed
+        if (privyWallet) {
+          try {
+            console.log('[Transfer] Switching to chain:', selectedChain.id);
+            await privyWallet.switchChain(selectedChain.id);
+          } catch (chainErr) {
+            console.log('[Transfer] Chain switch failed, continuing:', chainErr.message);
+          }
+        }
+
+        const weiValue = parseEther(amount);
+        const txRequest = {
+          to: recipient,
+          value: '0x' + weiValue.toString(16), // Hex value with 0x prefix
+          chainId: selectedChain.id,
+        };
+        
+        console.log('[Transfer] Sending via Privy:', txRequest);
+        const receipt = await sendTransaction(txRequest);
+        
+        console.log('[Transfer] TX hash:', receipt.transactionHash);
+        setTxHash(receipt.transactionHash);
+        console.log('[Transfer] TX confirmed!');
+        return;
+      }
+
+      // Method 2: Fallback to direct wallet signing
+      if (!privyWallet) {
+        setError('Wallet not ready for signing. Please try refreshing the page.');
+        return;
+      }
+
       console.log('[Transfer] Switching to chain:', selectedChain.id);
       await privyWallet.switchChain(selectedChain.id);
       
@@ -406,7 +438,16 @@ function TransferModal({ walletAddress, selectedChain, onClose }) {
       console.log('[Transfer] TX confirmed!');
     } catch (e) {
       console.error('[Transfer] Failed:', e);
-      setError(e.message || 'Transfer failed');
+      // Provide more helpful error messages
+      let errorMsg = e.message || 'Transfer failed';
+      if (errorMsg.includes('User exited') || errorMsg.includes('user rejected')) {
+        errorMsg = 'Transaction was cancelled';
+      } else if (errorMsg.includes('insufficient funds')) {
+        errorMsg = 'Insufficient funds for transfer + gas';
+      } else if (errorMsg.includes('connector')) {
+        errorMsg = 'Wallet connection issue. Try logging out and back in.';
+      }
+      setError(errorMsg);
     } finally {
       setSending(false);
     }
