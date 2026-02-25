@@ -268,13 +268,75 @@ export default function WalletSection() {
   );
 }
 
-// Transfer Modal Component
+// Transfer Modal Component with Token Selection and MAX
 function TransferModal({ walletAddress, selectedChain, wallet, onClose }) {
   const [recipient, setRecipient] = useState('');
   const [amount, setAmount] = useState('');
   const [sending, setSending] = useState(false);
   const [txHash, setTxHash] = useState(null);
   const [error, setError] = useState(null);
+  const [selectedToken, setSelectedToken] = useState('ETH');
+  const [balance, setBalance] = useState(null);
+  const [ganBalance, setGanBalance] = useState(null);
+  const [loadingBalance, setLoadingBalance] = useState(true);
+
+  // Fetch balances on mount
+  useEffect(() => {
+    async function fetchBalances() {
+      setLoadingBalance(true);
+      try {
+        // Fetch ETH balance
+        const ethRes = await fetch(selectedChain.rpc, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jsonrpc: '2.0', id: 1, method: 'eth_getBalance',
+            params: [walletAddress, 'latest']
+          })
+        });
+        const ethData = await ethRes.json();
+        if (ethData.result) setBalance(BigInt(ethData.result));
+
+        // Fetch $GAN balance (only on Base)
+        if (selectedChain.id === 8453) {
+          const ganRes = await fetch(selectedChain.rpc, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              jsonrpc: '2.0', id: 1, method: 'eth_call',
+              params: [{
+                to: GAN_TOKEN,
+                data: `0x70a08231000000000000000000000000${walletAddress.slice(2)}`
+              }, 'latest']
+            })
+          });
+          const ganData = await ganRes.json();
+          if (ganData.result && ganData.result !== '0x') {
+            setGanBalance(BigInt(ganData.result));
+          } else {
+            setGanBalance(0n);
+          }
+        }
+      } catch (e) {
+        console.error('Failed to fetch balances:', e);
+      } finally {
+        setLoadingBalance(false);
+      }
+    }
+    fetchBalances();
+  }, [walletAddress, selectedChain]);
+
+  // Handle MAX button
+  const handleMax = async () => {
+    if (selectedToken === 'ETH' && balance) {
+      // Leave some for gas (estimate ~0.0001 ETH)
+      const gasBuffer = 100000000000000n; // 0.0001 ETH
+      const maxAmount = balance > gasBuffer ? balance - gasBuffer : 0n;
+      setAmount((Number(maxAmount) / 1e18).toFixed(6));
+    } else if (selectedToken === 'GAN' && ganBalance) {
+      setAmount((Number(ganBalance) / 1e18).toFixed(2));
+    }
+  };
 
   const handleTransfer = async () => {
     if (!recipient || !amount) {
@@ -300,26 +362,55 @@ function TransferModal({ walletAddress, selectedChain, wallet, onClose }) {
       const provider = await wallet.getEthersProvider();
       const signer = provider.getSigner();
 
-      const tx = await signer.sendTransaction({
-        to: recipient,
-        value: parseEther(amount)
-      });
+      let tx;
+      if (selectedToken === 'ETH') {
+        tx = await signer.sendTransaction({
+          to: recipient,
+          value: parseEther(amount)
+        });
+      } else if (selectedToken === 'GAN') {
+        // ERC20 transfer
+        const amountWei = parseEther(amount);
+        const transferData = `0xa9059cbb000000000000000000000000${recipient.slice(2)}${amountWei.toString(16).padStart(64, '0')}`;
+        tx = await signer.sendTransaction({
+          to: GAN_TOKEN,
+          data: transferData
+        });
+      }
 
       setTxHash(tx.hash);
       await tx.wait();
     } catch (e) {
       console.error('Transfer failed:', e);
-      setError(e.message || 'Transfer failed');
+      let errorMsg = e.message || 'Transfer failed';
+      if (errorMsg.includes('Recovery method')) {
+        errorMsg = 'Wallet signing not available. Please try again or contact support.';
+      }
+      setError(errorMsg);
     } finally {
       setSending(false);
     }
+  };
+
+  const currentBalance = selectedToken === 'ETH' 
+    ? (balance ? (Number(balance) / 1e18).toFixed(6) : '0')
+    : (ganBalance ? (Number(ganBalance) / 1e18).toFixed(2) : '0');
+
+  // Get explorer URL for selected chain
+  const getExplorerUrl = (hash) => {
+    const explorers = {
+      8453: 'https://basescan.org',
+      10: 'https://optimistic.etherscan.io',
+      1: 'https://etherscan.io',
+    };
+    return `${explorers[selectedChain.id] || 'https://basescan.org'}/tx/${hash}`;
   };
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
       <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 max-w-md w-full">
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-xl font-bold">Transfer ETH</h3>
+          <h3 className="text-xl font-bold">Transfer</h3>
           <button onClick={onClose} className="text-gray-500 hover:text-white text-2xl">&times;</button>
         </div>
 
@@ -328,8 +419,9 @@ function TransferModal({ walletAddress, selectedChain, wallet, onClose }) {
             <div className="text-4xl mb-4">✅</div>
             <p className="text-green-400 font-bold mb-2">Transfer Successful!</p>
             <a
-              href={`https://basescan.org/tx/${txHash}`}
+              href={getExplorerUrl(txHash)}
               target="_blank"
+              rel="noopener noreferrer"
               className="text-blue-400 text-sm hover:underline"
             >
               View transaction ↗
@@ -343,6 +435,35 @@ function TransferModal({ walletAddress, selectedChain, wallet, onClose }) {
           </div>
         ) : (
           <>
+            {/* Token Selector */}
+            <div className="mb-4">
+              <label className="block text-sm text-gray-400 mb-2">Token</label>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setSelectedToken('ETH')}
+                  className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all ${
+                    selectedToken === 'ETH'
+                      ? 'bg-blue-500/20 border border-blue-500 text-blue-400'
+                      : 'bg-gray-800 border border-gray-700 text-gray-400 hover:border-gray-600'
+                  }`}
+                >
+                  ETH
+                </button>
+                {selectedChain.id === 8453 && (
+                  <button
+                    onClick={() => setSelectedToken('GAN')}
+                    className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all ${
+                      selectedToken === 'GAN'
+                        ? 'bg-gan-yellow/20 border border-gan-yellow text-gan-yellow'
+                        : 'bg-gray-800 border border-gray-700 text-gray-400 hover:border-gray-600'
+                    }`}
+                  >
+                    $GAN
+                  </button>
+                )}
+              </div>
+            </div>
+
             <div className="mb-4">
               <label className="block text-sm text-gray-400 mb-2">From</label>
               <div className="p-3 bg-gray-800/50 rounded-lg font-mono text-sm text-gray-400">
@@ -362,15 +483,28 @@ function TransferModal({ walletAddress, selectedChain, wallet, onClose }) {
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm text-gray-400 mb-2">Amount (ETH)</label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-sm text-gray-400">Amount ({selectedToken})</label>
+                <button
+                  type="button"
+                  onClick={handleMax}
+                  disabled={loadingBalance}
+                  className="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 text-gan-yellow rounded transition-colors disabled:opacity-50"
+                >
+                  MAX
+                </button>
+              </div>
               <input
                 type="number"
-                step="0.0001"
+                step={selectedToken === 'GAN' ? '1' : '0.0001'}
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                placeholder="0.01"
+                placeholder={selectedToken === 'GAN' ? '1000' : '0.01'}
                 className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg font-mono text-sm focus:border-gan-yellow outline-none"
               />
+              <div className="text-xs text-gray-500 mt-1">
+                Available: {loadingBalance ? '...' : currentBalance} {selectedToken}
+              </div>
             </div>
 
             <div className="mb-4 p-3 bg-gray-800/50 rounded-lg">
@@ -395,7 +529,7 @@ function TransferModal({ walletAddress, selectedChain, wallet, onClose }) {
                   : 'bg-gan-yellow text-black hover:bg-gan-gold'
               }`}
             >
-              {sending ? 'Sending...' : 'Send ETH'}
+              {sending ? 'Sending...' : `Send ${selectedToken}`}
             </button>
           </>
         )}
