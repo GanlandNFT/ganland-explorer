@@ -279,6 +279,77 @@ function TransferModal({ walletAddress, selectedChain, onClose }) {
   const [txHash, setTxHash] = useState(null);
   const [error, setError] = useState(null);
   const [walletStatus, setWalletStatus] = useState('checking');
+  const [balance, setBalance] = useState(null);
+  const [loadingMax, setLoadingMax] = useState(false);
+
+  // Fetch balance for max calculation
+  useEffect(() => {
+    async function fetchBalance() {
+      try {
+        const res = await fetch(selectedChain.rpc, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            id: 1,
+            method: 'eth_getBalance',
+            params: [walletAddress, 'latest']
+          })
+        });
+        const data = await res.json();
+        if (data.result) {
+          setBalance(BigInt(data.result));
+        }
+      } catch (e) {
+        console.error('[Transfer] Failed to fetch balance:', e);
+      }
+    }
+    fetchBalance();
+  }, [walletAddress, selectedChain]);
+
+  // Calculate max amount (balance - estimated gas)
+  const handleMax = async () => {
+    if (!balance || !privyWallet) return;
+    
+    setLoadingMax(true);
+    try {
+      // Estimate gas for a basic ETH transfer (21000 gas)
+      const gasLimit = 21000n;
+      
+      // Get current gas price
+      const res = await fetch(selectedChain.rpc, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'eth_gasPrice',
+          params: []
+        })
+      });
+      const data = await res.json();
+      const gasPrice = BigInt(data.result || '0x0');
+      
+      // Add 10% buffer for gas price fluctuation
+      const gasCost = (gasLimit * gasPrice * 110n) / 100n;
+      
+      // Calculate max sendable amount
+      const maxAmount = balance > gasCost ? balance - gasCost : 0n;
+      
+      if (maxAmount > 0n) {
+        // Convert to ETH string with proper precision
+        const ethAmount = Number(maxAmount) / 1e18;
+        setAmount(ethAmount.toFixed(6));
+      } else {
+        setError('Insufficient balance for gas fees');
+      }
+    } catch (e) {
+      console.error('[Transfer] Failed to calculate max:', e);
+      setError('Failed to calculate max amount');
+    } finally {
+      setLoadingMax(false);
+    }
+  };
 
   // Check wallet status on mount and when wallets change
   useEffect(() => {
@@ -415,7 +486,17 @@ function TransferModal({ walletAddress, selectedChain, onClose }) {
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm text-gray-400 mb-2">Amount (ETH)</label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-sm text-gray-400">Amount (ETH)</label>
+                <button
+                  type="button"
+                  onClick={handleMax}
+                  disabled={loadingMax || !balance || walletStatus !== 'ready'}
+                  className="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 text-gan-yellow rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loadingMax ? '...' : 'MAX'}
+                </button>
+              </div>
               <input
                 type="number"
                 step="0.0001"
@@ -424,6 +505,11 @@ function TransferModal({ walletAddress, selectedChain, onClose }) {
                 placeholder="0.01"
                 className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg font-mono text-sm focus:border-gan-yellow outline-none"
               />
+              {balance !== null && (
+                <div className="text-xs text-gray-500 mt-1">
+                  Available: {(Number(balance) / 1e18).toFixed(6)} ETH
+                </div>
+              )}
             </div>
 
             <div className="mb-4 p-3 bg-gray-800/50 rounded-lg">
