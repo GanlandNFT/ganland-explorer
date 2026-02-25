@@ -1,6 +1,6 @@
 'use client';
 
-import { usePrivy } from '@privy-io/react-auth';
+import { usePrivy, useWallets } from '@privy-io/react-auth';
 import { useEffect, useState } from 'react';
 import { parseEther } from 'viem';
 import { useGanWallet } from '../hooks/useGanWallet';
@@ -216,7 +216,6 @@ export default function WalletSection() {
           <TransferModal
             walletAddress={walletAddress}
             selectedChain={selectedChain}
-            wallet={wallet}
             onClose={() => setShowTransferModal(false)}
           />
         )}
@@ -268,13 +267,34 @@ export default function WalletSection() {
   );
 }
 
-// Transfer Modal Component
-function TransferModal({ walletAddress, selectedChain, wallet, onClose }) {
+// Transfer Modal Component - Uses Privy hooks directly for wallet access
+function TransferModal({ walletAddress, selectedChain, onClose }) {
+  // Get wallet directly from Privy's useWallets hook for signing capability
+  const { wallets, ready: walletsReady } = useWallets();
+  const privyWallet = wallets?.find(w => w.walletClientType === 'privy');
+  
   const [recipient, setRecipient] = useState('');
   const [amount, setAmount] = useState('');
   const [sending, setSending] = useState(false);
   const [txHash, setTxHash] = useState(null);
   const [error, setError] = useState(null);
+  const [walletStatus, setWalletStatus] = useState('checking');
+
+  // Check wallet status on mount and when wallets change
+  useEffect(() => {
+    if (!walletsReady) {
+      setWalletStatus('loading');
+      return;
+    }
+    
+    if (privyWallet) {
+      console.log('[Transfer] Wallet ready:', privyWallet.address);
+      setWalletStatus('ready');
+    } else {
+      console.log('[Transfer] No Privy wallet found. Available wallets:', wallets?.map(w => w.walletClientType));
+      setWalletStatus('not_found');
+    }
+  }, [walletsReady, privyWallet, wallets]);
 
   const handleTransfer = async () => {
     if (!recipient || !amount) {
@@ -287,8 +307,8 @@ function TransferModal({ walletAddress, selectedChain, wallet, onClose }) {
       return;
     }
 
-    if (!wallet) {
-      setError('Wallet not ready yet - please wait a moment');
+    if (!privyWallet) {
+      setError('Wallet not ready for signing. Please try refreshing the page.');
       return;
     }
 
@@ -296,23 +316,43 @@ function TransferModal({ walletAddress, selectedChain, wallet, onClose }) {
     setError(null);
 
     try {
-      await wallet.switchChain(selectedChain.id);
-      const provider = await wallet.getEthersProvider();
+      console.log('[Transfer] Switching to chain:', selectedChain.id);
+      await privyWallet.switchChain(selectedChain.id);
+      
+      console.log('[Transfer] Getting provider...');
+      const provider = await privyWallet.getEthersProvider();
       const signer = provider.getSigner();
 
+      console.log('[Transfer] Sending transaction...');
       const tx = await signer.sendTransaction({
         to: recipient,
         value: parseEther(amount)
       });
 
+      console.log('[Transfer] TX hash:', tx.hash);
       setTxHash(tx.hash);
       await tx.wait();
+      console.log('[Transfer] TX confirmed!');
     } catch (e) {
-      console.error('Transfer failed:', e);
+      console.error('[Transfer] Failed:', e);
       setError(e.message || 'Transfer failed');
     } finally {
       setSending(false);
     }
+  };
+
+  // Get block explorer URL for the selected chain
+  const getExplorerUrl = (hash) => {
+    const explorers = {
+      8453: 'https://basescan.org',
+      10: 'https://optimistic.etherscan.io',
+      1: 'https://etherscan.io',
+      360: 'https://shapescan.xyz',
+      1868: 'https://soneium.blockscout.com',
+      130: 'https://uniscan.xyz',
+      5330: 'https://explorer.superseed.xyz',
+    };
+    return `${explorers[selectedChain.id] || 'https://basescan.org'}/tx/${hash}`;
   };
 
   return (
@@ -328,8 +368,9 @@ function TransferModal({ walletAddress, selectedChain, wallet, onClose }) {
             <div className="text-4xl mb-4">✅</div>
             <p className="text-green-400 font-bold mb-2">Transfer Successful!</p>
             <a
-              href={`https://basescan.org/tx/${txHash}`}
+              href={getExplorerUrl(txHash)}
               target="_blank"
+              rel="noopener noreferrer"
               className="text-blue-400 text-sm hover:underline"
             >
               View transaction ↗
@@ -343,6 +384,18 @@ function TransferModal({ walletAddress, selectedChain, wallet, onClose }) {
           </div>
         ) : (
           <>
+            {/* Wallet Status Warning */}
+            {walletStatus === 'loading' && (
+              <div className="mb-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg text-yellow-400 text-sm flex items-center gap-2">
+                <span className="animate-spin">⏳</span> Loading wallet...
+              </div>
+            )}
+            {walletStatus === 'not_found' && (
+              <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
+                ⚠️ Wallet not ready for signing. Try refreshing the page.
+              </div>
+            )}
+
             <div className="mb-4">
               <label className="block text-sm text-gray-400 mb-2">From</label>
               <div className="p-3 bg-gray-800/50 rounded-lg font-mono text-sm text-gray-400">
@@ -388,14 +441,14 @@ function TransferModal({ walletAddress, selectedChain, wallet, onClose }) {
 
             <button
               onClick={handleTransfer}
-              disabled={sending}
+              disabled={sending || walletStatus !== 'ready'}
               className={`w-full px-4 py-3 rounded-lg font-bold transition-colors ${
-                sending 
-                  ? 'bg-gray-700 text-gray-400 cursor-wait' 
+                sending || walletStatus !== 'ready'
+                  ? 'bg-gray-700 text-gray-400 cursor-not-allowed' 
                   : 'bg-gan-yellow text-black hover:bg-gan-gold'
               }`}
             >
-              {sending ? 'Sending...' : 'Send ETH'}
+              {sending ? 'Sending...' : walletStatus !== 'ready' ? 'Wallet Not Ready' : 'Send ETH'}
             </button>
           </>
         )}
