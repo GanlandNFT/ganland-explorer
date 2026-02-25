@@ -1,6 +1,6 @@
 'use client';
 
-import { usePrivy, useWallets } from '@privy-io/react-auth';
+import { usePrivy } from '@privy-io/react-auth';
 import { useEffect, useState } from 'react';
 import { parseEther } from 'viem';
 import { useGanWallet } from '../hooks/useGanWallet';
@@ -216,6 +216,7 @@ export default function WalletSection() {
           <TransferModal
             walletAddress={walletAddress}
             selectedChain={selectedChain}
+            wallet={wallet}
             onClose={() => setShowTransferModal(false)}
           />
         )}
@@ -267,106 +268,13 @@ export default function WalletSection() {
   );
 }
 
-// Transfer Modal Component - Uses Privy hooks directly for wallet access
-function TransferModal({ walletAddress, selectedChain, onClose }) {
-  // Get wallet directly from Privy's useWallets hook for signing capability
-  const { wallets, ready: walletsReady } = useWallets();
-  const { sendTransaction } = usePrivy();
-  const privyWallet = wallets?.find(w => w.walletClientType === 'privy');
-  
+// Transfer Modal Component
+function TransferModal({ walletAddress, selectedChain, wallet, onClose }) {
   const [recipient, setRecipient] = useState('');
   const [amount, setAmount] = useState('');
   const [sending, setSending] = useState(false);
   const [txHash, setTxHash] = useState(null);
   const [error, setError] = useState(null);
-  const [walletStatus, setWalletStatus] = useState('checking');
-  const [balance, setBalance] = useState(null);
-  const [loadingMax, setLoadingMax] = useState(false);
-
-  // Fetch balance for max calculation
-  useEffect(() => {
-    async function fetchBalance() {
-      try {
-        const res = await fetch(selectedChain.rpc, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            jsonrpc: '2.0',
-            id: 1,
-            method: 'eth_getBalance',
-            params: [walletAddress, 'latest']
-          })
-        });
-        const data = await res.json();
-        if (data.result) {
-          setBalance(BigInt(data.result));
-        }
-      } catch (e) {
-        console.error('[Transfer] Failed to fetch balance:', e);
-      }
-    }
-    fetchBalance();
-  }, [walletAddress, selectedChain]);
-
-  // Calculate max amount (balance - estimated gas)
-  const handleMax = async () => {
-    if (!balance || !privyWallet) return;
-    
-    setLoadingMax(true);
-    try {
-      // Estimate gas for a basic ETH transfer (21000 gas)
-      const gasLimit = 21000n;
-      
-      // Get current gas price
-      const res = await fetch(selectedChain.rpc, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 1,
-          method: 'eth_gasPrice',
-          params: []
-        })
-      });
-      const data = await res.json();
-      const gasPrice = BigInt(data.result || '0x0');
-      
-      // Add 10% buffer for gas price fluctuation
-      const gasCost = (gasLimit * gasPrice * 110n) / 100n;
-      
-      // Calculate max sendable amount
-      const maxAmount = balance > gasCost ? balance - gasCost : 0n;
-      
-      if (maxAmount > 0n) {
-        // Convert to ETH string with proper precision
-        const ethAmount = Number(maxAmount) / 1e18;
-        setAmount(ethAmount.toFixed(6));
-      } else {
-        setError('Insufficient balance for gas fees');
-      }
-    } catch (e) {
-      console.error('[Transfer] Failed to calculate max:', e);
-      setError('Failed to calculate max amount');
-    } finally {
-      setLoadingMax(false);
-    }
-  };
-
-  // Check wallet status on mount and when wallets change
-  useEffect(() => {
-    if (!walletsReady) {
-      setWalletStatus('loading');
-      return;
-    }
-    
-    if (privyWallet) {
-      console.log('[Transfer] Wallet ready:', privyWallet.address);
-      setWalletStatus('ready');
-    } else {
-      console.log('[Transfer] No Privy wallet found. Available wallets:', wallets?.map(w => w.walletClientType));
-      setWalletStatus('not_found');
-    }
-  }, [walletsReady, privyWallet, wallets]);
 
   const handleTransfer = async () => {
     if (!recipient || !amount) {
@@ -379,92 +287,32 @@ function TransferModal({ walletAddress, selectedChain, onClose }) {
       return;
     }
 
+    if (!wallet) {
+      setError('Wallet not ready yet - please wait a moment');
+      return;
+    }
+
     setSending(true);
     setError(null);
 
     try {
-      // Method 1: Try using Privy's sendTransaction (handles wallet connection automatically)
-      if (sendTransaction) {
-        console.log('[Transfer] Using Privy sendTransaction...');
-        
-        // Switch chain first if needed
-        if (privyWallet) {
-          try {
-            console.log('[Transfer] Switching to chain:', selectedChain.id);
-            await privyWallet.switchChain(selectedChain.id);
-          } catch (chainErr) {
-            console.log('[Transfer] Chain switch failed, continuing:', chainErr.message);
-          }
-        }
-
-        const weiValue = parseEther(amount);
-        const txRequest = {
-          to: recipient,
-          value: '0x' + weiValue.toString(16), // Hex value with 0x prefix
-          chainId: selectedChain.id,
-        };
-        
-        console.log('[Transfer] Sending via Privy:', txRequest);
-        const receipt = await sendTransaction(txRequest);
-        
-        console.log('[Transfer] TX hash:', receipt.transactionHash);
-        setTxHash(receipt.transactionHash);
-        console.log('[Transfer] TX confirmed!');
-        return;
-      }
-
-      // Method 2: Fallback to direct wallet signing
-      if (!privyWallet) {
-        setError('Wallet not ready for signing. Please try refreshing the page.');
-        return;
-      }
-
-      console.log('[Transfer] Switching to chain:', selectedChain.id);
-      await privyWallet.switchChain(selectedChain.id);
-      
-      console.log('[Transfer] Getting provider...');
-      const provider = await privyWallet.getEthersProvider();
+      await wallet.switchChain(selectedChain.id);
+      const provider = await wallet.getEthersProvider();
       const signer = provider.getSigner();
 
-      console.log('[Transfer] Sending transaction...');
       const tx = await signer.sendTransaction({
         to: recipient,
         value: parseEther(amount)
       });
 
-      console.log('[Transfer] TX hash:', tx.hash);
       setTxHash(tx.hash);
       await tx.wait();
-      console.log('[Transfer] TX confirmed!');
     } catch (e) {
-      console.error('[Transfer] Failed:', e);
-      // Provide more helpful error messages
-      let errorMsg = e.message || 'Transfer failed';
-      if (errorMsg.includes('User exited') || errorMsg.includes('user rejected')) {
-        errorMsg = 'Transaction was cancelled';
-      } else if (errorMsg.includes('insufficient funds')) {
-        errorMsg = 'Insufficient funds for transfer + gas';
-      } else if (errorMsg.includes('connector')) {
-        errorMsg = 'Wallet connection issue. Try logging out and back in.';
-      }
-      setError(errorMsg);
+      console.error('Transfer failed:', e);
+      setError(e.message || 'Transfer failed');
     } finally {
       setSending(false);
     }
-  };
-
-  // Get block explorer URL for the selected chain
-  const getExplorerUrl = (hash) => {
-    const explorers = {
-      8453: 'https://basescan.org',
-      10: 'https://optimistic.etherscan.io',
-      1: 'https://etherscan.io',
-      360: 'https://shapescan.xyz',
-      1868: 'https://soneium.blockscout.com',
-      130: 'https://uniscan.xyz',
-      5330: 'https://explorer.superseed.xyz',
-    };
-    return `${explorers[selectedChain.id] || 'https://basescan.org'}/tx/${hash}`;
   };
 
   return (
@@ -480,9 +328,8 @@ function TransferModal({ walletAddress, selectedChain, onClose }) {
             <div className="text-4xl mb-4">✅</div>
             <p className="text-green-400 font-bold mb-2">Transfer Successful!</p>
             <a
-              href={getExplorerUrl(txHash)}
+              href={`https://basescan.org/tx/${txHash}`}
               target="_blank"
-              rel="noopener noreferrer"
               className="text-blue-400 text-sm hover:underline"
             >
               View transaction ↗
@@ -496,18 +343,6 @@ function TransferModal({ walletAddress, selectedChain, onClose }) {
           </div>
         ) : (
           <>
-            {/* Wallet Status Warning */}
-            {walletStatus === 'loading' && (
-              <div className="mb-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg text-yellow-400 text-sm flex items-center gap-2">
-                <span className="animate-spin">⏳</span> Loading wallet...
-              </div>
-            )}
-            {walletStatus === 'not_found' && (
-              <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
-                ⚠️ Wallet not ready for signing. Try refreshing the page.
-              </div>
-            )}
-
             <div className="mb-4">
               <label className="block text-sm text-gray-400 mb-2">From</label>
               <div className="p-3 bg-gray-800/50 rounded-lg font-mono text-sm text-gray-400">
@@ -527,17 +362,7 @@ function TransferModal({ walletAddress, selectedChain, onClose }) {
             </div>
 
             <div className="mb-4">
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-sm text-gray-400">Amount (ETH)</label>
-                <button
-                  type="button"
-                  onClick={handleMax}
-                  disabled={loadingMax || !balance || walletStatus !== 'ready'}
-                  className="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 text-gan-yellow rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {loadingMax ? '...' : 'MAX'}
-                </button>
-              </div>
+              <label className="block text-sm text-gray-400 mb-2">Amount (ETH)</label>
               <input
                 type="number"
                 step="0.0001"
@@ -546,11 +371,6 @@ function TransferModal({ walletAddress, selectedChain, onClose }) {
                 placeholder="0.01"
                 className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg font-mono text-sm focus:border-gan-yellow outline-none"
               />
-              {balance !== null && (
-                <div className="text-xs text-gray-500 mt-1">
-                  Available: {(Number(balance) / 1e18).toFixed(6)} ETH
-                </div>
-              )}
             </div>
 
             <div className="mb-4 p-3 bg-gray-800/50 rounded-lg">
@@ -568,14 +388,14 @@ function TransferModal({ walletAddress, selectedChain, onClose }) {
 
             <button
               onClick={handleTransfer}
-              disabled={sending || walletStatus !== 'ready'}
+              disabled={sending}
               className={`w-full px-4 py-3 rounded-lg font-bold transition-colors ${
-                sending || walletStatus !== 'ready'
-                  ? 'bg-gray-700 text-gray-400 cursor-not-allowed' 
+                sending 
+                  ? 'bg-gray-700 text-gray-400 cursor-wait' 
                   : 'bg-gan-yellow text-black hover:bg-gan-gold'
               }`}
             >
-              {sending ? 'Sending...' : walletStatus !== 'ready' ? 'Wallet Not Ready' : 'Send ETH'}
+              {sending ? 'Sending...' : 'Send ETH'}
             </button>
           </>
         )}
