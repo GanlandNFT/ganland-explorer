@@ -459,11 +459,6 @@ function TransferModal({ walletAddress, selectedChain, wallet, onClose }) {
       return;
     }
 
-    if (!recipient.match(/^0x[a-fA-F0-9]{40}$/)) {
-      setError('Invalid Ethereum address');
-      return;
-    }
-
     if (!wallet) {
       setError('Wallet not ready yet - please wait a moment');
       return;
@@ -471,6 +466,34 @@ function TransferModal({ walletAddress, selectedChain, wallet, onClose }) {
 
     setSending(true);
     setError(null);
+
+    // Resolve ENS names or validate address
+    let resolvedAddress = recipient.trim();
+    
+    if (resolvedAddress.endsWith('.eth')) {
+      try {
+        const res = await fetch(`https://api.ensideas.com/ens/resolve/${resolvedAddress}`);
+        const data = await res.json();
+        if (data.address) {
+          resolvedAddress = data.address;
+          console.log(`Resolved ${recipient} → ${resolvedAddress}`);
+        } else {
+          setError(`Could not resolve ${recipient}`);
+          setSending(false);
+          return;
+        }
+      } catch (e) {
+        setError(`ENS lookup failed: ${recipient}`);
+        setSending(false);
+        return;
+      }
+    }
+
+    if (!resolvedAddress.match(/^0x[a-fA-F0-9]{40}$/)) {
+      setError('Invalid Ethereum address');
+      setSending(false);
+      return;
+    }
 
     // Timeout helper - fast timeout (5s) since Privy errors are usually immediate
     const withTimeout = (promise, ms, errorMsg) => {
@@ -493,14 +516,14 @@ function TransferModal({ walletAddress, selectedChain, wallet, onClose }) {
       let tx;
       if (selectedToken === 'ETH') {
         tx = await withTimeout(
-          signer.sendTransaction({ to: recipient, value: parseEther(amount) }),
+          signer.sendTransaction({ to: resolvedAddress, value: parseEther(amount) }),
           10000,
           '⚠️ Transaction timed out.\n\nTry again or refresh the page.'
         );
       } else if (selectedToken === 'GAN') {
         // ERC20 transfer
         const amountWei = parseEther(amount);
-        const transferData = `0xa9059cbb000000000000000000000000${recipient.slice(2)}${amountWei.toString(16).padStart(64, '0')}`;
+        const transferData = `0xa9059cbb000000000000000000000000${resolvedAddress.slice(2)}${amountWei.toString(16).padStart(64, '0')}`;
         tx = await withTimeout(
           signer.sendTransaction({ to: GAN_TOKEN, data: transferData }),
           10000,
