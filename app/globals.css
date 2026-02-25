@@ -201,3 +201,49 @@ div[role="dialog"][aria-modal="true"] {
     padding-bottom: env(safe-area-inset-bottom);
   }
 }
+
+/* Terminal laser glow border animation */
+@property --angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+.laser-border {
+  --angle: 0deg;
+  background: conic-gradient(from var(--angle), #5CE1E6, transparent 30%, transparent 70%, #5CE1E6);
+  animation: rotate-laser 3s linear infinite;
+}
+
+@keyframes rotate-laser {
+  to {
+    --angle: 360deg;
+  }
+}
+
+/* Fallback for browsers without @property support */
+@supports not (background: conic-gradient(from 0deg, red, blue)) {
+  .laser-border {
+    background: linear-gradient(90deg, #5CE1E6, transparent, #5CE1E6);
+    animation: pulse-laser 2s ease-in-out infinite;
+  }
+  
+  @keyframes pulse-laser {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+  }
+}
+
+/* Thin scrollbar for terminal */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
