@@ -167,13 +167,19 @@ export default function TerminalPage() {
     return <LoadingScreen message="Checking access..." />;
   }
 
-  // Chat-style Terminal UI
+  // Chat-style Terminal UI with Glassmorphism
   return (
-    <div className="min-h-[80vh] flex flex-col max-w-3xl mx-auto">
+    <div className="min-h-[80vh] flex flex-col max-w-3xl mx-auto relative">
+      {/* Ambient Background Glow */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/4 -left-32 w-64 h-64 bg-gan-yellow/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 -right-32 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl" />
+      </div>
+      
       {/* Chat Area */}
       <div 
         ref={chatRef}
-        className="flex-1 overflow-y-auto p-4 space-y-4"
+        className="flex-1 overflow-y-auto p-4 space-y-4 relative z-10"
         style={{ minHeight: '500px' }}
       >
         {/* Welcome Message */}
@@ -196,13 +202,13 @@ export default function TerminalPage() {
               check balances, and interact with the Fractal Visions ecosystem.
             </p>
             
-            {/* Suggestion Chips */}
+            {/* Glass Suggestion Chips */}
             <div className="flex flex-wrap justify-center gap-2 max-w-lg">
               {EXAMPLE_PROMPTS.map((prompt, i) => (
                 <button
                   key={i}
                   onClick={() => handleSuggestionClick(prompt.text)}
-                  className="group flex items-center gap-2 px-4 py-2.5 bg-gray-900/50 hover:bg-gray-800 border border-gray-800 hover:border-gan-yellow/50 rounded-xl transition-all duration-200"
+                  className="group flex items-center gap-2 px-4 py-2.5 bg-white/5 hover:bg-white/10 backdrop-blur-lg border border-white/10 hover:border-gan-yellow/40 rounded-xl transition-all duration-300 shadow-lg"
                 >
                   <span className="text-lg">{prompt.icon}</span>
                   <span className="text-sm text-gray-300 group-hover:text-white">{prompt.text}</span>
@@ -217,10 +223,10 @@ export default function TerminalPage() {
           <ChatMessage key={i} message={msg} />
         ))}
         
-        {/* Processing Indicator */}
+        {/* Glass Processing Indicator */}
         {isProcessing && (
           <div className="flex items-start gap-3">
-            <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 border border-gan-yellow/30">
+            <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 border border-white/20 shadow-lg">
               <Image 
                 src="/gan-logo.jpg" 
                 alt="GAN" 
@@ -229,8 +235,8 @@ export default function TerminalPage() {
                 className="w-full h-full object-cover"
               />
             </div>
-            <div className="bg-gray-900/50 rounded-2xl rounded-tl-md px-4 py-3">
-              <div className="flex items-center gap-1">
+            <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl rounded-tl-md px-4 py-3 shadow-lg">
+              <div className="flex items-center gap-1.5">
                 <div className="w-2 h-2 bg-gan-yellow rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                 <div className="w-2 h-2 bg-gan-yellow rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
                 <div className="w-2 h-2 bg-gan-yellow rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
@@ -240,8 +246,8 @@ export default function TerminalPage() {
         )}
       </div>
 
-      {/* Input Area */}
-      <div className="sticky bottom-0 bg-black/90 backdrop-blur-lg border-t border-gray-800 p-4">
+      {/* Glass Input Area */}
+      <div className="sticky bottom-0 bg-black/60 backdrop-blur-2xl border-t border-white/10 p-4">
         <form onSubmit={handleSubmit} className="relative">
           <input
             ref={inputRef}
@@ -250,15 +256,15 @@ export default function TerminalPage() {
             onChange={(e) => setInput(e.target.value)}
             disabled={isProcessing}
             placeholder="Ask GAN anything..."
-            className="w-full px-5 py-4 pr-14 bg-gray-900/80 border border-gray-700 focus:border-gan-yellow/50 rounded-2xl outline-none text-white placeholder-gray-500 transition-colors"
+            className="w-full px-5 py-4 pr-14 bg-white/5 backdrop-blur-xl border border-white/20 focus:border-gan-yellow/50 rounded-2xl outline-none text-white placeholder-gray-400 transition-all duration-300 shadow-lg"
             autoFocus
           />
           <button
             type="submit"
             disabled={!input.trim() || isProcessing}
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-2.5 bg-gan-yellow hover:bg-gan-gold disabled:bg-gray-700 disabled:cursor-not-allowed rounded-xl transition-colors"
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-2.5 bg-gan-yellow/90 hover:bg-gan-yellow backdrop-blur-lg disabled:bg-white/10 disabled:cursor-not-allowed rounded-xl transition-all duration-300 shadow-lg"
           >
-            <svg className="w-5 h-5 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-black disabled:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
             </svg>
           </button>
@@ -274,7 +280,7 @@ export default function TerminalPage() {
   );
 }
 
-// Chat message component
+// Chat message component with glassmorphism
 function ChatMessage({ message }) {
   const isUser = message.role === 'user';
   
@@ -282,7 +288,7 @@ function ChatMessage({ message }) {
     <div className={`flex items-start gap-3 ${isUser ? 'flex-row-reverse' : ''}`}>
       {/* Avatar */}
       {!isUser && (
-        <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 border border-gan-yellow/30">
+        <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 border border-white/20 shadow-lg">
           <Image 
             src="/gan-logo.jpg" 
             alt="GAN" 
@@ -293,12 +299,12 @@ function ChatMessage({ message }) {
         </div>
       )}
       
-      {/* Message Bubble */}
-      <div className={`max-w-[80%] ${
+      {/* Glass Message Bubble */}
+      <div className={`max-w-[80%] rounded-2xl px-4 py-3 backdrop-blur-xl shadow-lg ${
         isUser 
-          ? 'bg-gan-yellow text-black rounded-2xl rounded-tr-md' 
-          : 'bg-gray-900/50 text-white rounded-2xl rounded-tl-md border border-gray-800'
-      } px-4 py-3`}>
+          ? 'rounded-tr-md bg-gan-yellow/80 text-black border border-gan-yellow/50' 
+          : 'rounded-tl-md bg-white/10 text-white border border-white/20'
+      }`}>
         <p className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</p>
       </div>
     </div>
