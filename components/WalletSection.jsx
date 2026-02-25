@@ -471,7 +471,7 @@ function TransferModal({ walletAddress, selectedChain, wallet, onClose }) {
     setSending(true);
     setError(null);
 
-    // Timeout helper - prevents hanging forever
+    // Timeout helper - fast timeout (5s) since Privy errors are usually immediate
     const withTimeout = (promise, ms, errorMsg) => {
       return Promise.race([
         promise,
@@ -480,11 +480,11 @@ function TransferModal({ walletAddress, selectedChain, wallet, onClose }) {
     };
 
     try {
-      await withTimeout(wallet.switchChain(selectedChain.id), 10000, 'Network switch timed out');
+      await withTimeout(wallet.switchChain(selectedChain.id), 5000, 'Network switch timed out');
       const provider = await withTimeout(
         wallet.getEthersProvider(), 
-        15000, 
-        '⚠️ Wallet connection timed out.\n\nPlease link your email in Account Settings (tap settings icon, top right).'
+        5000, 
+        '⚠️ Wallet not ready.\n\nTry refreshing the page.'
       );
       const signer = provider.getSigner();
 
@@ -492,8 +492,8 @@ function TransferModal({ walletAddress, selectedChain, wallet, onClose }) {
       if (selectedToken === 'ETH') {
         tx = await withTimeout(
           signer.sendTransaction({ to: recipient, value: parseEther(amount) }),
-          30000,
-          '⚠️ Transaction timed out.\n\nPlease link your email in Account Settings and try again.'
+          10000,
+          '⚠️ Transaction timed out.\n\nTry again or refresh the page.'
         );
       } else if (selectedToken === 'GAN') {
         // ERC20 transfer
@@ -501,8 +501,8 @@ function TransferModal({ walletAddress, selectedChain, wallet, onClose }) {
         const transferData = `0xa9059cbb000000000000000000000000${recipient.slice(2)}${amountWei.toString(16).padStart(64, '0')}`;
         tx = await withTimeout(
           signer.sendTransaction({ to: GAN_TOKEN, data: transferData }),
-          30000,
-          '⚠️ Transaction timed out.\n\nPlease link your email in Account Settings and try again.'
+          10000,
+          '⚠️ Transaction timed out.\n\nTry again or refresh the page.'
         );
       }
 
@@ -511,10 +511,20 @@ function TransferModal({ walletAddress, selectedChain, wallet, onClose }) {
     } catch (e) {
       console.error('Transfer failed:', e);
       let errorMsg = e.message || 'Transfer failed';
+      
+      // Catch various Privy wallet errors
       if (errorMsg.includes('Recovery method') || errorMsg.includes('recovery method')) {
-        errorMsg = '⚠️ Email not linked!\n\nYou need to link a backup email before signing transactions.\n\nTap the settings icon (top right) → Link Email';
+        errorMsg = '⚠️ Wallet signing failed.\n\nTry linking a different email or refresh the page.';
+      } else if (errorMsg.includes('Unknown connector') || errorMsg.includes('connector error')) {
+        errorMsg = '⚠️ Wallet connection error.\n\nPlease refresh the page and try again.';
+      } else if (errorMsg.includes('User exited') || errorMsg.includes('user exited')) {
+        errorMsg = '⚠️ Wallet popup closed.\n\nPlease try again.';
       } else if (errorMsg.includes('user rejected') || errorMsg.includes('User rejected')) {
         errorMsg = 'Transaction cancelled';
+      } else if (errorMsg.includes('timed out')) {
+        // Keep timeout message as-is
+      } else {
+        errorMsg = `⚠️ ${errorMsg}\n\nTry refreshing the page.`;
       }
       setError(errorMsg);
     } finally {
