@@ -10,6 +10,7 @@ import Image from 'next/image';
 const GAN_TOKEN = '0xc2fa8cfa51B02fDeb84Bb22d3c9519EAEB498b07';
 const REQUIRED_GAN = 6900000n * 10n ** 18n;
 const FREE_HANDLES = ['iglivision', 'artfractalicia'];
+const GANLAND_ETH = '0xDd32A567bc09384057A1F260086618D88b28E64F';
 
 const ERC20_ABI = [
   {
@@ -28,10 +29,10 @@ const publicClient = createPublicClient({
 
 // Quick command buttons
 const QUICK_COMMANDS = [
+  'Buy me $20 of $GAN',
+  'Send $5 to Ganland.eth', 
+  'List NFT on Fractal Visions',
   'balance',
-  'my NFTs', 
-  'mint',
-  'send $GAN',
   'help',
 ];
 
@@ -44,11 +45,17 @@ export default function TerminalPage() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [activityLogs, setActivityLogs] = useState([]);
   
   const inputRef = useRef(null);
   const chatRef = useRef(null);
 
   const xHandle = user?.twitter?.username?.toLowerCase();
+
+  // Add activity log
+  const addLog = (message, type = 'info') => {
+    setActivityLogs(prev => [...prev.slice(-4), { message, type, timestamp: Date.now() }]);
+  };
 
   // Check access
   useEffect(() => {
@@ -63,10 +70,10 @@ export default function TerminalPage() {
       // Featured artists get free access
       if (xHandle && FREE_HANDLES.includes(xHandle)) {
         setAccessStatus('granted');
-        // Add welcome message
+        addLog('✓ Featured artist access granted', 'success');
         setMessages([{
           role: 'assistant',
-          content: `Hey @${xHandle}! 👋\n\nWelcome to the Agentic Interface. I'm GAN, your AI assistant for the Fractal Visions ecosystem.\n\nWhat can I help you with today?`,
+          content: `Hey @${xHandle}! 🍄\n\nGAN at your service. Choose a command or ask a question.`,
           timestamp: Date.now()
         }]);
         return;
@@ -79,6 +86,7 @@ export default function TerminalPage() {
       }
 
       try {
+        addLog('Checking $GAN balance...', 'info');
         const balance = await publicClient.readContract({
           address: GAN_TOKEN,
           abi: ERC20_ABI,
@@ -91,16 +99,19 @@ export default function TerminalPage() {
         const hasTokens = balance >= REQUIRED_GAN;
         if (hasTokens) {
           setAccessStatus('granted');
+          addLog(`✓ Token gate passed: ${formatGan(balance)} $GAN`, 'success');
           setMessages([{
             role: 'assistant',
-            content: `Welcome! 👋\n\nYou have ${formatGan(balance)} $GAN. Ready to explore the Fractal Visions ecosystem.\n\nWhat would you like to do?`,
+            content: `Hey! 🍄\n\nGAN at your service. Choose a command or ask a question.`,
             timestamp: Date.now()
           }]);
         } else {
+          addLog(`✗ Insufficient balance: ${formatGan(balance)} $GAN`, 'error');
           setAccessStatus('insufficient_balance');
         }
       } catch (e) {
         console.error('Failed to check balance:', e);
+        addLog(`Error: ${e.message}`, 'error');
         setAccessStatus('error');
       }
     }
@@ -120,17 +131,24 @@ export default function TerminalPage() {
   };
 
   const processCommand = async (cmd) => {
-    const command = cmd.trim().toLowerCase();
+    const command = cmd.trim();
     if (!command) return;
 
-    addMessage('user', cmd, xHandle);
+    addMessage('user', command, xHandle);
     setIsProcessing(true);
+    addLog(`Processing: ${command}`, 'info');
 
     try {
-      const result = await executeCommand(command, wallets?.[0]?.address);
+      const result = await executeCommand(command.toLowerCase(), wallets?.[0]?.address, addLog);
       addMessage('assistant', result.error || result.message);
+      if (result.error) {
+        addLog(`Error: ${result.error}`, 'error');
+      } else {
+        addLog('✓ Command completed', 'success');
+      }
     } catch (e) {
       addMessage('assistant', `Error: ${e.message}`);
+      addLog(`Error: ${e.message}`, 'error');
     } finally {
       setIsProcessing(false);
     }
@@ -152,7 +170,7 @@ export default function TerminalPage() {
 
   // Main Terminal UI
   return (
-    <div className="min-h-[80vh] flex items-center justify-center p-4">
+    <div className="min-h-[80vh] flex flex-col items-center justify-start pt-4 pb-20 md:pb-4 md:justify-center px-4">
       {/* Terminal Container with Laser Border */}
       <div className="relative w-full max-w-2xl">
         {/* Animated Laser Glow Border */}
@@ -164,8 +182,8 @@ export default function TerminalPage() {
         {/* Main Container */}
         <div className="relative bg-black/80 backdrop-blur-2xl rounded-3xl border border-white/10 overflow-hidden">
           {/* Header */}
-          <div className="px-6 py-4 border-b border-white/10 bg-white/5">
-            <h1 className="text-center text-sm font-medium tracking-widest text-white/70 uppercase">
+          <div className="px-6 py-3 border-b border-white/10 bg-white/5">
+            <h1 className="text-center text-xs font-medium tracking-widest text-white/70 uppercase">
               Agentic Interface
             </h1>
           </div>
@@ -173,7 +191,7 @@ export default function TerminalPage() {
           {/* Chat Area */}
           <div 
             ref={chatRef}
-            className="h-[400px] overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-white/10"
+            className="h-[300px] md:h-[350px] overflow-y-auto p-4 space-y-4 scrollbar-thin"
           >
             {messages.map((msg, i) => (
               <ChatMessage key={i} message={msg} />
@@ -195,8 +213,8 @@ export default function TerminalPage() {
             )}
           </div>
 
-          {/* Input Area */}
-          <div className="p-4 border-t border-white/10 bg-white/5">
+          {/* Input Area - Moved up with less padding */}
+          <div className="p-3 border-t border-white/10 bg-white/5">
             <form onSubmit={handleSubmit} className="relative">
               <input
                 ref={inputRef}
@@ -205,13 +223,13 @@ export default function TerminalPage() {
                 onChange={(e) => setInput(e.target.value)}
                 disabled={isProcessing}
                 placeholder="Ask GAN anything..."
-                className="w-full px-4 py-3 pr-12 bg-white/5 backdrop-blur border border-white/10 focus:border-cyan-400/50 rounded-2xl outline-none text-white text-sm placeholder-white/30 transition-all"
+                className="w-full px-4 py-2.5 pr-12 bg-white/5 backdrop-blur border border-white/10 focus:border-cyan-400/50 rounded-2xl outline-none text-white text-sm placeholder-white/30 transition-all"
                 autoFocus
               />
               <button
                 type="submit"
                 disabled={!input.trim() || isProcessing}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-cyan-500/80 hover:bg-cyan-400 disabled:bg-white/10 disabled:cursor-not-allowed rounded-xl transition-all"
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-cyan-500/80 hover:bg-cyan-400 disabled:bg-white/10 disabled:cursor-not-allowed rounded-xl transition-all"
               >
                 <svg className="w-4 h-4 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
@@ -220,13 +238,13 @@ export default function TerminalPage() {
             </form>
             
             {/* Quick Commands - Small buttons */}
-            <div className="flex flex-wrap gap-1.5 mt-3">
+            <div className="flex flex-wrap gap-1.5 mt-2">
               {QUICK_COMMANDS.map(cmd => (
                 <button
                   key={cmd}
                   onClick={() => processCommand(cmd)}
                   disabled={isProcessing}
-                  className="px-2.5 py-1 text-[10px] bg-white/5 hover:bg-white/10 border border-white/10 hover:border-cyan-400/30 rounded-full text-white/60 hover:text-white transition-all"
+                  className="px-2 py-0.5 text-[9px] bg-white/5 hover:bg-white/10 border border-white/10 hover:border-cyan-400/30 rounded-full text-white/60 hover:text-white transition-all"
                 >
                   {cmd}
                 </button>
@@ -236,6 +254,30 @@ export default function TerminalPage() {
         </div>
       </div>
 
+      {/* Activity Log Module - Yellow */}
+      <div className="w-full max-w-2xl mt-3">
+        <div className="bg-gan-yellow/10 border border-gan-yellow/30 rounded-2xl p-3">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-2 h-2 bg-gan-yellow rounded-full animate-pulse" />
+            <span className="text-[10px] text-gan-yellow font-medium uppercase tracking-wider">Activity Log</span>
+          </div>
+          <div className="space-y-1 max-h-[80px] overflow-y-auto scrollbar-thin">
+            {activityLogs.length === 0 ? (
+              <p className="text-[11px] text-white/30">Waiting for activity...</p>
+            ) : (
+              activityLogs.map((log, i) => (
+                <div key={i} className={`text-[11px] font-mono ${
+                  log.type === 'error' ? 'text-red-400' : 
+                  log.type === 'success' ? 'text-green-400' : 
+                  'text-white/50'
+                }`}>
+                  {log.message}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -378,17 +420,46 @@ function formatGan(balance) {
 }
 
 // Command execution
-async function executeCommand(command, walletAddress) {
+async function executeCommand(command, walletAddress, addLog) {
+  // Help
   if (command === 'help') {
     return {
-      message: `Commands:\n\n• balance — Check your tokens\n• my NFTs — View collection\n• mint — Mint new art\n• send $GAN — Transfer tokens\n\nOr just ask me anything!`
+      message: `Available commands:\n\n💰 Buy me $20 of $GAN\n📤 Send $5 to Ganland.eth\n🖼️ List NFT on Fractal Visions\n📊 balance\n\nOr just ask me anything!`
     };
   }
 
+  // Buy $GAN
+  if (command.includes('buy') && command.includes('$gan')) {
+    addLog('Preparing $GAN purchase...', 'info');
+    addLog('Opening Uniswap...', 'info');
+    return {
+      message: `💰 To buy $GAN:\n\n1. Click the link below\n2. Connect your wallet\n3. Swap ETH for $GAN\n\n→ [Buy on Uniswap](https://app.uniswap.org/swap?chain=base&outputCurrency=0xc2fa8cfa51B02fDeb84Bb22d3c9519EAEB498b07)\n\nToken: $GAN on Base\nContract: ${GAN_TOKEN.slice(0, 10)}...`
+    };
+  }
+
+  // Send to Ganland.eth
+  if (command.includes('send') && command.includes('ganland')) {
+    addLog('Preparing transfer to ganland.eth...', 'info');
+    return {
+      message: `📤 Send to Ganland.eth\n\nAddress: ${GANLAND_ETH}\n\nThis feature is coming soon! For now, you can send directly to the address above from your wallet.`
+    };
+  }
+
+  // List NFT
+  if (command.includes('list') && command.includes('nft')) {
+    addLog('Connecting to Fractal Visions...', 'info');
+    return {
+      message: `🖼️ List NFT on Fractal Visions\n\nComing soon! We're building the listing interface.\n\nFor now, visit:\n→ [Fractal Visions](https://fractalvisions.io)`
+    };
+  }
+
+  // Balance
   if (command === 'balance' || command.includes('balance')) {
     if (!walletAddress) return { error: 'No wallet connected' };
     
     try {
+      addLog('Fetching balances from Base...', 'info');
+      
       const ganBalance = await publicClient.readContract({
         address: GAN_TOKEN,
         abi: ERC20_ABI,
@@ -398,6 +469,8 @@ async function executeCommand(command, walletAddress) {
       
       const ethBalance = await publicClient.getBalance({ address: walletAddress });
       
+      addLog('✓ Balance fetched', 'success');
+      
       return {
         message: `💰 Your Balance\n\nETH: ${Number(formatEther(ethBalance)).toFixed(6)}\n$GAN: ${formatGan(ganBalance)}\n\nWallet: ${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}\nChain: Base`
       };
@@ -406,19 +479,14 @@ async function executeCommand(command, walletAddress) {
     }
   }
 
-  if (command.includes('nft')) {
+  // NFTs
+  if (command.includes('nft') && !command.includes('list')) {
+    addLog('Querying NFT collections...', 'info');
     return { message: '🖼️ NFT viewer coming soon!\n\nI\'ll show all your NFTs across chains.' };
   }
 
-  if (command.includes('mint')) {
-    return { message: '🎨 Minting coming soon!\n\nYou\'ll be able to mint from Ganland collections here.' };
-  }
-
-  if (command.includes('send')) {
-    return { message: '💸 Transfers coming soon!\n\nSend $GAN to any X handle or address.' };
-  }
-
+  // Default
   return { 
-    message: `I'm still learning! Try:\n• balance\n• my NFTs\n• mint\n• help`
+    message: `🍄 I can help with:\n\n• Buy me $20 of $GAN\n• Send $5 to Ganland.eth\n• List NFT on Fractal Visions\n• Check balance\n\nWhat would you like to do?`
   };
 }
