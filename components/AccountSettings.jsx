@@ -13,8 +13,8 @@ function generateReferralCode(userId) {
 }
 
 export default function AccountSettings({ isOpen, onClose }) {
-  const { user, unlinkEmail, unlinkTwitter } = usePrivy();
-  const { linkEmail, linkTwitter } = useLinkAccount({
+  const { user, unlinkEmail, unlinkTwitter, unlinkFarcaster } = usePrivy();
+  const { linkEmail, linkTwitter, linkFarcaster } = useLinkAccount({
     onSuccess: (user, linkedAccount) => {
       console.log('Successfully linked:', linkedAccount);
       setIsLinking(null);
@@ -64,6 +64,9 @@ export default function AccountSettings({ isOpen, onClose }) {
         case 'twitter': 
           await linkTwitter(); 
           break;
+        case 'farcaster':
+          await linkFarcaster();
+          break;
       }
     } catch (e) {
       console.error(`Failed to link ${type}:`, e);
@@ -77,6 +80,7 @@ export default function AccountSettings({ isOpen, onClose }) {
       switch (type) {
         case 'email': await unlinkEmail(linkedEmail); break;
         case 'twitter': await unlinkTwitter(user.twitter?.subject); break;
+        case 'farcaster': await unlinkFarcaster(user.farcaster?.fid); break;
       }
     } catch (e) {
       console.error(`Failed to unlink ${type}:`, e);
@@ -206,10 +210,10 @@ export default function AccountSettings({ isOpen, onClose }) {
           
           <AccountRow 
             label="Farcaster" 
-            value={null}
-            linked={false}
+            value={user.farcaster?.username ? `@${user.farcaster.username}` : null}
+            linked={!!user.farcaster?.fid}
             type="farcaster"
-            comingSoon={true}
+            canUnlink={!!linkedEmail || !!linkedTwitter}
           />
         </div>
 
