@@ -471,25 +471,39 @@ function TransferModal({ walletAddress, selectedChain, wallet, onClose }) {
     setSending(true);
     setError(null);
 
+    // Timeout helper - prevents hanging forever
+    const withTimeout = (promise, ms, errorMsg) => {
+      return Promise.race([
+        promise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error(errorMsg)), ms))
+      ]);
+    };
+
     try {
-      await wallet.switchChain(selectedChain.id);
-      const provider = await wallet.getEthersProvider();
+      await withTimeout(wallet.switchChain(selectedChain.id), 10000, 'Network switch timed out');
+      const provider = await withTimeout(
+        wallet.getEthersProvider(), 
+        15000, 
+        '⚠️ Wallet connection timed out.\n\nPlease link your email in Account Settings (tap settings icon, top right).'
+      );
       const signer = provider.getSigner();
 
       let tx;
       if (selectedToken === 'ETH') {
-        tx = await signer.sendTransaction({
-          to: recipient,
-          value: parseEther(amount)
-        });
+        tx = await withTimeout(
+          signer.sendTransaction({ to: recipient, value: parseEther(amount) }),
+          30000,
+          '⚠️ Transaction timed out.\n\nPlease link your email in Account Settings and try again.'
+        );
       } else if (selectedToken === 'GAN') {
         // ERC20 transfer
         const amountWei = parseEther(amount);
         const transferData = `0xa9059cbb000000000000000000000000${recipient.slice(2)}${amountWei.toString(16).padStart(64, '0')}`;
-        tx = await signer.sendTransaction({
-          to: GAN_TOKEN,
-          data: transferData
-        });
+        tx = await withTimeout(
+          signer.sendTransaction({ to: GAN_TOKEN, data: transferData }),
+          30000,
+          '⚠️ Transaction timed out.\n\nPlease link your email in Account Settings and try again.'
+        );
       }
 
       setTxHash(tx.hash);
@@ -497,8 +511,10 @@ function TransferModal({ walletAddress, selectedChain, wallet, onClose }) {
     } catch (e) {
       console.error('Transfer failed:', e);
       let errorMsg = e.message || 'Transfer failed';
-      if (errorMsg.includes('Recovery method')) {
-        errorMsg = 'Wallet signing not available. Please try again or contact support.';
+      if (errorMsg.includes('Recovery method') || errorMsg.includes('recovery method')) {
+        errorMsg = '⚠️ Email not linked!\n\nYou need to link a backup email before signing transactions.\n\nTap the settings icon (top right) → Link Email';
+      } else if (errorMsg.includes('user rejected') || errorMsg.includes('User rejected')) {
+        errorMsg = 'Transaction cancelled';
       }
       setError(errorMsg);
     } finally {
@@ -744,7 +760,13 @@ function NftActionModal({ nft, wallet, onClose }) {
       }
     } catch (e) {
       console.error('NFT action failed:', e);
-      setError(e.message || 'Action failed');
+      let errorMsg = e.message || 'Action failed';
+      if (errorMsg.includes('Recovery method') || errorMsg.includes('recovery method') || errorMsg.includes('timed out')) {
+        errorMsg = '⚠️ Email not linked!\n\nLink your email in Account Settings to sign transactions.';
+      } else if (errorMsg.includes('user rejected')) {
+        errorMsg = 'Transaction cancelled';
+      }
+      setError(errorMsg);
     } finally {
       setSending(false);
     }
