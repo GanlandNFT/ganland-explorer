@@ -123,7 +123,8 @@ export function GanWalletProvider({ children }) {
     setIsCreating(creating);
   }, []);
 
-  // Compute final address (prefer ganWallet, fall back to privy)
+  // Compute final address (prefer ganWallet, fall back to privy, then linkedAccounts)
+  // Use linkedWallet IMMEDIATELY - don't wait for walletsReady
   const finalAddress = ganWallet?.address || privyWallet?.address || linkedWallet?.address || null;
 
   const value = {
@@ -132,11 +133,13 @@ export function GanWalletProvider({ children }) {
     wallet: ganWallet?.wallet || privyWallet || null,
     
     // Status flags  
-    ready: ready && walletsReady,
+    // Show ready as soon as Privy is ready AND we have an address (don't wait for walletsReady)
+    ready: ready && (!!finalAddress || !authenticated),
     authenticated,
     hasWallet: !!finalAddress,
     isCreating,
     justCreated,
+    walletsReady, // Expose this separately for components that need signing
     
     // User info
     user,
