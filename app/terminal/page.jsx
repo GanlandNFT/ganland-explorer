@@ -46,6 +46,7 @@ export default function TerminalPage() {
   const [input, setInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [activityLogs, setActivityLogs] = useState([]);
+  const [supabaseData, setSupabaseData] = useState({ collections: [], tokenStats: null });
   
   const inputRef = useRef(null);
   const chatRef = useRef(null);
@@ -56,6 +57,45 @@ export default function TerminalPage() {
   const addLog = (message, type = 'info') => {
     setActivityLogs(prev => [...prev.slice(-4), { message, type, timestamp: Date.now() }]);
   };
+
+  // Fetch activity from Supabase on mount
+  useEffect(() => {
+    async function fetchActivity() {
+      try {
+        const res = await fetch('/api/activity?type=recent&limit=5');
+        const data = await res.json();
+        if (data.success) {
+          setSupabaseData({
+            collections: data.data.collections || [],
+            tokenStats: data.data.tokenStats
+          });
+          
+          // Show recent on-chain activity in logs
+          if (data.data.activity?.length > 0) {
+            data.data.activity.slice(0, 3).forEach(a => {
+              const type = a.activity_type === 'mint' ? '🎨' : 
+                          a.activity_type === 'transfer' ? '📤' : 
+                          a.activity_type === 'list' ? '🏷️' : '📝';
+              addLog(`${type} ${a.activity_type}: ${a.wallet_address?.slice(0, 8)}...`, 'info');
+            });
+          }
+          
+          // Show token stats
+          if (data.data.tokenStats) {
+            const stats = data.data.tokenStats;
+            addLog(`$GAN: $${stats.price_usd?.toFixed(6) || '—'} (${stats.price_change_24h > 0 ? '+' : ''}${stats.price_change_24h?.toFixed(2) || '0'}%)`, 'info');
+          }
+        }
+      } catch (e) {
+        console.error('Failed to fetch activity:', e);
+      }
+    }
+    
+    fetchActivity();
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchActivity, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Check access
   useEffect(() => {
@@ -139,7 +179,7 @@ export default function TerminalPage() {
     addLog(`Processing: ${command}`, 'info');
 
     try {
-      const result = await executeCommand(command.toLowerCase(), wallets?.[0]?.address, addLog);
+      const result = await executeCommand(command.toLowerCase(), wallets?.[0]?.address, addLog, supabaseData);
       addMessage('assistant', result.error || result.message);
       if (result.error) {
         addLog(`Error: ${result.error}`, 'error');
@@ -420,11 +460,11 @@ function formatGan(balance) {
 }
 
 // Command execution
-async function executeCommand(command, walletAddress, addLog) {
+async function executeCommand(command, walletAddress, addLog, supabaseData) {
   // Help
   if (command === 'help') {
     return {
-      message: `Available commands:\n\n💰 Buy me $20 of $GAN\n📤 Send $5 to Ganland.eth\n🖼️ List NFT on Fractal Visions\n📊 balance\n\nOr just ask me anything!`
+      message: `Available commands:\n\n💰 Buy me $20 of $GAN\n📤 Send $5 to Ganland.eth\n🖼️ List NFT on Fractal Visions\n📊 balance\n🎨 collections\n\nOr just ask me anything!`
     };
   }
 
@@ -451,6 +491,28 @@ async function executeCommand(command, walletAddress, addLog) {
     return {
       message: `🖼️ List NFT on Fractal Visions\n\nComing soon! We're building the listing interface.\n\nFor now, visit:\n→ [Fractal Visions](https://fractalvisions.io)`
     };
+  }
+
+  // Collections
+  if (command === 'collections' || command.includes('collection')) {
+    addLog('Fetching collections from registry...', 'info');
+    try {
+      const res = await fetch('/api/activity?type=collections');
+      const data = await res.json();
+      
+      if (data.success && data.data?.length > 0) {
+        addLog(`✓ Found ${data.data.length} collections`, 'success');
+        const list = data.data.slice(0, 5).map(c => 
+          `• ${c.name} (${c.chain}) ${c.mint_status === 'active' ? '🟢' : '⚪'}`
+        ).join('\n');
+        return {
+          message: `🎨 Official Collections:\n\n${list}\n\nUse "mint [name]" to mint from a collection.`
+        };
+      }
+      return { message: '🎨 No collections found yet.' };
+    } catch (e) {
+      return { error: `Failed to fetch collections: ${e.message}` };
+    }
   }
 
   // Balance
@@ -487,6 +549,6 @@ async function executeCommand(command, walletAddress, addLog) {
 
   // Default
   return { 
-    message: `🍄 I can help with:\n\n• Buy me $20 of $GAN\n• Send $5 to Ganland.eth\n• List NFT on Fractal Visions\n• Check balance\n\nWhat would you like to do?`
+    message: `🍄 I can help with:\n\n• Buy me $20 of $GAN\n• Send $5 to Ganland.eth\n• List NFT on Fractal Visions\n• Check balance\n• View collections\n\nWhat would you like to do?`
   };
 }
