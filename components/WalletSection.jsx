@@ -467,10 +467,33 @@ function TransferModal({ walletAddress, selectedChain, wallet, onClose }) {
     setSending(true);
     setError(null);
 
-    // Resolve ENS names or validate address
+    // Resolve ENS names, @ handles, or validate address
     let resolvedAddress = recipient.trim();
     
-    if (resolvedAddress.endsWith('.eth')) {
+    // Handle @ mentions (Twitter handles)
+    if (resolvedAddress.startsWith('@') || (!resolvedAddress.startsWith('0x') && !resolvedAddress.includes('.'))) {
+      const handle = resolvedAddress.replace('@', '');
+      try {
+        const res = await fetch(`/api/lookup-handle?handle=${encodeURIComponent(handle)}`);
+        const data = await res.json();
+        if (data.address) {
+          resolvedAddress = data.address;
+          console.log(`Resolved @${handle} → ${resolvedAddress}`);
+        } else {
+          setError(data.error === 'User not found' 
+            ? `@${handle} not found in Ganland` 
+            : `Could not resolve @${handle}`);
+          setSending(false);
+          return;
+        }
+      } catch (e) {
+        setError(`Handle lookup failed: @${handle}`);
+        setSending(false);
+        return;
+      }
+    }
+    // Handle ENS names
+    else if (resolvedAddress.endsWith('.eth')) {
       try {
         const res = await fetch(`https://api.ensideas.com/ens/resolve/${resolvedAddress}`);
         const data = await res.json();
@@ -490,7 +513,7 @@ function TransferModal({ walletAddress, selectedChain, wallet, onClose }) {
     }
 
     if (!resolvedAddress.match(/^0x[a-fA-F0-9]{40}$/)) {
-      setError('Invalid Ethereum address');
+      setError('Invalid address, ENS, or @handle');
       setSending(false);
       return;
     }
