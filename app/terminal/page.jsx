@@ -342,7 +342,7 @@ function ChatMessage({ message }) {
             ? 'bg-gan-yellow/20 border border-gan-yellow/30 rounded-2xl rounded-br-sm text-white' 
             : 'bg-cyan-500/10 border border-cyan-400/20 rounded-2xl rounded-bl-sm text-cyan-50'
         }`}>
-          <p className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</p>
+          <p className="whitespace-pre-wrap text-sm leading-relaxed break-words overflow-wrap-anywhere">{message.content}</p>
         </div>
       </div>
       
@@ -459,96 +459,106 @@ function formatGan(balance) {
   return num.toFixed(2);
 }
 
-// Command execution
+// Command execution with natural language
 async function executeCommand(command, walletAddress, addLog, supabaseData) {
+  const cmd = command.toLowerCase();
+  
   // Help
-  if (command === 'help') {
-    return {
-      message: `Available commands:\n\n💰 Buy me $20 of $GAN\n📤 Send $5 to Ganland.eth\n🖼️ List NFT on Fractal Visions\n📊 balance\n🎨 collections\n\nOr just ask me anything!`
-    };
+  if (cmd === 'help') {
+    return { message: `💰 buy $GAN\n📤 send to ganland.eth\n🖼️ list NFT\n📊 balance\n🎨 collections` };
   }
 
-  // Buy $GAN
-  if (command.includes('buy') && command.includes('$gan')) {
-    addLog('Preparing $GAN purchase...', 'info');
+  // Buy $GAN - short response
+  if (cmd.includes('buy') && (cmd.includes('gan') || cmd.includes('token'))) {
     addLog('Opening Uniswap...', 'info');
-    return {
-      message: `💰 To buy $GAN:\n\n1. Click the link below\n2. Connect your wallet\n3. Swap ETH for $GAN\n\n→ [Buy on Uniswap](https://app.uniswap.org/swap?chain=base&outputCurrency=0xc2fa8cfa51B02fDeb84Bb22d3c9519EAEB498b07)\n\nToken: $GAN on Base\nContract: ${GAN_TOKEN.slice(0, 10)}...`
-    };
+    return { message: `💰 Buy $GAN on Uniswap (Base chain)\n\nuniswap.org → swap ETH for $GAN` };
   }
 
   // Send to Ganland.eth
-  if (command.includes('send') && command.includes('ganland')) {
-    addLog('Preparing transfer to ganland.eth...', 'info');
-    return {
-      message: `📤 Send to Ganland.eth\n\nAddress: ${GANLAND_ETH}\n\nThis feature is coming soon! For now, you can send directly to the address above from your wallet.`
-    };
+  if (cmd.includes('send') && cmd.includes('ganland')) {
+    addLog('Preparing transfer...', 'info');
+    return { message: `📤 ganland.eth\n0xDd32...E64F\n\nSend from your wallet directly.` };
   }
 
   // List NFT
-  if (command.includes('list') && command.includes('nft')) {
-    addLog('Connecting to Fractal Visions...', 'info');
-    return {
-      message: `🖼️ List NFT on Fractal Visions\n\nComing soon! We're building the listing interface.\n\nFor now, visit:\n→ [Fractal Visions](https://fractalvisions.io)`
-    };
+  if (cmd.includes('list') && cmd.includes('nft')) {
+    addLog('Connecting to FV...', 'info');
+    return { message: `🖼️ List at fractalvisions.io\n\nListing feature coming soon!` };
   }
 
   // Collections
-  if (command === 'collections' || command.includes('collection')) {
-    addLog('Fetching collections from registry...', 'info');
+  if (cmd === 'collections' || cmd.includes('collection')) {
+    addLog('Fetching collections...', 'info');
     try {
       const res = await fetch('/api/activity?type=collections');
       const data = await res.json();
-      
       if (data.success && data.data?.length > 0) {
-        addLog(`✓ Found ${data.data.length} collections`, 'success');
-        const list = data.data.slice(0, 5).map(c => 
-          `• ${c.name} (${c.chain}) ${c.mint_status === 'active' ? '🟢' : '⚪'}`
-        ).join('\n');
-        return {
-          message: `🎨 Official Collections:\n\n${list}\n\nUse "mint [name]" to mint from a collection.`
-        };
+        addLog(`✓ ${data.data.length} found`, 'success');
+        const list = data.data.slice(0, 4).map(c => `• ${c.name}`).join('\n');
+        return { message: `🎨 Collections:\n${list}` };
       }
-      return { message: '🎨 No collections found yet.' };
+      return { message: '🎨 No collections yet.' };
     } catch (e) {
-      return { error: `Failed to fetch collections: ${e.message}` };
+      return { error: 'Failed to load' };
     }
   }
 
   // Balance
-  if (command === 'balance' || command.includes('balance')) {
-    if (!walletAddress) return { error: 'No wallet connected' };
-    
+  if (cmd === 'balance' || cmd.includes('balance')) {
+    if (!walletAddress) return { error: 'No wallet' };
     try {
-      addLog('Fetching balances from Base...', 'info');
-      
+      addLog('Fetching...', 'info');
       const ganBalance = await publicClient.readContract({
-        address: GAN_TOKEN,
-        abi: ERC20_ABI,
-        functionName: 'balanceOf',
-        args: [walletAddress]
+        address: GAN_TOKEN, abi: ERC20_ABI, functionName: 'balanceOf', args: [walletAddress]
       });
-      
       const ethBalance = await publicClient.getBalance({ address: walletAddress });
-      
-      addLog('✓ Balance fetched', 'success');
-      
-      return {
-        message: `💰 Your Balance\n\nETH: ${Number(formatEther(ethBalance)).toFixed(6)}\n$GAN: ${formatGan(ganBalance)}\n\nWallet: ${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}\nChain: Base`
-      };
+      addLog('✓ Done', 'success');
+      return { message: `💰 ${Number(formatEther(ethBalance)).toFixed(4)} ETH\n${formatGan(ganBalance)} $GAN` };
     } catch (e) {
-      return { error: `Failed to fetch balance: ${e.message}` };
+      return { error: 'Failed to fetch' };
     }
   }
 
   // NFTs
-  if (command.includes('nft') && !command.includes('list')) {
-    addLog('Querying NFT collections...', 'info');
-    return { message: '🖼️ NFT viewer coming soon!\n\nI\'ll show all your NFTs across chains.' };
+  if (cmd.includes('nft') && !cmd.includes('list')) {
+    return { message: '🖼️ NFT viewer coming soon!' };
   }
 
-  // Default
+  // === NATURAL LANGUAGE ABOUT GANLAND/FV ===
+  
+  // What is Ganland/GAN
+  if (cmd.includes('what is') && (cmd.includes('ganland') || cmd.includes('gan'))) {
+    return { message: `🍄 Ganland is an AI-powered NFT ecosystem on Base.\n\n$GAN is our token. I'm the AI agent!` };
+  }
+  
+  // What is Fractal Visions
+  if (cmd.includes('what is') && cmd.includes('fractal')) {
+    return { message: `✨ Fractal Visions is our NFT marketplace for AI-generated art.\n\nfractalvisions.io` };
+  }
+  
+  // Who made this / founders
+  if (cmd.includes('who') && (cmd.includes('made') || cmd.includes('created') || cmd.includes('founder'))) {
+    return { message: `🧑‍🎨 Built by @IGLIVISION & @artfractalicia\n\nCofounders of Fractal Visions.` };
+  }
+  
+  // Token info
+  if (cmd.includes('token') || cmd.includes('$gan') || cmd.includes('price')) {
+    return { message: `💰 $GAN on Base\n\nBuy on Uniswap. Hold 6.9M for terminal access!` };
+  }
+  
+  // How to mint
+  if (cmd.includes('how') && cmd.includes('mint')) {
+    return { message: `🎨 Minting:\n1. Connect wallet\n2. Pick a collection\n3. Mint!\n\nTry "collections" to see what's available.` };
+  }
+  
+  // Greetings
+  if (cmd === 'hi' || cmd === 'hello' || cmd === 'hey' || cmd === 'gm') {
+    return { message: `👋 Hey! What can I help you with today?` };
+  }
+
+  // === OFF-TOPIC → REDIRECT TO COLLECTIONS ===
+  addLog('Redirecting...', 'info');
   return { 
-    message: `🍄 I can help with:\n\n• Buy me $20 of $GAN\n• Send $5 to Ganland.eth\n• List NFT on Fractal Visions\n• Check balance\n• View collections\n\nWhat would you like to do?`
+    message: `🍄 I focus on Ganland & Fractal Visions!\n\nTry:\n• "collections" - see NFTs\n• "balance" - check wallet\n• "buy $GAN" - get tokens`
   };
 }
