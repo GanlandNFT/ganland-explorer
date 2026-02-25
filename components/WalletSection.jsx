@@ -3,6 +3,7 @@
 import { usePrivy } from '@privy-io/react-auth';
 import { useEffect, useState } from 'react';
 import { parseEther } from 'viem';
+import { BrowserProvider } from 'ethers';
 import { useGanWallet } from '../hooks/useGanWallet';
 
 const SUPPORTED_CHAINS = [
@@ -481,12 +482,13 @@ function TransferModal({ walletAddress, selectedChain, wallet, onClose }) {
 
     try {
       await withTimeout(wallet.switchChain(selectedChain.id), 5000, 'Network switch timed out');
-      const provider = await withTimeout(
-        wallet.getEthersProvider(), 
+      const eip1193Provider = await withTimeout(
+        wallet.getEthereumProvider(), 
         5000, 
         '⚠️ Wallet not ready.\n\nTry refreshing the page.'
       );
-      const signer = provider.getSigner();
+      const provider = new BrowserProvider(eip1193Provider);
+      const signer = await provider.getSigner();
 
       let tx;
       if (selectedToken === 'ETH') {
@@ -749,8 +751,9 @@ function NftActionModal({ nft, wallet, onClose }) {
       if (isTransfer) {
         // ERC721 transferFrom
         await wallet.switchChain(8453); // Base
-        const provider = await wallet.getEthersProvider();
-        const signer = provider.getSigner();
+        const eip1193Provider = await wallet.getEthereumProvider();
+        const provider = new BrowserProvider(eip1193Provider);
+        const signer = await provider.getSigner();
         const from = await signer.getAddress();
         
         // safeTransferFrom(from, to, tokenId)

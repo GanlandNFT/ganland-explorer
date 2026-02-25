@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
 import { createPublicClient, http, parseEther, encodeFunctionData } from 'viem';
 import { base } from 'viem/chains';
+import { BrowserProvider } from 'ethers';
 import TransactionModal from '../../../components/TransactionModal';
 import { useGanWallet } from '../../../hooks/useGanWallet';
 
@@ -218,8 +219,9 @@ export default function NeuralMintPage() {
 
     try {
       await wallet.switchChain(base.id);
-      const provider = await wallet.getEthersProvider();
-      const signer = provider.getSigner();
+      const eip1193Provider = await wallet.getEthereumProvider();
+      const provider = new BrowserProvider(eip1193Provider);
+      const signer = await provider.getSigner();
 
       const tx = await signer.sendTransaction(pendingTx);
 
