@@ -514,19 +514,23 @@ function TransferModal({ walletAddress, selectedChain, wallet, onClose }) {
       console.error('Transfer failed:', e);
       let errorMsg = e.message || 'Transfer failed';
       
-      // Catch various Privy wallet errors
-      if (errorMsg.includes('Recovery method') || errorMsg.includes('recovery method')) {
-        errorMsg = '⚠️ Wallet signing failed.\n\nTry linking a different email or refresh the page.';
+      // Catch various Privy wallet errors - keep messages SHORT
+      if (errorMsg.includes('insufficient funds') || errorMsg.includes('exceeds the balance')) {
+        errorMsg = '⚠️ Insufficient funds for gas + value';
+      } else if (errorMsg.includes('Recovery method') || errorMsg.includes('recovery method')) {
+        errorMsg = '⚠️ Wallet signing failed. Try refreshing.';
       } else if (errorMsg.includes('Unknown connector') || errorMsg.includes('connector error')) {
-        errorMsg = '⚠️ Wallet connection error.\n\nPlease refresh the page and try again.';
+        errorMsg = '⚠️ Wallet connection error. Refresh page.';
       } else if (errorMsg.includes('User exited') || errorMsg.includes('user exited')) {
-        errorMsg = '⚠️ Wallet popup closed.\n\nPlease try again.';
+        errorMsg = '⚠️ Wallet popup closed. Try again.';
       } else if (errorMsg.includes('user rejected') || errorMsg.includes('User rejected')) {
         errorMsg = 'Transaction cancelled';
       } else if (errorMsg.includes('timed out')) {
-        // Keep timeout message as-is
+        errorMsg = '⚠️ Transaction timed out. Try again.';
       } else {
-        errorMsg = `⚠️ ${errorMsg}\n\nTry refreshing the page.`;
+        // Truncate long error messages
+        errorMsg = errorMsg.length > 100 ? errorMsg.slice(0, 100) + '...' : errorMsg;
+        errorMsg = `⚠️ ${errorMsg}`;
       }
       setError(errorMsg);
     } finally {
@@ -550,10 +554,10 @@ function TransferModal({ walletAddress, selectedChain, wallet, onClose }) {
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 max-w-md w-full">
-        <div className="flex items-center justify-between mb-6">
+      <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-6 sticky top-0 bg-gray-900 pb-2 -mt-2 pt-2">
           <h3 className="text-xl font-bold">Transfer</h3>
-          <button onClick={onClose} className="text-gray-500 hover:text-white text-2xl">&times;</button>
+          <button onClick={onClose} className="text-gray-500 hover:text-white text-2xl leading-none">&times;</button>
         </div>
 
         {txHash ? (
@@ -657,7 +661,7 @@ function TransferModal({ walletAddress, selectedChain, wallet, onClose }) {
             </div>
 
             {error && (
-              <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
+              <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm max-h-24 overflow-y-auto break-words">
                 {error}
               </div>
             )}
@@ -836,7 +840,7 @@ function NftActionModal({ nft, wallet, onClose }) {
             )}
 
             {error && (
-              <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
+              <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm max-h-24 overflow-y-auto break-words">
                 {error}
               </div>
             )}
