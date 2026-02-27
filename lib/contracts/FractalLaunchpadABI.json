@@ -1,0 +1,311 @@
+[
+  {
+    "inputs": [
+      { "internalType": "address", "name": "_feeRecipient", "type": "address" },
+      { "internalType": "uint256", "name": "_fee", "type": "uint256" },
+      { "internalType": "address", "name": "_erc1155", "type": "address" },
+      { "internalType": "address", "name": "_erc721", "type": "address" },
+      { "internalType": "address", "name": "_factory", "type": "address" }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "inputs": [],
+    "name": "FailedToSendFee",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "FailedToWithdrawFunds",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InsufficientFee",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidERC1155Implementation",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidERC721Implementation",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidFactory",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidFeeRecipient",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "NoFundsToWithdraw",
+    "type": "error"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "address", "name": "oldImplementation", "type": "address" },
+      { "indexed": true, "internalType": "address", "name": "newImplementation", "type": "address" }
+    ],
+    "name": "ERC1155ImplementationUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "address", "name": "oldImplementation", "type": "address" },
+      { "indexed": true, "internalType": "address", "name": "newImplementation", "type": "address" }
+    ],
+    "name": "ERC721ImplementationUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": false, "internalType": "uint256", "name": "launchId", "type": "uint256" },
+      { "indexed": true, "internalType": "enum FractalLaunchpad.TokenType", "name": "tokenType", "type": "uint8" },
+      { "indexed": true, "internalType": "address", "name": "tokenContract", "type": "address" },
+      { "indexed": true, "internalType": "address", "name": "creator", "type": "address" }
+    ],
+    "name": "LaunchCreated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "address", "name": "previousOwner", "type": "address" },
+      { "indexed": true, "internalType": "address", "name": "newOwner", "type": "address" }
+    ],
+    "name": "OwnershipTransferred",
+    "type": "event"
+  },
+  {
+    "inputs": [],
+    "name": "NFT_FACTORY",
+    "outputs": [{ "internalType": "contract ProxyFactory", "name": "", "type": "address" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "address", "name": "", "type": "address" }],
+    "name": "authorizedCreators",
+    "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "string", "name": "_name", "type": "string" },
+      { "internalType": "string", "name": "_symbol", "type": "string" },
+      { "internalType": "uint256", "name": "_maxSupply", "type": "uint256" },
+      { "internalType": "string", "name": "_baseURI", "type": "string" },
+      { "internalType": "uint96", "name": "_royaltyFee", "type": "uint96" },
+      { "internalType": "enum LicenseVersion", "name": "_licenseVersion", "type": "uint8" },
+      { "internalType": "enum FractalLaunchpad.TokenType", "name": "_tokenType", "type": "uint8" }
+    ],
+    "name": "createLaunch",
+    "outputs": [{ "internalType": "uint256", "name": "launchId", "type": "uint256" }],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "address", "name": "", "type": "address" }, { "internalType": "uint256", "name": "", "type": "uint256" }],
+    "name": "creatorToERC1155s",
+    "outputs": [{ "internalType": "address", "name": "", "type": "address" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "address", "name": "", "type": "address" }, { "internalType": "uint256", "name": "", "type": "uint256" }],
+    "name": "creatorToERC721s",
+    "outputs": [{ "internalType": "address", "name": "", "type": "address" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "erc1155Implementation",
+    "outputs": [{ "internalType": "address", "name": "", "type": "address" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "erc721Implementation",
+    "outputs": [{ "internalType": "address", "name": "", "type": "address" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "feeRecipient",
+    "outputs": [{ "internalType": "address", "name": "", "type": "address" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getAllERC1155s",
+    "outputs": [{ "internalType": "address[]", "name": "", "type": "address[]" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getAllERC721s",
+    "outputs": [{ "internalType": "address[]", "name": "", "type": "address[]" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "address", "name": "_creator", "type": "address" }],
+    "name": "getERC1155sByCreator",
+    "outputs": [{ "internalType": "address[]", "name": "", "type": "address[]" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "address", "name": "_creator", "type": "address" }],
+    "name": "getERC721sByCreator",
+    "outputs": [{ "internalType": "address[]", "name": "", "type": "address[]" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "uint256", "name": "_launchId", "type": "uint256" }],
+    "name": "getLaunchInfo",
+    "outputs": [
+      {
+        "components": [
+          { "internalType": "enum FractalLaunchpad.TokenType", "name": "tokenType", "type": "uint8" },
+          { "internalType": "address", "name": "tokenContract", "type": "address" },
+          { "internalType": "address", "name": "creator", "type": "address" },
+          { "internalType": "uint256", "name": "maxSupply", "type": "uint256" },
+          { "internalType": "string", "name": "baseURI", "type": "string" },
+          { "internalType": "uint96", "name": "royaltyFee", "type": "uint96" },
+          { "internalType": "enum LicenseVersion", "name": "licenseVersion", "type": "uint8" }
+        ],
+        "internalType": "struct FractalLaunchpad.LaunchConfig",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "address", "name": "_query", "type": "address" }],
+    "name": "isERC1155Clone",
+    "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "address", "name": "_query", "type": "address" }],
+    "name": "isERC721Clone",
+    "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+    "name": "launches",
+    "outputs": [
+      { "internalType": "enum FractalLaunchpad.TokenType", "name": "tokenType", "type": "uint8" },
+      { "internalType": "address", "name": "tokenContract", "type": "address" },
+      { "internalType": "address", "name": "creator", "type": "address" },
+      { "internalType": "uint256", "name": "maxSupply", "type": "uint256" },
+      { "internalType": "string", "name": "baseURI", "type": "string" },
+      { "internalType": "uint96", "name": "royaltyFee", "type": "uint96" },
+      { "internalType": "enum LicenseVersion", "name": "licenseVersion", "type": "uint8" }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "nextLaunchId",
+    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "owner",
+    "outputs": [{ "internalType": "address", "name": "", "type": "address" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "platformFee",
+    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "renounceOwnership",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "address", "name": "_creator", "type": "address" }, { "internalType": "bool", "name": "_authorized", "type": "bool" }],
+    "name": "setAuthorizedCreator",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "address", "name": "_feeRecipient", "type": "address" }],
+    "name": "setFeeRecipient",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "uint256", "name": "_platformFee", "type": "uint256" }],
+    "name": "setPlatformFee",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "address", "name": "newOwner", "type": "address" }],
+    "name": "transferOwnership",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "address", "name": "_erc1155", "type": "address" }],
+    "name": "updateERC1155Implementation",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "address", "name": "_erc721", "type": "address" }],
+    "name": "updateERC721Implementation",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "withdrawLockedFunds",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+]
