@@ -10,20 +10,20 @@
 
 import { NextResponse } from 'next/server';
 import { encodeFunctionData, parseEther } from 'viem';
-import { CONTRACTS, PLATFORM_FEE, TOKEN_TYPES, LICENSE_VERSIONS } from '@/lib/contracts/addresses';
+import { GANLAND_CONTRACTS, PLATFORM_FEE, TOKEN_TYPES, LICENSE_VERSIONS } from '@/lib/contracts/addresses';
 import FractalLaunchpadABI from '@/lib/contracts/FractalLaunchpadABI.json';
 import { PinataClient } from '@/lib/pinata';
 
 const CHAIN_ID = 10; // Optimism
-const LAUNCHPAD_ADDRESS = CONTRACTS[CHAIN_ID].LAUNCHPAD;
+const LAUNCHPAD_ADDRESS = GANLAND_CONTRACTS.launchpad;
 
 export async function GET(request) {
   return NextResponse.json({
-    name: 'Fractal Visions Launchpad API',
+    name: 'Ganland Launchpad API',
     version: '1.0.0',
     chain: 'optimism',
     chainId: CHAIN_ID,
-    contracts: CONTRACTS[CHAIN_ID],
+    contracts: GANLAND_CONTRACTS,
     platformFee: PLATFORM_FEE,
     tokenTypes: TOKEN_TYPES,
     licenseVersions: LICENSE_VERSIONS,
