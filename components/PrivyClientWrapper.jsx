@@ -2,8 +2,14 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { PrivyProvider, usePrivy, useWallets } from '@privy-io/react-auth';
+import { WagmiProvider } from 'wagmi';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GanWalletProvider, useGanWallet } from '../hooks/useGanWallet';
+import { wagmiConfig } from '../lib/wagmi';
 import { supabase } from '../lib/supabase';
+
+// Create a single QueryClient instance
+const queryClient = new QueryClient();
 
 // Robust singleton guard using window object (survives HMR and module re-imports)
 const PRIVY_SINGLETON_KEY = '__PRIVY_PROVIDER_MOUNTED__';
@@ -231,30 +237,34 @@ function PrivyProviderWrapper({ children }) {
   console.log('[Privy] Rendering PrivyProvider');
 
   return (
-    <PrivyProvider
-      appId={appId}
-      config={{
-        loginMethods: ['twitter', 'email', 'farcaster'],
-        appearance: {
-          theme: 'dark',
-          accentColor: '#d4a84b',
-          logo: 'https://gateway.pinata.cloud/ipfs/QmW4PqY6rewBa8do32uHNg3u2w1RQ6JHbMeWapgMbN5NiP',
-          showWalletLoginFirst: false,
-        },
-        embeddedWallets: {
-          createOnLogin: 'off',
-          noPromptOnSignature: true,
-        },
-        externalWallets: {
-          autoConnect: false,
-        },
-      }}
-    >
-      <GanWalletProvider>
-        <WalletSyncHandler />
-        {children}
-      </GanWalletProvider>
-    </PrivyProvider>
+    <QueryClientProvider client={queryClient}>
+      <WagmiProvider config={wagmiConfig}>
+        <PrivyProvider
+          appId={appId}
+          config={{
+            loginMethods: ['twitter', 'email', 'farcaster'],
+            appearance: {
+              theme: 'dark',
+              accentColor: '#d4a84b',
+              logo: 'https://gateway.pinata.cloud/ipfs/QmW4PqY6rewBa8do32uHNg3u2w1RQ6JHbMeWapgMbN5NiP',
+              showWalletLoginFirst: false,
+            },
+            embeddedWallets: {
+              createOnLogin: 'off',
+              noPromptOnSignature: true,
+            },
+            externalWallets: {
+              autoConnect: false,
+            },
+          }}
+        >
+          <GanWalletProvider>
+            <WalletSyncHandler />
+            {children}
+          </GanWalletProvider>
+        </PrivyProvider>
+      </WagmiProvider>
+    </QueryClientProvider>
   );
 }
 

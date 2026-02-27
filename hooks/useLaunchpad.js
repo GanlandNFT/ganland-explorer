@@ -5,7 +5,7 @@ import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadCont
 import { parseEther, formatEther } from 'viem';
 import { optimism } from 'viem/chains';
 
-import { CONTRACTS, PLATFORM_FEE, TOKEN_TYPES, LICENSE_VERSIONS } from '@/lib/contracts/addresses';
+import { GANLAND_CONTRACTS, PLATFORM_FEE, TOKEN_TYPES, LICENSE_VERSIONS } from '@/lib/contracts/addresses';
 import FractalLaunchpadABI from '@/lib/contracts/FractalLaunchpadABI.json';
 
 export function useLaunchpad() {
@@ -13,7 +13,7 @@ export function useLaunchpad() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const launchpadAddress = CONTRACTS[optimism.id]?.LAUNCHPAD;
+  const launchpadAddress = GANLAND_CONTRACTS.launchpad;
 
   // Check if user is authorized (free launches)
   const { data: isAuthorized } = useReadContract({
