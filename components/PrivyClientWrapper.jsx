@@ -5,6 +5,9 @@ import { PrivyProvider, usePrivy, useWallets } from '@privy-io/react-auth';
 import { GanWalletProvider, useGanWallet } from '../hooks/useGanWallet';
 import { supabase } from '../lib/supabase';
 
+// Singleton guard to prevent multiple PrivyProvider instances
+let privyProviderMounted = false;
+
 // Module-level deduplication to prevent race conditions
 const walletCreationPromises = new Map();
 
@@ -174,10 +177,26 @@ function WalletSyncHandler() {
 
 function PrivyProviderWrapper({ children }) {
   const [mounted, setMounted] = useState(false);
+  const [isFirstInstance, setIsFirstInstance] = useState(false);
 
   useEffect(() => {
+    // Singleton check - only allow one PrivyProvider
+    if (privyProviderMounted) {
+      console.warn('[Privy] PrivyProvider already mounted, skipping duplicate');
+      setMounted(true);
+      setIsFirstInstance(false);
+      return;
+    }
+    
+    privyProviderMounted = true;
+    setIsFirstInstance(true);
     setMounted(true);
-    console.log('[Privy] Mounted');
+    console.log('[Privy] Mounted (first instance)');
+    
+    return () => {
+      privyProviderMounted = false;
+      console.log('[Privy] Unmounted');
+    };
   }, []);
 
   // Don't render children until mounted - prevents useWallets from being called outside PrivyProvider
@@ -187,6 +206,13 @@ function PrivyProviderWrapper({ children }) {
         {/* Minimal loading state while hydrating */}
       </div>
     );
+  }
+
+  // If this is a duplicate instance, just render children without provider
+  // (they'll inherit from the first instance via React context)
+  if (!isFirstInstance) {
+    console.log('[Privy] Rendering as pass-through (not first instance)');
+    return <>{children}</>;
   }
 
   const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
