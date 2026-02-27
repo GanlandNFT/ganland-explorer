@@ -5,8 +5,8 @@ import { PrivyProvider, usePrivy, useWallets } from '@privy-io/react-auth';
 import { GanWalletProvider, useGanWallet } from '../hooks/useGanWallet';
 import { supabase } from '../lib/supabase';
 
-// Singleton guard to prevent multiple PrivyProvider instances
-let privyProviderMounted = false;
+// Robust singleton guard using window object (survives HMR and module re-imports)
+const PRIVY_SINGLETON_KEY = '__PRIVY_PROVIDER_MOUNTED__';
 
 // Module-level deduplication to prevent race conditions
 const walletCreationPromises = new Map();
@@ -180,23 +180,29 @@ function PrivyProviderWrapper({ children }) {
   const [isFirstInstance, setIsFirstInstance] = useState(false);
 
   useEffect(() => {
-    // Singleton check - only allow one PrivyProvider
-    if (privyProviderMounted) {
-      console.warn('[Privy] PrivyProvider already mounted, skipping duplicate');
+    // Robust singleton check using window object (survives HMR and module re-imports)
+    if (typeof window !== 'undefined') {
+      if (window[PRIVY_SINGLETON_KEY]) {
+        console.warn('[Privy] PrivyProvider already mounted, skipping duplicate');
+        setMounted(true);
+        setIsFirstInstance(false);
+        return;
+      }
+      
+      window[PRIVY_SINGLETON_KEY] = true;
+      setIsFirstInstance(true);
       setMounted(true);
-      setIsFirstInstance(false);
-      return;
+      console.log('[Privy] Mounted (first instance)');
+      
+      return () => {
+        window[PRIVY_SINGLETON_KEY] = false;
+        console.log('[Privy] Unmounted');
+      };
+    } else {
+      // SSR - just render children
+      setMounted(true);
+      setIsFirstInstance(true);
     }
-    
-    privyProviderMounted = true;
-    setIsFirstInstance(true);
-    setMounted(true);
-    console.log('[Privy] Mounted (first instance)');
-    
-    return () => {
-      privyProviderMounted = false;
-      console.log('[Privy] Unmounted');
-    };
   }, []);
 
   // Don't render children until mounted - prevents useWallets from being called outside PrivyProvider
