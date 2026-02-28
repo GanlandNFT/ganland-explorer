@@ -401,17 +401,29 @@ export default function CreatorDashboard() {
                 {/* Collection Header with Avatar */}
                 <div className="p-6 border-b border-gray-800">
                   <div className="flex items-center gap-4">
-                    {collection.avatar ? (
-                      <img 
-                        src={collection.avatar} 
-                        alt={collection.name}
-                        className="w-16 h-16 rounded-xl object-cover border-2 border-gray-700"
-                      />
-                    ) : (
-                      <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center text-2xl font-bold">
-                        {collection.symbol?.slice(0, 2) || '?'}
-                      </div>
-                    )}
+                    {/* Avatar with warning triangle if needs attention */}
+                    <div className="relative">
+                      {collection.avatar ? (
+                        <img 
+                          src={collection.avatar} 
+                          alt={collection.name}
+                          className={`w-16 h-16 rounded-xl object-cover border-2 ${collection.needsFix ? 'border-orange-500' : 'border-gray-700'}`}
+                        />
+                      ) : (
+                        <div className={`w-16 h-16 rounded-xl bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center text-2xl font-bold ${collection.needsFix ? 'ring-2 ring-orange-500' : ''}`}>
+                          {collection.symbol?.slice(0, 2) || '?'}
+                        </div>
+                      )}
+                      {/* Orange warning triangle for broken metadata or missing avatar */}
+                      {(collection.needsFix || !collection.avatar) && (
+                        <div 
+                          className="absolute -top-1 -right-1 w-5 h-5 bg-orange-500 rounded-full flex items-center justify-center text-xs cursor-help"
+                          title={collection.needsFix ? 'Metadata URI needs update' : 'Missing collection avatar'}
+                        >
+                          ⚠️
+                        </div>
+                      )}
+                    </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <h3 className="font-bold text-lg truncate">{collection.name}</h3>
@@ -429,10 +441,19 @@ export default function CreatorDashboard() {
                 </div>
 
                 {/* Stats */}
-                <div className="p-4 bg-gray-800/30">
+                <div className="p-4 bg-gray-800/30 space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-400">Minted</span>
                     <span className="font-medium">{collection.totalSupply}</span>
+                  </div>
+                  {/* BaseURI Status */}
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-400">Metadata</span>
+                    {collection.needsFix ? (
+                      <span className="text-orange-400 font-medium">⚠️ Broken</span>
+                    ) : (
+                      <span className="text-green-400 font-medium">✓ OK</span>
+                    )}
                   </div>
                 </div>
 
@@ -471,23 +492,32 @@ export default function CreatorDashboard() {
                         🎨 Mint NFT
                       </button>
                       
-                      {/* Fix Metadata - Only show if baseURI is broken */}
+                      {/* Update Metadata URI - Always show, different style based on status */}
+                      <button
+                        onClick={() => {
+                          setSelectedCollection(collection);
+                          setFixStep(1);
+                          setFixResult(null);
+                          setFixImagesCid('');
+                          setFixImagesPath('');
+                          setFixDescription('');
+                          setError(null);
+                          setShowFixModal(true);
+                        }}
+                        className={`w-full px-4 py-3 rounded-lg text-sm font-medium transition ${
+                          collection.needsFix
+                            ? 'bg-red-600/20 hover:bg-red-600/30 border border-red-500/50 text-red-400'
+                            : 'bg-gray-700/50 hover:bg-gray-700 border border-gray-600 text-gray-300'
+                        }`}
+                      >
+                        {collection.needsFix ? '🚨 Update Metadata URI' : '🔗 Update Metadata URI'}
+                      </button>
+                      
+                      {/* Warning text for broken metadata */}
                       {collection.needsFix && (
-                        <button
-                          onClick={() => {
-                            setSelectedCollection(collection);
-                            setFixStep(1);
-                            setFixResult(null);
-                            setFixImagesCid('');
-                            setFixImagesPath('');
-                            setFixDescription('');
-                            setError(null);
-                            setShowFixModal(true);
-                          }}
-                          className="w-full px-4 py-3 bg-orange-600/20 hover:bg-orange-600/30 border border-orange-500/50 text-orange-400 rounded-lg text-sm font-medium transition"
-                        >
-                          ⚠️ Fix Metadata
-                        </button>
+                        <p className="text-orange-400/80 text-xs text-center px-2">
+                          ⚠️ Images won't display until metadata URI is updated. Your IPFS files must be pinned first!
+                        </p>
                       )}
                     </>
                   )}
@@ -634,20 +664,41 @@ export default function CreatorDashboard() {
         </div>
       )}
 
-      {/* Fix Metadata Modal */}
+      {/* Fix/Update Metadata Modal */}
       {showFixModal && selectedCollection && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="bg-gray-900 rounded-2xl max-w-lg w-full p-6 border border-gray-700 max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-bold mb-2">Fix Collection Metadata</h2>
+            <h2 className="text-xl font-bold mb-2">
+              {selectedCollection.needsFix ? '🚨 Fix Collection Metadata' : '🔗 Update Metadata URI'}
+            </h2>
             <p className="text-gray-400 text-sm mb-4">
-              <strong>{selectedCollection.name}</strong> has missing metadata. 
-              This will generate metadata JSONs and update the contract.
+              {selectedCollection.needsFix ? (
+                <>
+                  <strong>{selectedCollection.name}</strong> has missing or broken metadata. 
+                  This will generate metadata JSONs and update the contract.
+                </>
+              ) : (
+                <>
+                  Update the metadata URI for <strong>{selectedCollection.name}</strong>.
+                  Use this if you've re-pinned your IPFS files or want to update the metadata.
+                </>
+              )}
             </p>
             
-            <div className="bg-orange-900/20 border border-orange-700/50 rounded-lg p-3 mb-4">
-              <p className="text-orange-300 text-sm">
-                ⚠️ Current baseURI: <code className="bg-black/30 px-1 rounded">{selectedCollection.baseURI || 'empty'}</code>
+            {/* Status box - red if broken, gray if just updating */}
+            <div className={`rounded-lg p-3 mb-4 ${
+              selectedCollection.needsFix 
+                ? 'bg-red-900/20 border border-red-700/50' 
+                : 'bg-gray-800/50 border border-gray-700'
+            }`}>
+              <p className={`text-sm ${selectedCollection.needsFix ? 'text-red-300' : 'text-gray-300'}`}>
+                {selectedCollection.needsFix ? '⚠️' : 'ℹ️'} Current baseURI: <code className="bg-black/30 px-1 rounded break-all">{selectedCollection.baseURI || 'empty/pending'}</code>
               </p>
+              {selectedCollection.needsFix && (
+                <p className="text-red-400/80 text-xs mt-2">
+                  🚨 Images will NOT display until this is fixed! Make sure your IPFS files are pinned.
+                </p>
+              )}
             </div>
             
             {/* Step 1: Input IPFS details */}
