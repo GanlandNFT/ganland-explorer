@@ -5,7 +5,7 @@ import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadCont
 import { parseEther, formatEther } from 'viem';
 import { optimism } from 'viem/chains';
 
-import { GANLAND_CONTRACTS, PLATFORM_FEE, TOKEN_TYPES, LICENSE_VERSIONS } from '@/lib/contracts/addresses';
+import { CONTRACTS, PLATFORM_FEE, TOKEN_TYPES, LICENSE_VERSIONS } from '@/lib/contracts/addresses';
 import FractalLaunchpadABI from '@/lib/contracts/FractalLaunchpadABI.json';
 
 export function useLaunchpad() {
@@ -13,7 +13,7 @@ export function useLaunchpad() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const launchpadAddress = GANLAND_CONTRACTS.launchpad;
+  const launchpadAddress = CONTRACTS[optimism.id]?.LAUNCHPAD;
 
   // Check if user is authorized (free launches)
   const { data: isAuthorized } = useReadContract({
@@ -131,11 +131,12 @@ export function useLaunchpad() {
 
     // Data
     isAuthorized,
-    platformFee: platformFee ? formatEther(platformFee) : '0.01',
+    platformFee: platformFee ? String(formatEther(platformFee)) : '0.01',
     nextLaunchId: nextLaunchId?.toString() || '0',
     userCollections: {
-      erc721: userERC721s || [],
-      erc1155: userERC1155s || [],
+      // Convert to string array to prevent React rendering errors
+      erc721: (userERC721s || []).map(addr => String(addr)),
+      erc1155: (userERC1155s || []).map(addr => String(addr)),
     },
 
     // Actions

@@ -62,11 +62,17 @@ export function CollectionUploader({ onComplete }) {
     setUploadProgress(0);
 
     try {
-      // Get Pinata credentials from environment or API
-      const pinata = new PinataClient(
-        process.env.NEXT_PUBLIC_PINATA_API_KEY,
-        process.env.NEXT_PUBLIC_PINATA_SECRET_KEY
-      );
+      // Check for Pinata credentials
+      const apiKey = process.env.NEXT_PUBLIC_PINATA_API_KEY;
+      const secretKey = process.env.NEXT_PUBLIC_PINATA_SECRET_KEY;
+      
+      if (!apiKey || !secretKey) {
+        throw new Error(
+          'Pinata API keys not configured. Please contact support or check your environment variables.'
+        );
+      }
+      
+      const pinata = new PinataClient(apiKey, secretKey);
 
       let result;
 
@@ -122,28 +128,38 @@ export function CollectionUploader({ onComplete }) {
         </p>
       </div>
 
-      {/* Upload Mode Toggle */}
+      {/* Upload Mode Toggle - disabled once files are added */}
       <div className="flex gap-4">
         <button
           onClick={() => setUploadMode('images')}
+          disabled={files.length > 0 || metadataFiles.length > 0}
           className={`px-4 py-2 rounded-lg transition ${
             uploadMode === 'images' 
               ? 'bg-cyan-600 text-white' 
               : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-          }`}
+          } ${(files.length > 0 || metadataFiles.length > 0) ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
           Images Only (Auto-generate metadata)
         </button>
         <button
           onClick={() => setUploadMode('full')}
+          disabled={files.length > 0 || metadataFiles.length > 0}
           className={`px-4 py-2 rounded-lg transition ${
             uploadMode === 'full' 
               ? 'bg-cyan-600 text-white' 
               : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-          }`}
+          } ${(files.length > 0 || metadataFiles.length > 0) ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
           Images + Custom Metadata
         </button>
+        {(files.length > 0 || metadataFiles.length > 0) && (
+          <button
+            onClick={() => { setFiles([]); setMetadataFiles([]); }}
+            className="px-3 py-2 text-red-400 hover:text-red-300 text-sm"
+          >
+            Clear & Change Mode
+          </button>
+        )}
       </div>
 
       {/* Image Upload Zone */}

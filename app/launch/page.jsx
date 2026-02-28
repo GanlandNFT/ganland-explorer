@@ -96,11 +96,25 @@ export default function LaunchPage() {
 
         {/* Step Content */}
         <div className="bg-gray-900 rounded-2xl p-8 border border-gray-800">
-          {step === 1 && (
+          {/* Wallet Connection Gate */}
+          {!isConnected && step < 4 && (
+            <div className="text-center py-12">
+              <div className="text-6xl mb-6">🔐</div>
+              <h2 className="text-2xl font-bold mb-4">Connect Your Wallet</h2>
+              <p className="text-gray-400 mb-6 max-w-md mx-auto">
+                Connect your wallet to create an NFT collection on the Fractal Visions Launchpad.
+              </p>
+              <p className="text-gray-500 text-sm">
+                Click "Connect Wallet" in the top right corner to get started.
+              </p>
+            </div>
+          )}
+
+          {isConnected && step === 1 && (
             <CollectionUploader onComplete={handleUploadComplete} />
           )}
           
-          {step === 2 && (
+          {isConnected && step === 2 && (
             <LaunchpadForm 
               uploadedData={uploadedData}
               onComplete={handleConfigComplete}
@@ -110,7 +124,7 @@ export default function LaunchPage() {
             />
           )}
           
-          {step === 3 && (
+          {isConnected && step === 3 && (
             <LaunchPreview
               uploadedData={uploadedData}
               config={launchConfig}
