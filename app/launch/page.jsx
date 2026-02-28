@@ -158,7 +158,7 @@ export default function LaunchPage() {
         isOpen={showWalletModal}
         walletAddress={address}
         onComplete={() => setShowWalletModal(false)}
-        duration={10000}
+        duration={5000}
       />
 
       {/* Deployment Modal */}
@@ -310,12 +310,12 @@ export default function LaunchPage() {
           )}
 
           {/* Step 1: Upload - Only with embedded wallet */}
-          {ready && isConnected && (hasEmbeddedWallet || acknowledgedExternalWallet) && step === 1 && (
+          {ready && isConnected && acknowledgedExternalWallet && step === 1 && (
             <CollectionUploader onComplete={handleUploadComplete} />
           )}
           
           {/* Step 2: Configure - Only with embedded wallet */}
-          {ready && isConnected && (hasEmbeddedWallet || acknowledgedExternalWallet) && step === 2 && (
+          {ready && isConnected && acknowledgedExternalWallet && step === 2 && (
             <LaunchpadForm 
               uploadedData={uploadedData}
               initialValues={launchConfig || draftConfig}
@@ -327,7 +327,7 @@ export default function LaunchPage() {
           )}
           
           {/* Step 3: Review - Only with embedded wallet */}
-          {ready && isConnected && (hasEmbeddedWallet || acknowledgedExternalWallet) && step === 3 && (
+          {ready && isConnected && acknowledgedExternalWallet && step === 3 && (
             <LaunchPreview
               uploadedData={uploadedData}
               config={launchConfig}
