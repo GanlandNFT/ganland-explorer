@@ -47,6 +47,7 @@ export default function LaunchPage() {
   // Show wallet connected modal when first connecting
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [hasShownWalletModal, setHasShownWalletModal] = useState(false);
+  const [acknowledgedExternalWallet, setAcknowledgedExternalWallet] = useState(false);
   
   // Show connection modal when wallet first connects
   useEffect(() => {
@@ -157,7 +158,7 @@ export default function LaunchPage() {
         isOpen={showWalletModal}
         walletAddress={address}
         onComplete={() => setShowWalletModal(false)}
-        duration={3000}
+        duration={10000}
       />
 
       {/* Deployment Modal */}
@@ -254,7 +255,49 @@ export default function LaunchPage() {
               </div>
             )}
 
+          {/* External Wallet Warning - With acknowledgment */}
+          {ready && authenticated && usingExternalWallet && !hasEmbeddedWallet && step < 4 && !acknowledgedExternalWallet && (
+            <div className="text-center py-8 sm:py-12">
+              {/* Show embedded wallet at top if exists */}
+              {address && (
+                <div className="mb-6 inline-flex items-center gap-2 px-4 py-2 bg-green-900/30 border border-green-600/50 rounded-full">
+                  <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                  <span className="text-green-400 text-sm font-medium">Embedded Wallet Protected by Privy</span>
+                  <span className="text-green-300 font-mono text-xs">{address?.slice(0, 6)}...{address?.slice(-4)}</span>
+                </div>
+              )}
+              
+              <div className="text-5xl sm:text-6xl mb-4 sm:mb-6">⚠️</div>
+              <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4 text-red-400">External Wallet Not Supported</h2>
+              <p className="text-gray-400 mb-4 sm:mb-6 max-w-md mx-auto text-sm sm:text-base px-4">
+                For security, the GAN Launchpad only supports <strong className="text-white">Privy embedded wallets</strong>.
+                External wallets (MetaMask, Coinbase, etc.) cannot be used for deployments.
               </p>
+              <div className="bg-yellow-900/20 border border-yellow-700/30 rounded-xl p-4 max-w-md mx-auto mb-6">
+                <p className="text-yellow-400 text-sm">
+                  <strong>Why?</strong> Embedded wallets ensure your collection is linked to your Ganland account.
+                  Please remember you can change the admin of the contract through the creator dashboard after deployment.
+                </p>
+              </div>
+              
+              {/* Acknowledgment buttons */}
+              <div className="flex flex-col items-center gap-4">
+                <p className="text-gray-500 text-sm">Do you have a Privy embedded wallet and want to continue?</p>
+                <div className="flex gap-4">
+                  <button
+                    onClick={() => setAcknowledgedExternalWallet(true)}
+                    className="px-6 py-3 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg font-medium transition"
+                  >
+                    Yes, Continue
+                  </button>
+                  <button
+                    onClick={() => window.location.href = '/'}
+                    className="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-medium transition"
+                  >
+                    No, Go Back
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 
@@ -267,12 +310,12 @@ export default function LaunchPage() {
           )}
 
           {/* Step 1: Upload - Only with embedded wallet */}
-          {ready && isConnected && hasEmbeddedWallet && step === 1 && (
+          {ready && isConnected && (hasEmbeddedWallet || acknowledgedExternalWallet) && step === 1 && (
             <CollectionUploader onComplete={handleUploadComplete} />
           )}
           
           {/* Step 2: Configure - Only with embedded wallet */}
-          {ready && isConnected && hasEmbeddedWallet && step === 2 && (
+          {ready && isConnected && (hasEmbeddedWallet || acknowledgedExternalWallet) && step === 2 && (
             <LaunchpadForm 
               uploadedData={uploadedData}
               initialValues={launchConfig || draftConfig}
@@ -284,7 +327,7 @@ export default function LaunchPage() {
           )}
           
           {/* Step 3: Review - Only with embedded wallet */}
-          {ready && isConnected && hasEmbeddedWallet && step === 3 && (
+          {ready && isConnected && (hasEmbeddedWallet || acknowledgedExternalWallet) && step === 3 && (
             <LaunchPreview
               uploadedData={uploadedData}
               config={launchConfig}
