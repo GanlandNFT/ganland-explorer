@@ -33,6 +33,8 @@ export default function LaunchPage() {
     switchToOptimism,
     wrongChain,
     isSwitching,
+    hasEmbeddedWallet,
+    usingExternalWallet,
     TOKEN_TYPES,
     LICENSE_VERSIONS,
   } = useLaunchpad();
@@ -218,6 +220,27 @@ export default function LaunchPage() {
               </div>
             )}
 
+          {/* External Wallet Warning - Block external wallets */}
+          {ready && authenticated && usingExternalWallet && !hasEmbeddedWallet && step < 4 && (
+            <div className="text-center py-8 sm:py-12">
+              <div className="text-5xl sm:text-6xl mb-4 sm:mb-6">⚠️</div>
+              <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4 text-red-400">External Wallet Not Supported</h2>
+              <p className="text-gray-400 mb-4 sm:mb-6 max-w-md mx-auto text-sm sm:text-base px-4">
+                For security, the GAN Launchpad only supports <strong className="text-white">Privy embedded wallets</strong>.
+                External wallets (MetaMask, Coinbase, etc.) cannot be used for deployments.
+              </p>
+              <div className="bg-yellow-900/20 border border-yellow-700/30 rounded-xl p-4 max-w-md mx-auto mb-6">
+                <p className="text-yellow-400 text-sm">
+                  <strong>Why?</strong> Embedded wallets ensure your collection is linked to your Ganland account
+                  and enables future features like gasless transactions.
+                </p>
+              </div>
+              <p className="text-gray-500 text-xs sm:text-sm">
+                Please create an embedded wallet in your profile settings, or sign up with email/social to get one automatically.
+              </p>
+            </div>
+          )}
+
           {/* Authenticated but waiting for wallet address */}
           {ready && authenticated && !isConnected && step < 4 && (
             <div className="text-center py-8 sm:py-12">
@@ -226,13 +249,13 @@ export default function LaunchPage() {
             </div>
           )}
 
-          {/* Step 1: Upload */}
-          {ready && isConnected && step === 1 && (
+          {/* Step 1: Upload - Only with embedded wallet */}
+          {ready && isConnected && hasEmbeddedWallet && step === 1 && (
             <CollectionUploader onComplete={handleUploadComplete} />
           )}
           
-          {/* Step 2: Configure */}
-          {ready && isConnected && step === 2 && (
+          {/* Step 2: Configure - Only with embedded wallet */}
+          {ready && isConnected && hasEmbeddedWallet && step === 2 && (
             <LaunchpadForm 
               uploadedData={uploadedData}
               initialValues={launchConfig || draftConfig}
@@ -243,8 +266,8 @@ export default function LaunchPage() {
             />
           )}
           
-          {/* Step 3: Review */}
-          {ready && isConnected && step === 3 && (
+          {/* Step 3: Review - Only with embedded wallet */}
+          {ready && isConnected && hasEmbeddedWallet && step === 3 && (
             <LaunchPreview
               uploadedData={uploadedData}
               config={launchConfig}

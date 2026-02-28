@@ -22,12 +22,21 @@ export function useLaunchpad() {
   const chainId = useChainId();
   const { switchChain, isPending: isSwitching } = useSwitchChain();
   
-  // Combined connection state - user is authenticated via Privy
-  const isAuthenticated = ready && authenticated;
-  const address = wagmiAddress || wallets?.[0]?.address;
-  const isConnected = isAuthenticated && !!address;
+  // CRITICAL: Only use Privy embedded wallets, NOT external wallets
+  // Filter to find only embedded wallets (walletClientType === 'privy')
+  const embeddedWallet = wallets?.find(w => w.walletClientType === 'privy');
+  const externalWallet = wallets?.find(w => w.walletClientType !== 'privy');
   
-  // Check if on correct chain
+  // Use ONLY the embedded wallet address - NEVER external wallets
+  const address = embeddedWallet?.address;
+  const usingExternalWallet = !embeddedWallet && !!externalWallet;
+  const hasEmbeddedWallet = !!embeddedWallet;
+  
+  // Combined connection state - must have embedded wallet
+  const isAuthenticated = ready && authenticated;
+  const isConnected = isAuthenticated && !!address && hasEmbeddedWallet;
+  
+  // Check if on correct chain (only matters if we have an embedded wallet)
   const isOnOptimism = chainId === REQUIRED_CHAIN_ID;
   const wrongChain = isConnected && !isOnOptimism;
   
@@ -111,6 +120,11 @@ export function useLaunchpad() {
     licenseVersion = LICENSE_VERSIONS.COMMERCIAL,
     tokenType = TOKEN_TYPES.ERC721,
   }) => {
+    // CRITICAL: Must have embedded Privy wallet - NO external wallets allowed
+    if (!hasEmbeddedWallet) {
+      throw new Error('Please create a Privy wallet to deploy. External wallets are not supported.');
+    }
+    
     if (!isConnected) {
       throw new Error('Wallet not connected');
     }
@@ -163,9 +177,14 @@ export function useLaunchpad() {
     // Auth state
     ready,           // Privy SDK ready
     authenticated,   // User logged in via Privy
-    isConnected,     // Authenticated + has wallet address
+    isConnected,     // Authenticated + has embedded wallet address
     address,
     user,
+    
+    // Wallet state - CRITICAL: Only embedded wallets allowed
+    hasEmbeddedWallet,    // True if user has Privy embedded wallet
+    usingExternalWallet,  // True if only external wallet connected (NOT ALLOWED)
+    embeddedWallet,       // The embedded wallet object
     
     // Chain state
     chainId,
