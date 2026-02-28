@@ -1,13 +1,17 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://qeubpfvvmfgdvjxlvmwh.supabase.co',
-  process.env.SUPABASE_SERVICE_KEY || ''
-);
+// Lazy-load Supabase client to avoid build-time initialization
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://qeubpfvvmfgdvjxlvmwh.supabase.co',
+    process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+  );
+}
 
 // PUT /api/collections/update-cid - Update baseURI/CID for a deployed collection
 export async function PUT(request) {
+  const supabase = getSupabase();
   try {
     const body = await request.json();
     const { wallet, contractAddress, newImagesCid, newMetadataCid, newBaseUri } = body;

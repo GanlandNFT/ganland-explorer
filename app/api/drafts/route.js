@@ -1,13 +1,17 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://qeubpfvvmfgdvjxlvmwh.supabase.co',
-  process.env.SUPABASE_SERVICE_KEY || ''
-);
+// Lazy-load Supabase to avoid build-time initialization
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://qeubpfvvmfgdvjxlvmwh.supabase.co',
+    process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+  );
+}
 
 // GET /api/drafts?wallet=0x...
 export async function GET(request) {
+  const supabase = getSupabase();
   const { searchParams } = new URL(request.url);
   const wallet = searchParams.get('wallet')?.toLowerCase();
   
@@ -30,6 +34,7 @@ export async function GET(request) {
 
 // POST /api/drafts - Save/update draft
 export async function POST(request) {
+  const supabase = getSupabase();
   try {
     const body = await request.json();
     const { wallet, collectionName, description, uploadMode, config, step, stagedFiles } = body;
@@ -67,6 +72,7 @@ export async function POST(request) {
 
 // DELETE /api/drafts?wallet=0x...
 export async function DELETE(request) {
+  const supabase = getSupabase();
   const { searchParams } = new URL(request.url);
   const wallet = searchParams.get('wallet')?.toLowerCase();
   

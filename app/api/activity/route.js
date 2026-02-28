@@ -1,6 +1,12 @@
 // API route for fetching activity from Supabase
 const SUPABASE_URL = 'https://qeubpfvvmfgdvjxlvmwh.supabase.co';
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFldWJwZnZ2bWZnZHZqeGx2bXdoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwMDAzODEsImV4cCI6MjA4NTU3NjM4MX0.VRibtPt7gEjSBfYwXkPLBNvjKlxjWqJpLa2UJNlzUYI';
+
+function getSupabaseKey() {
+  // Use service role key if available, fallback to anon key
+  return process.env.SUPABASE_SERVICE_ROLE_KEY || 
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFldWJwZnZ2bWZnZHZqeGx2bXdoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwMDAzODEsImV4cCI6MjA4NTU3NjM4MX0.VRibtPt7gEjSBfYwXkPLBNvjKlxjWqJpLa2UJNlzUYI';
+}
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
@@ -16,20 +22,20 @@ export async function GET(request) {
       const [activityRes, collectionsRes, statsRes] = await Promise.all([
         fetch(`${SUPABASE_URL}/rest/v1/activity?order=created_at.desc&limit=${limit}`, {
           headers: {
-            'apikey': SUPABASE_KEY,
-            'Authorization': `Bearer ${SUPABASE_KEY}`
+            'apikey': getSupabaseKey(),
+            'Authorization': `Bearer ${getSupabaseKey()}`
           }
         }),
         fetch(`${SUPABASE_URL}/rest/v1/collections?is_official=eq.true&order=created_at.desc&limit=5`, {
           headers: {
-            'apikey': SUPABASE_KEY,
-            'Authorization': `Bearer ${SUPABASE_KEY}`
+            'apikey': getSupabaseKey(),
+            'Authorization': `Bearer ${getSupabaseKey()}`
           }
         }),
         fetch(`${SUPABASE_URL}/rest/v1/gan_token_stats?order=updated_at.desc&limit=1`, {
           headers: {
-            'apikey': SUPABASE_KEY,
-            'Authorization': `Bearer ${SUPABASE_KEY}`
+            'apikey': getSupabaseKey(),
+            'Authorization': `Bearer ${getSupabaseKey()}`
           }
         })
       ]);
@@ -51,8 +57,8 @@ export async function GET(request) {
         `${SUPABASE_URL}/rest/v1/activity?wallet_address=eq.${walletAddress}&order=created_at.desc&limit=${limit}`,
         {
           headers: {
-            'apikey': SUPABASE_KEY,
-            'Authorization': `Bearer ${SUPABASE_KEY}`
+            'apikey': getSupabaseKey(),
+            'Authorization': `Bearer ${getSupabaseKey()}`
           }
         }
       );
@@ -65,8 +71,8 @@ export async function GET(request) {
         `${SUPABASE_URL}/rest/v1/collections?is_official=eq.true&order=created_at.desc`,
         {
           headers: {
-            'apikey': SUPABASE_KEY,
-            'Authorization': `Bearer ${SUPABASE_KEY}`
+            'apikey': getSupabaseKey(),
+            'Authorization': `Bearer ${getSupabaseKey()}`
           }
         }
       );
@@ -79,8 +85,8 @@ export async function GET(request) {
         `${SUPABASE_URL}/rest/v1/transactions?or=(from_address.eq.${walletAddress},to_address.eq.${walletAddress})&order=created_at.desc&limit=${limit}`,
         {
           headers: {
-            'apikey': SUPABASE_KEY,
-            'Authorization': `Bearer ${SUPABASE_KEY}`
+            'apikey': getSupabaseKey(),
+            'Authorization': `Bearer ${getSupabaseKey()}`
           }
         }
       );
@@ -102,8 +108,8 @@ export async function POST(request) {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/activity`, {
       method: 'POST',
       headers: {
-        'apikey': SUPABASE_KEY,
-        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'apikey': getSupabaseKey(),
+        'Authorization': `Bearer ${getSupabaseKey()}`,
         'Content-Type': 'application/json',
         'Prefer': 'return=representation'
       },

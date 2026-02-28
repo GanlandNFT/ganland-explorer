@@ -3,10 +3,13 @@ import { createClient } from '@supabase/supabase-js';
 
 const PINATA_API_URL = 'https://api.pinata.cloud';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://qeubpfvvmfgdvjxlvmwh.supabase.co',
-  process.env.SUPABASE_SERVICE_KEY || ''
-);
+// Lazy-load Supabase to avoid build-time initialization
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://qeubpfvvmfgdvjxlvmwh.supabase.co',
+    process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+  );
+}
 
 function getPinataHeaders() {
   return {
@@ -17,6 +20,7 @@ function getPinataHeaders() {
 
 // GET /api/ipfs?wallet=0x... - List user's pins
 export async function GET(request) {
+  const supabase = getSupabase();
   const { searchParams } = new URL(request.url);
   const wallet = searchParams.get('wallet')?.toLowerCase();
   
@@ -40,6 +44,7 @@ export async function GET(request) {
 
 // POST /api/ipfs - Record a new pin
 export async function POST(request) {
+  const supabase = getSupabase();
   try {
     const body = await request.json();
     const { wallet, cid, type, name, fileCount, sizeBytes } = body;
@@ -75,6 +80,7 @@ export async function POST(request) {
 
 // DELETE /api/ipfs?wallet=0x...&cid=Qm... - Unpin from IPFS
 export async function DELETE(request) {
+  const supabase = getSupabase();
   const { searchParams } = new URL(request.url);
   const wallet = searchParams.get('wallet')?.toLowerCase();
   const cid = searchParams.get('cid');
