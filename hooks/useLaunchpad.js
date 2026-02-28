@@ -1,10 +1,16 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract, useSwitchChain, useChainId } from 'wagmi';
-import { parseEther, formatEther, encodeFunctionData } from 'viem';
+import { parseEther, formatEther, encodeFunctionData, createPublicClient, http } from 'viem';
 import { optimism } from 'viem/chains';
+
+// Public client for balance fetching
+const publicClient = createPublicClient({
+  chain: optimism,
+  transport: http(),
+});
 
 import { CONTRACTS, PLATFORM_FEE, TOKEN_TYPES, LICENSE_VERSIONS } from '@/lib/contracts/addresses';
 import FractalLaunchpadABI from '@/lib/contracts/FractalLaunchpadABI.json';
@@ -53,8 +59,35 @@ export function useLaunchpad() {
   const [error, setError] = useState(null);
   const [txHash, setTxHash] = useState(null);
   const [txSuccess, setTxSuccess] = useState(false);
+  const [balance, setBalance] = useState(null);
+  const [balanceLoading, setBalanceLoading] = useState(false);
 
   const launchpadAddress = CONTRACTS[optimism.id]?.LAUNCHPAD;
+
+  // Fetch wallet balance on Optimism
+  useEffect(() => {
+    const fetchBalance = async () => {
+      if (!address) {
+        setBalance(null);
+        return;
+      }
+      
+      setBalanceLoading(true);
+      try {
+        const bal = await publicClient.getBalance({ address });
+        setBalance(bal);
+      } catch (e) {
+        console.error('Balance fetch failed:', e);
+        setBalance(null);
+      }
+      setBalanceLoading(false);
+    };
+    
+    fetchBalance();
+    // Refresh balance every 30 seconds
+    const interval = setInterval(fetchBalance, 30000);
+    return () => clearInterval(interval);
+  }, [address]);
 
   // Check if user is authorized (free launches)
   const { data: isAuthorized } = useReadContract({
@@ -232,6 +265,12 @@ export function useLaunchpad() {
     isSuccess: txSuccess,
     error,
     hash: txHash,
+
+    // Balance state
+    balance,
+    balanceFormatted: balance ? formatEther(balance) : '0',
+    balanceLoading,
+    hasEnoughBalance: balance && balance >= parseEther(platformFee ? String(formatEther(platformFee)) : '0.01'),
 
     // Data
     isAuthorized,

@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { LaunchpadForm } from '@/components/launch/LaunchpadForm';
 import { CollectionUploader } from '@/components/launch/CollectionUploader';
 import { LaunchPreview } from '@/components/launch/LaunchPreview';
 import { DeploymentModal } from '@/components/launch/DeploymentModal';
+import { WalletConnectedModal } from '@/components/launch/WalletConnectedModal';
 import { MyCollections } from '@/components/launch/MyCollections';
 import { useLaunchpad } from '@/hooks/useLaunchpad';
 
@@ -35,9 +36,25 @@ export default function LaunchPage() {
     isSwitching,
     hasEmbeddedWallet,
     usingExternalWallet,
+    balance,
+    balanceFormatted,
+    balanceLoading,
+    hasEnoughBalance,
     TOKEN_TYPES,
     LICENSE_VERSIONS,
   } = useLaunchpad();
+  
+  // Show wallet connected modal when first connecting
+  const [showWalletModal, setShowWalletModal] = useState(false);
+  const [hasShownWalletModal, setHasShownWalletModal] = useState(false);
+  
+  // Show connection modal when wallet first connects
+  useEffect(() => {
+    if (isConnected && hasEmbeddedWallet && !hasShownWalletModal) {
+      setShowWalletModal(true);
+      setHasShownWalletModal(true);
+    }
+  }, [isConnected, hasEmbeddedWallet, hasShownWalletModal]);
 
   // Load draft config from Supabase when wallet connects
   useEffect(() => {
@@ -135,6 +152,14 @@ export default function LaunchPage() {
 
   return (
     <div className="min-h-screen bg-gray-950 text-white flex flex-col">
+      {/* Wallet Connected Modal - Shows briefly when user connects */}
+      <WalletConnectedModal
+        isOpen={showWalletModal}
+        walletAddress={address}
+        onComplete={() => setShowWalletModal(false)}
+        duration={3000}
+      />
+
       {/* Deployment Modal */}
       <DeploymentModal
         isOpen={showDeployModal}
@@ -287,6 +312,10 @@ export default function LaunchPage() {
               wrongChain={wrongChain}
               onSwitchChain={switchToOptimism}
               isSwitching={isSwitching}
+              walletAddress={address}
+              balanceFormatted={balanceFormatted}
+              hasEnoughBalance={hasEnoughBalance || isAuthorized}
+              balanceLoading={balanceLoading}
             />
           )}
           

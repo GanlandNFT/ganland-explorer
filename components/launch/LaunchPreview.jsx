@@ -21,6 +21,10 @@ export function LaunchPreview({
   wrongChain,
   onSwitchChain,
   isSwitching,
+  walletAddress,
+  balanceFormatted,
+  hasEnoughBalance,
+  balanceLoading,
 }) {
   const tokenTypeLabel = config.tokenType === 0 ? 'ERC-721' : 'ERC-1155';
   const licenseLabel = Object.keys(LICENSE_DESCRIPTIONS).find(
@@ -99,8 +103,38 @@ export function LaunchPreview({
         </div>
       </div>
 
-      {/* Cost Summary */}
-      <div className="bg-gradient-to-r from-cyan-900/30 to-purple-900/30 rounded-xl p-6 border border-cyan-700/30">
+      {/* Cost Summary with Wallet Info */}
+      <div className="bg-gradient-to-r from-cyan-900/30 to-purple-900/30 rounded-xl p-6 border border-cyan-700/30 space-y-4">
+        {/* Wallet Address */}
+        <div className="flex justify-between items-center pb-4 border-b border-gray-700/50">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">👛</span>
+            <span className="text-gray-400 text-sm">Connected Wallet</span>
+          </div>
+          <div className="font-mono text-cyan-400 text-sm">
+            {walletAddress 
+              ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
+              : 'Not connected'
+            }
+          </div>
+        </div>
+
+        {/* Balance */}
+        <div className="flex justify-between items-center pb-4 border-b border-gray-700/50">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">💰</span>
+            <span className="text-gray-400 text-sm">Your Balance (Optimism)</span>
+          </div>
+          <div className={`font-mono text-sm ${hasEnoughBalance ? 'text-green-400' : 'text-red-400'}`}>
+            {balanceLoading ? (
+              <span className="text-gray-500">Loading...</span>
+            ) : (
+              `${parseFloat(balanceFormatted || '0').toFixed(4)} ETH`
+            )}
+          </div>
+        </div>
+
+        {/* Platform Fee */}
         <div className="flex justify-between items-center">
           <div>
             <h4 className="font-medium">Platform Fee</h4>
@@ -115,6 +149,16 @@ export function LaunchPreview({
             )}
           </div>
         </div>
+
+        {/* Insufficient Balance Warning */}
+        {!hasEnoughBalance && platformFee !== '0' && (
+          <div className="bg-red-900/30 rounded-lg p-3 flex items-center gap-2">
+            <span className="text-red-400">⚠️</span>
+            <p className="text-red-400 text-sm">
+              Insufficient balance. You need at least {platformFee} ETH on Optimism to deploy.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Wrong Chain Warning */}
@@ -157,14 +201,16 @@ export function LaunchPreview({
         </button>
         <button
           onClick={handleDeploy}
-          disabled={isLoading || wrongChain || isSwitching}
+          disabled={isLoading || wrongChain || isSwitching || (!hasEnoughBalance && platformFee !== '0')}
           className={`px-8 py-3 rounded-lg font-medium transition disabled:opacity-50 ${
-            wrongChain 
+            wrongChain || (!hasEnoughBalance && platformFee !== '0')
               ? 'bg-gray-700 text-gray-500 cursor-not-allowed' 
               : 'bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500'
           }`}
         >
-          {wrongChain ? '⛓️ Switch Network First' : '🚀 Deploy Contract'}
+          {wrongChain ? '⛓️ Switch Network First' : 
+           (!hasEnoughBalance && platformFee !== '0') ? '💰 Insufficient Balance' :
+           '🚀 Deploy Contract'}
         </button>
       </div>
     </div>

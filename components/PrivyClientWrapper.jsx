@@ -253,9 +253,13 @@ function PrivyProviderWrapper({ children }) {
               createOnLogin: 'off',
               noPromptOnSignature: true,
             },
+            // COMPLETELY DISABLE EXTERNAL WALLETS
+            // We only use Privy embedded wallets on this app
             externalWallets: {
-              autoConnect: false,
+              disabled: true,
             },
+            // Don't show wallet connect options
+            walletConnectCloudProjectId: undefined,
           }}
         >
           <GanWalletProvider>
