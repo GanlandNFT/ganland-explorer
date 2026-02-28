@@ -78,6 +78,11 @@ export function LaunchpadForm({
     if (formData.royaltyFee < 0 || formData.royaltyFee > 1000) {
       newErrors.royaltyFee = 'Royalty must be between 0% and 10%';
     }
+    
+    // MANDATORY: Collection avatar is required
+    if (!formData.avatarFile && !formData.avatarPreview) {
+      newErrors.avatar = 'Collection avatar is required';
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -104,10 +109,10 @@ export function LaunchpadForm({
         </p>
       </div>
 
-      {/* Collection Avatar */}
+      {/* Collection Avatar - REQUIRED */}
       <div>
         <label className="block text-sm font-medium text-gray-300 mb-3">
-          Collection Avatar
+          Collection Avatar <span className="text-red-400">*</span>
         </label>
         <div className="flex items-start gap-4">
           <div
@@ -115,9 +120,11 @@ export function LaunchpadForm({
             className={`
               w-24 h-24 sm:w-32 sm:h-32 rounded-full border-2 border-dashed cursor-pointer
               flex items-center justify-center overflow-hidden transition
-              ${avatarDropzone.isDragActive 
-                ? 'border-cyan-500 bg-cyan-500/10' 
-                : 'border-gray-700 hover:border-gray-500'
+              ${errors.avatar
+                ? 'border-red-500 bg-red-500/10'
+                : avatarDropzone.isDragActive 
+                  ? 'border-cyan-500 bg-cyan-500/10' 
+                  : 'border-gray-700 hover:border-gray-500'
               }
             `}
           >
@@ -131,13 +138,16 @@ export function LaunchpadForm({
             ) : (
               <div className="text-center p-2">
                 <div className="text-2xl mb-1">📷</div>
-                <p className="text-xs text-gray-500">Upload</p>
+                <p className="text-xs text-gray-500">Required</p>
               </div>
             )}
           </div>
           <div className="flex-1 text-sm text-gray-400">
             <p>Square image recommended (will be cropped to circle)</p>
             <p className="text-gray-500 mt-1">PNG, JPG, GIF, WEBP • Max 5MB</p>
+            {errors.avatar && (
+              <p className="text-red-400 text-xs mt-2">{errors.avatar}</p>
+            )}
             {formData.avatarFile && (
               <button
                 type="button"

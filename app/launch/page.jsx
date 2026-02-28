@@ -66,8 +66,10 @@ export default function LaunchPage() {
 
   const handleConfigComplete = async (config) => {
     // Auto-save config to draft before proceeding
+    // EXCLUDE avatar from draft (it's a File object and doesn't persist well)
     if (address) {
       try {
+        const { avatarFile, avatarPreview, ...configWithoutAvatar } = config;
         await fetch('/api/drafts', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -75,7 +77,7 @@ export default function LaunchPage() {
             wallet: address,
             collectionName: config.name,
             description: config.description,
-            config: config,
+            config: configWithoutAvatar, // Avatar NOT saved - must re-upload
             step: 3,
           }),
         });
@@ -85,7 +87,7 @@ export default function LaunchPage() {
     }
     
     setLaunchConfig(config);
-    setDraftConfig(config); // Keep in state for back navigation
+    setDraftConfig(config); // Keep in state for back navigation (includes avatar for current session)
     setStep(3);
   };
 
@@ -122,6 +124,12 @@ export default function LaunchPage() {
     }
   };
 
+  // Handle cancel/rejection - just close the modal
+  const handleDeployCancel = () => {
+    setShowDeployModal(false);
+    // Stay on step 3 (review) so user can try again
+  };
+
   // Steps config
   const steps = ['Upload', 'Configure', 'Review', 'Launch'];
 
@@ -131,6 +139,7 @@ export default function LaunchPage() {
       <DeploymentModal
         isOpen={showDeployModal}
         onClose={handleModalClose}
+        onCancel={handleDeployCancel}
         config={launchConfig}
         uploadedData={uploadedData}
         walletAddress={address}

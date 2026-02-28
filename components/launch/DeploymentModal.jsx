@@ -22,11 +22,28 @@ export function DeploymentModal({
   isSuccess,
   error,
   onComplete,
+  onCancel, // Called when user cancels/closes modal
 }) {
   const [stage, setStage] = useState('transaction'); // transaction, ipfs, success, error
   const [ipfsProgress, setIpfsProgress] = useState(0);
   const [ipfsResult, setIpfsResult] = useState(null);
   const [ipfsError, setIpfsError] = useState(null);
+
+  // Reset state when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setStage('transaction');
+      setIpfsProgress(0);
+      setIpfsResult(null);
+      setIpfsError(null);
+    }
+  }, [isOpen]);
+
+  // Handle close/cancel
+  const handleClose = useCallback(() => {
+    if (onCancel) onCancel();
+    onClose();
+  }, [onCancel, onClose]);
 
   // Fire confetti when reaching success stage
   const fireConfetti = useCallback(() => {
@@ -186,6 +203,17 @@ export function DeploymentModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
       <div className="bg-gray-900 rounded-2xl max-w-lg w-full p-6 sm:p-8 relative border border-gray-700 shadow-2xl">
         
+        {/* Close Button (X) - Always visible except during IPFS upload */}
+        {stage !== 'ipfs' && (
+          <button
+            onClick={handleClose}
+            className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition"
+            aria-label="Close"
+          >
+            ✕
+          </button>
+        )}
+        
         {/* Transaction Stage */}
         {stage === 'transaction' && (
           <div className="text-center">
@@ -208,6 +236,16 @@ export function DeploymentModal({
                 <span>↗</span>
               </a>
             )}
+            
+            {/* Cancel button during transaction */}
+            <div className="mt-6">
+              <button
+                onClick={handleClose}
+                className="text-gray-500 hover:text-gray-300 text-sm underline"
+              >
+                Cancel deployment
+              </button>
+            </div>
           </div>
         )}
 

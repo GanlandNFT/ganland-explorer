@@ -3,11 +3,20 @@
 import { useState, useCallback } from 'react';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract, useSwitchChain, useChainId } from 'wagmi';
-import { parseEther, formatEther } from 'viem';
+import { parseEther, formatEther, encodeFunctionData } from 'viem';
 import { optimism } from 'viem/chains';
 
 import { CONTRACTS, PLATFORM_FEE, TOKEN_TYPES, LICENSE_VERSIONS } from '@/lib/contracts/addresses';
 import FractalLaunchpadABI from '@/lib/contracts/FractalLaunchpadABI.json';
+
+// Helper to encode the createLaunch function call
+function encodeCreateLaunch(name, symbol, maxSupply, baseURI, royaltyFee, licenseVersion, tokenType) {
+  return encodeFunctionData({
+    abi: FractalLaunchpadABI,
+    functionName: 'createLaunch',
+    args: [name, symbol, BigInt(maxSupply), baseURI, BigInt(royaltyFee), licenseVersion, tokenType],
+  });
+}
 
 // Required chain for deployment
 const REQUIRED_CHAIN_ID = optimism.id; // 10
@@ -42,6 +51,8 @@ export function useLaunchpad() {
   
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [txHash, setTxHash] = useState(null);
+  const [txSuccess, setTxSuccess] = useState(false);
 
   const launchpadAddress = CONTRACTS[optimism.id]?.LAUNCHPAD;
 
@@ -141,29 +152,53 @@ export function useLaunchpad() {
       // Calculate fee (0 if authorized)
       const fee = isAuthorized ? 0n : BigInt(platformFee || PLATFORM_FEE);
 
-      writeContract({
-        address: launchpadAddress,
-        abi: FractalLaunchpadABI,
-        functionName: 'createLaunch',
-        args: [
-          name,
-          symbol,
-          BigInt(maxSupply),
-          baseURI,
-          BigInt(royaltyFee),
-          licenseVersion,
-          tokenType,
-        ],
-        value: fee,
-        chain: optimism,
+      // CRITICAL: Use embedded wallet DIRECTLY - not wagmi which uses MetaMask
+      // Switch embedded wallet to Optimism first
+      await embeddedWallet.switchChain(REQUIRED_CHAIN_ID);
+      
+      // Get provider from embedded wallet
+      const provider = await embeddedWallet.getEthersProvider();
+      const signer = provider.getSigner();
+      
+      // Encode the createLaunch function call
+      const data = encodeCreateLaunch(
+        name,
+        symbol,
+        maxSupply,
+        baseURI,
+        royaltyFee,
+        licenseVersion,
+        tokenType
+      );
+      
+      // Send transaction using EMBEDDED wallet provider
+      const tx = await signer.sendTransaction({
+        to: launchpadAddress,
+        data: data,
+        value: fee.toString(),
       });
+      
+      console.log('Transaction sent from embedded wallet:', tx.hash);
+      setTxHash(tx.hash);
+      
+      // Wait for transaction confirmation
+      const receipt = await tx.wait();
+      console.log('Transaction confirmed:', receipt);
+      
+      setTxSuccess(true);
+      setIsLoading(false);
+      
+      return { hash: tx.hash, receipt };
 
     } catch (err) {
-      setError(err.message);
+      console.error('Deployment error:', err);
+      setError(err.message || 'Transaction failed or rejected');
       setIsLoading(false);
+      setTxHash(null);
+      setTxSuccess(false);
       throw err;
     }
-  }, [isConnected, isOnOptimism, isAuthorized, platformFee, launchpadAddress, writeContract]);
+  }, [isConnected, isOnOptimism, hasEmbeddedWallet, isAuthorized, platformFee, launchpadAddress, embeddedWallet]);
 
   /**
    * Get launch info by ID
@@ -192,11 +227,11 @@ export function useLaunchpad() {
     wrongChain,      // True if connected but NOT on Optimism
     isSwitching,     // True while switching chains
     
-    // Loading/status
-    isLoading: isLoading || isPending || isConfirming,
-    isSuccess,
+    // Loading/status - Use our own state for embedded wallet transactions
+    isLoading,
+    isSuccess: txSuccess,
     error,
-    hash,
+    hash: txHash,
 
     // Data
     isAuthorized,
