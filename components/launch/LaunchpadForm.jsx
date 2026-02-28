@@ -53,8 +53,8 @@ export function LaunchpadForm({
       newErrors.maxSupply = 'Max supply must be at least 1';
     }
     
-    if (formData.royaltyFee < 0 || formData.royaltyFee > 10000) {
-      newErrors.royaltyFee = 'Royalty must be between 0% and 100%';
+    if (formData.royaltyFee < 0 || formData.royaltyFee > 1000) {
+      newErrors.royaltyFee = 'Royalty must be between 0% and 10%';
     }
 
     setErrors(newErrors);
@@ -204,7 +204,7 @@ export function LaunchpadForm({
                 royaltyFee: Math.round(parseFloat(e.target.value) * 100) || 0
               }))}
               min={0}
-              max={100}
+              max={10}
               step={0.1}
               className={`w-full px-4 py-3 bg-gray-800 border rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 pr-12 ${
                 errors.royaltyFee ? 'border-red-500' : 'border-gray-700'

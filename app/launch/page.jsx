@@ -62,7 +62,7 @@ export default function LaunchPage() {
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-cyan-400 to-purple-500 bg-clip-text text-transparent">
-              Fractal Visions Launchpad
+              GAN Launchpad
             </h1>
             <p className="text-gray-400 mt-1 text-sm sm:text-base">Deploy NFT collections on Optimism</p>
           </div>
@@ -109,30 +109,31 @@ export default function LaunchPage() {
           </div>
         </div>
 
-        {/* Step Content */}
-        <div className="bg-gray-900 rounded-2xl p-4 sm:p-8 border border-gray-800 min-h-[300px]">
+        {/* Step Content - Animated border container */}
+        <div className="relative rounded-2xl p-[2px] bg-gradient-to-r from-cyan-500 via-purple-500 to-cyan-500 bg-[length:200%_100%] animate-gradient-x min-h-[300px]">
+          <div className="bg-gray-900 rounded-2xl p-4 sm:p-8 h-full">
           
-          {/* Loading state while Privy initializes */}
-          {!ready && (
-            <div className="flex flex-col items-center justify-center py-12">
-              <div className="animate-spin w-12 h-12 border-4 border-cyan-500 border-t-transparent rounded-full mb-4" />
-              <p className="text-gray-400">Loading...</p>
-            </div>
-          )}
+            {/* Loading state while Privy initializes */}
+            {!ready && (
+              <div className="flex flex-col items-center justify-center py-12">
+                <div className="animate-spin w-12 h-12 border-4 border-cyan-500 border-t-transparent rounded-full mb-4" />
+                <p className="text-gray-400">Loading...</p>
+              </div>
+            )}
 
-          {/* Wallet Connection Gate - show when ready but not authenticated */}
-          {ready && !authenticated && step < 4 && (
-            <div className="text-center py-8 sm:py-12">
-              <div className="text-5xl sm:text-6xl mb-4 sm:mb-6">🔐</div>
-              <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">Connect Your Wallet</h2>
-              <p className="text-gray-400 mb-4 sm:mb-6 max-w-md mx-auto text-sm sm:text-base px-4">
-                Connect your wallet to create an NFT collection on the Fractal Visions Launchpad.
-              </p>
-              <p className="text-gray-500 text-xs sm:text-sm">
-                Click "Connect Wallet" in the header to get started.
-              </p>
-            </div>
-          )}
+            {/* Wallet Connection Gate - show when ready but not authenticated */}
+            {ready && !authenticated && step < 4 && (
+              <div className="text-center py-8 sm:py-12">
+                <div className="text-5xl sm:text-6xl mb-4 sm:mb-6">🔐</div>
+                <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">Connect Your Wallet</h2>
+                <p className="text-gray-400 mb-4 sm:mb-6 max-w-md mx-auto text-sm sm:text-base px-4">
+                  Connect your wallet to create an NFT collection on the GAN Launchpad.
+                </p>
+                <p className="text-gray-500 text-xs sm:text-sm">
+                  Click "Connect Wallet" in the header to get started.
+                </p>
+              </div>
+            )}
 
           {/* Authenticated but waiting for wallet address */}
           {ready && authenticated && !isConnected && step < 4 && (
@@ -212,6 +213,7 @@ export default function LaunchPage() {
               )}
             </div>
           )}
+          </div>
         </div>
 
         {/* My Collections Section */}

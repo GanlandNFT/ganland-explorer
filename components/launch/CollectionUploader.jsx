@@ -11,6 +11,7 @@ export function CollectionUploader({ onComplete }) {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState(null);
   const [uploadMode, setUploadMode] = useState('images'); // 'images' or 'full'
+  const [uploadSuccess, setUploadSuccess] = useState(null); // Success modal data
 
   // Image dropzone
   const onImageDrop = useCallback((acceptedFiles) => {
@@ -105,11 +106,20 @@ export function CollectionUploader({ onComplete }) {
         setUploadProgress(100);
       }
 
-      onComplete({
+      // Show success modal
+      const uploadData = {
         ...result,
         files: files.map(f => ({ name: f.name, type: f.type, size: f.size })),
         hasCustomMetadata: uploadMode === 'full' && metadataFiles.length > 0,
-      });
+      };
+      
+      setUploadSuccess(uploadData);
+      
+      // Auto-proceed after 3 seconds
+      setTimeout(() => {
+        setUploadSuccess(null);
+        onComplete(uploadData);
+      }, 3000);
 
     } catch (err) {
       console.error('Upload error:', err);
@@ -121,6 +131,36 @@ export function CollectionUploader({ onComplete }) {
 
   return (
     <div className="space-y-8">
+      {/* Success Modal */}
+      {uploadSuccess && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-900 rounded-2xl p-8 max-w-md w-full border border-green-500/50 shadow-lg shadow-green-500/20">
+            <div className="text-center">
+              <div className="text-6xl mb-4">✅</div>
+              <h3 className="text-2xl font-bold text-green-400 mb-2">Upload Successful!</h3>
+              <p className="text-gray-400 mb-4">
+                {uploadSuccess.totalFiles} files pinned to IPFS
+              </p>
+              <div className="bg-gray-800 rounded-lg p-3 mb-4">
+                <p className="text-xs text-gray-500 mb-1">IPFS Hash</p>
+                <a 
+                  href={`https://gateway.pinata.cloud/ipfs/${uploadSuccess.imagesHash || uploadSuccess.metadataHash}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-cyan-400 hover:underline text-sm font-mono break-all"
+                >
+                  {(uploadSuccess.imagesHash || uploadSuccess.metadataHash)?.slice(0, 20)}...
+                </a>
+              </div>
+              <p className="text-gray-500 text-sm">Continuing to configuration...</p>
+              <div className="mt-4 h-1 bg-gray-700 rounded-full overflow-hidden">
+                <div className="h-full bg-green-500 animate-pulse" style={{ width: '100%' }} />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div>
         <h2 className="text-2xl font-bold mb-2">Upload Your Collection</h2>
         <p className="text-gray-400">
@@ -155,9 +195,9 @@ export function CollectionUploader({ onComplete }) {
         {(files.length > 0 || metadataFiles.length > 0) && (
           <button
             onClick={() => { setFiles([]); setMetadataFiles([]); }}
-            className="px-3 py-2 text-red-400 hover:text-red-300 text-sm"
+            className="px-4 py-2 bg-red-900/30 border border-red-700 text-red-400 hover:bg-red-900/50 hover:text-red-300 rounded-full text-sm transition"
           >
-            Clear & Change Mode
+            ✕ Clear & Change Mode
           </button>
         )}
       </div>
