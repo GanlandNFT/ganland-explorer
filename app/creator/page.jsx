@@ -89,9 +89,16 @@ export default function CreatorDashboard() {
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [showMintModal, setShowMintModal] = useState(false);
   const [showFixModal, setShowFixModal] = useState(false);
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [adminAddress, setAdminAddress] = useState('');
   const [mintAddress, setMintAddress] = useState('');
   const [activeTab, setActiveTab] = useState('erc721'); // 'erc721' | 'erc1155'
+  
+  // Avatar update form state
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [avatarPreview, setAvatarPreview] = useState(null);
+  const [avatarCid, setAvatarCid] = useState('');
+  const [avatarUploading, setAvatarUploading] = useState(false);
   
   // Fix metadata form state
   const [fixImagesCid, setFixImagesCid] = useState('');
@@ -401,29 +408,44 @@ export default function CreatorDashboard() {
                 {/* Collection Header with Avatar */}
                 <div className="p-6 border-b border-gray-800">
                   <div className="flex items-center gap-4">
-                    {/* Avatar with warning triangle if needs attention */}
-                    <div className="relative">
+                    {/* Avatar with warning triangle if needs attention - entire area clickable */}
+                    <button
+                      className="relative group"
+                      onClick={() => {
+                        setSelectedCollection(collection);
+                        setAvatarFile(null);
+                        setAvatarPreview(collection.avatar || null);
+                        setAvatarCid('');
+                        setError(null);
+                        setShowAvatarModal(true);
+                      }}
+                      title="Click to update collection avatar"
+                    >
                       {collection.avatar ? (
                         <img 
                           src={collection.avatar} 
                           alt={collection.name}
-                          className={`w-16 h-16 rounded-xl object-cover border-2 ${collection.needsFix ? 'border-orange-500' : 'border-gray-700'}`}
+                          className={`w-16 h-16 rounded-xl object-cover border-2 transition-all group-hover:border-cyan-500 ${collection.needsFix ? 'border-orange-500' : 'border-gray-700'}`}
                         />
                       ) : (
-                        <div className={`w-16 h-16 rounded-xl bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center text-2xl font-bold ${collection.needsFix ? 'ring-2 ring-orange-500' : ''}`}>
+                        <div className={`w-16 h-16 rounded-xl bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center text-2xl font-bold transition-all group-hover:ring-2 group-hover:ring-cyan-500 ${collection.needsFix ? 'ring-2 ring-orange-500' : ''}`}>
                           {collection.symbol?.slice(0, 2) || '?'}
                         </div>
                       )}
-                      {/* Orange warning triangle for broken metadata or missing avatar */}
+                      {/* Hover overlay */}
+                      <div className="absolute inset-0 bg-black/50 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <span className="text-white text-xs">📷</span>
+                      </div>
+                      {/* Orange warning triangle for missing/broken */}
                       {(collection.needsFix || !collection.avatar) && (
-                        <div 
-                          className="absolute -top-1 -right-1 w-5 h-5 bg-orange-500 rounded-full flex items-center justify-center text-xs cursor-help"
-                          title={collection.needsFix ? 'Metadata URI needs update' : 'Missing collection avatar'}
+                        <div
+                          className="absolute -top-1 -right-1 w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center text-xs shadow-lg animate-pulse"
+                          title={!collection.avatar ? 'Missing avatar' : 'Needs attention'}
                         >
                           ⚠️
                         </div>
                       )}
-                    </div>
+                    </button>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <h3 className="font-bold text-lg truncate">{collection.name}</h3>
@@ -910,6 +932,176 @@ export default function CreatorDashboard() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Avatar Update Modal */}
+      {showAvatarModal && selectedCollection && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-gray-900 rounded-2xl max-w-md w-full p-6 border border-gray-700">
+            <h2 className="text-xl font-bold mb-2">Update Collection Avatar</h2>
+            <p className="text-gray-400 text-sm mb-4">
+              Set or update the avatar image for <strong>{selectedCollection.name}</strong>.
+              This is stored off-chain and won't require a transaction.
+            </p>
+            
+            {/* Current avatar preview */}
+            <div className="flex items-center gap-4 mb-4 p-3 bg-gray-800/50 rounded-lg">
+              {avatarPreview ? (
+                <img 
+                  src={avatarPreview} 
+                  alt="Avatar preview"
+                  className="w-16 h-16 rounded-xl object-cover border-2 border-gray-600"
+                />
+              ) : (
+                <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center text-2xl font-bold">
+                  {selectedCollection.symbol?.slice(0, 2) || '?'}
+                </div>
+              )}
+              <div>
+                <p className="text-sm text-gray-300">
+                  {avatarPreview ? 'Current avatar' : 'No avatar set'}
+                </p>
+                {avatarPreview && (
+                  <p className="text-xs text-gray-500 truncate max-w-[200px]">
+                    {avatarPreview.includes('ipfs') ? avatarPreview.split('/').pop() : 'Custom URL'}
+                  </p>
+                )}
+              </div>
+            </div>
+            
+            {/* Upload new image */}
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm text-gray-400 mb-2">Upload new image</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setAvatarFile(file);
+                      setAvatarCid('');
+                      // Create preview
+                      const reader = new FileReader();
+                      reader.onload = (e) => setAvatarPreview(e.target?.result);
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-cyan-600 file:text-white file:cursor-pointer"
+                />
+              </div>
+              
+              <div className="text-center text-gray-500 text-sm">— or —</div>
+              
+              <div>
+                <label className="block text-sm text-gray-400 mb-2">Enter existing IPFS CID</label>
+                <input
+                  type="text"
+                  value={avatarCid}
+                  onChange={(e) => {
+                    setAvatarCid(e.target.value);
+                    setAvatarFile(null);
+                    if (e.target.value) {
+                      setAvatarPreview(`https://gateway.pinata.cloud/ipfs/${e.target.value}`);
+                    }
+                  }}
+                  placeholder="Qm... or bafy..."
+                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                />
+                <p className="text-gray-500 text-xs mt-1">If your image is already on IPFS</p>
+              </div>
+            </div>
+            
+            {error && (
+              <p className="text-red-400 text-sm mt-4">{error}</p>
+            )}
+            
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowAvatarModal(false);
+                  setAvatarFile(null);
+                  setAvatarCid('');
+                  setError(null);
+                }}
+                className="flex-1 px-4 py-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  if (!avatarFile && !avatarCid) {
+                    setError('Please upload an image or enter an IPFS CID');
+                    return;
+                  }
+                  
+                  setAvatarUploading(true);
+                  setError(null);
+                  
+                  try {
+                    let finalCid = avatarCid;
+                    
+                    // Upload file to IPFS if provided
+                    if (avatarFile) {
+                      const formData = new FormData();
+                      formData.append('file', avatarFile);
+                      formData.append('name', `${selectedCollection.name}-avatar`);
+                      
+                      // Use Pinata API directly
+                      const pinataRes = await fetch('https://api.pinata.cloud/pinning/pinFileToIPFS', {
+                        method: 'POST',
+                        headers: {
+                          'pinata_api_key': process.env.NEXT_PUBLIC_PINATA_API_KEY,
+                          'pinata_secret_api_key': process.env.NEXT_PUBLIC_PINATA_SECRET_KEY,
+                        },
+                        body: formData,
+                      });
+                      
+                      if (!pinataRes.ok) throw new Error('Failed to upload to IPFS');
+                      const pinataData = await pinataRes.json();
+                      finalCid = pinataData.IpfsHash;
+                    }
+                    
+                    // Save to Supabase
+                    const res = await fetch('/api/collection-avatar', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        collectionAddress: selectedCollection.address,
+                        ipfsCid: finalCid,
+                        creatorWallet: address,
+                      }),
+                    });
+                    
+                    if (!res.ok) throw new Error('Failed to save avatar');
+                    
+                    const avatarUrl = `https://gateway.pinata.cloud/ipfs/${finalCid}`;
+                    
+                    // Update local state
+                    setCollections(prev => prev.map(c => 
+                      c.address === selectedCollection.address 
+                        ? { ...c, avatar: avatarUrl }
+                        : c
+                    ));
+                    
+                    setShowAvatarModal(false);
+                    setAvatarFile(null);
+                    setAvatarCid('');
+                  } catch (e) {
+                    console.error('Avatar update failed:', e);
+                    setError(e.message || 'Failed to update avatar');
+                  }
+                  
+                  setAvatarUploading(false);
+                }}
+                disabled={avatarUploading || (!avatarFile && !avatarCid)}
+                className="flex-1 px-4 py-3 bg-cyan-600 hover:bg-cyan-500 disabled:bg-gray-600 disabled:cursor-not-allowed rounded-lg font-medium transition"
+              >
+                {avatarUploading ? 'Uploading...' : 'Save Avatar'}
+              </button>
+            </div>
           </div>
         </div>
       )}
