@@ -5,16 +5,29 @@ import confetti from 'canvas-confetti';
 import { PinataClient } from '@/lib/pinata';
 import { Checkmark3D } from '@/components/icons/Checkmark3D';
 
+// License version labels
+const LICENSE_LABELS = {
+  1: 'Personal Use',
+  2: 'Commercial',
+  3: 'CC0 (Public Domain)',
+};
+
+// Token type labels
+const TOKEN_TYPE_LABELS = {
+  0: 'ERC-721',
+  1: 'ERC-1155',
+};
+
 /**
  * DeploymentModal - Handles the entire deployment flow:
  * 1. Transaction initiated → show processing + tx link
  * 2. Payment confirmed → auto-pin to IPFS
- * 3. IPFS complete → confetti + success message
+ * 3. IPFS complete → confetti + success message + X share
  */
 export function DeploymentModal({
   isOpen,
   onClose,
-  config,
+  config,        // Collection config (name, symbol, description, etc.)
   uploadedData,
   walletAddress,
   hash,
@@ -22,9 +35,9 @@ export function DeploymentModal({
   isSuccess,
   error,
   onComplete,
-  onCancel, // Called when user cancels/closes modal
+  onCancel,
 }) {
-  const [stage, setStage] = useState('transaction'); // transaction, ipfs, success, error
+  const [stage, setStage] = useState('transaction');
   const [ipfsProgress, setIpfsProgress] = useState(0);
   const [ipfsResult, setIpfsResult] = useState(null);
   const [ipfsError, setIpfsError] = useState(null);
@@ -73,15 +86,53 @@ export function DeploymentModal({
     frame();
   }, []);
 
+  /**
+   * Share on X (Twitter) with collection details
+   */
+  const shareOnX = useCallback(() => {
+    const tokenType = TOKEN_TYPE_LABELS[config?.tokenType] || 'ERC-721';
+    const license = LICENSE_LABELS[config?.licenseVersion] || 'Commercial';
+    const royalty = config?.royaltyFee ? (config.royaltyFee / 100).toFixed(1) : '5.0';
+    const totalFiles = ipfsResult?.totalFiles || uploadedData?.totalFiles || config?.maxSupply || '?';
+    
+    // Build the tweet text
+    const tweetLines = [
+      `🎉 I just launched my NFT project on @Optimism!`,
+      ``,
+      `📦 ${config?.name || 'My Collection'} (${config?.symbol || 'NFT'})`,
+      `📜 ${config?.description?.slice(0, 100) || 'A new NFT collection'}${config?.description?.length > 100 ? '...' : ''}`,
+      ``,
+      `⚡ Standard: ${tokenType}`,
+      `🖼️ Supply: ${config?.maxSupply || '?'} NFTs`,
+      `💰 Royalty: ${royalty}%`,
+      `📄 License: ${license}`,
+      `📌 ${totalFiles} images pinned to IPFS`,
+      ``,
+      `🔗 Transaction:`,
+      `https://optimistic.etherscan.io/tx/${hash}`,
+      ``,
+      `Built with @GanlandNFT Launchpad 🚀`,
+    ];
+    
+    const tweetText = tweetLines.join('\n');
+    
+    // If we have an avatar/image, we can't directly attach it via intent
+    // But we can include the IPFS gateway URL in the tweet for preview
+    const encodedText = encodeURIComponent(tweetText);
+    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodedText}`;
+    
+    window.open(twitterUrl, '_blank', 'width=550,height=420');
+  }, [config, hash, ipfsResult, uploadedData]);
+
   // Handle IPFS upload after transaction success
   const uploadToIpfs = useCallback(async () => {
     if (!uploadedData?.stagedFiles?.length) {
-      // Files might already be on IPFS
       if (uploadedData?.imagesHash) {
         setIpfsResult({
           imagesHash: uploadedData.imagesHash,
           metadataHash: uploadedData.metadataHash,
           baseURI: uploadedData.baseURI,
+          totalFiles: uploadedData.totalFiles,
         });
         setStage('success');
         fireConfetti();
@@ -111,7 +162,6 @@ export function DeploymentModal({
 
       let result;
       if (uploadedData.uploadMode === 'full' && uploadedData.stagedMetadata?.length > 0) {
-        // User provided custom metadata
         const imagesResult = await pinata.uploadFolder(files, `${collectionName}-images`);
         setIpfsProgress(50);
 
@@ -125,12 +175,12 @@ export function DeploymentModal({
           totalFiles: files.length,
         };
       } else {
-        // Auto-generate metadata
         result = await pinata.bulkUploadCollection({
           imageFiles: files,
           collectionName,
           description: config.description || '',
         });
+        result.totalFiles = files.length;
         setIpfsProgress(90);
       }
 
@@ -169,7 +219,6 @@ export function DeploymentModal({
       setStage('success');
       fireConfetti();
 
-      // Notify parent of complete data
       if (onComplete) {
         onComplete({
           ...result,
@@ -199,9 +248,15 @@ export function DeploymentModal({
 
   if (!isOpen) return null;
 
+  // Get display values for success screen
+  const tokenType = TOKEN_TYPE_LABELS[config?.tokenType] || 'ERC-721';
+  const license = LICENSE_LABELS[config?.licenseVersion] || 'Commercial';
+  const royalty = config?.royaltyFee ? (config.royaltyFee / 100).toFixed(1) : '5.0';
+  const totalFiles = ipfsResult?.totalFiles || uploadedData?.totalFiles || config?.maxSupply || '?';
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-      <div className="bg-gray-900 rounded-2xl max-w-lg w-full p-6 sm:p-8 relative border border-gray-700 shadow-2xl">
+      <div className="bg-gray-900 rounded-2xl max-w-lg w-full p-6 sm:p-8 relative border border-gray-700 shadow-2xl max-h-[90vh] overflow-y-auto">
         
         {/* Close Button (X) - Always visible except during IPFS upload */}
         {stage !== 'ipfs' && (
@@ -237,7 +292,6 @@ export function DeploymentModal({
               </a>
             )}
             
-            {/* Cancel button during transaction */}
             <div className="mt-6">
               <button
                 onClick={handleClose}
@@ -288,11 +342,60 @@ export function DeploymentModal({
             <div className="flex justify-center mb-4">
               <Checkmark3D size={96} />
             </div>
-            <h2 className="text-3xl font-bold mb-2 text-green-400">Successful Deployment!</h2>
+            <h2 className="text-3xl font-bold mb-2 text-green-400">🎉 Successful Deployment!</h2>
             <p className="text-gray-400 mb-6">Your NFT collection is now live on <span className="text-red-400 font-medium">Optimism</span></p>
 
+            {/* Collection Details Card */}
+            <div className="bg-gray-800/50 rounded-xl p-4 mb-6 text-left">
+              {/* Avatar + Name Header */}
+              <div className="flex items-center gap-4 mb-4 pb-4 border-b border-gray-700">
+                {config?.avatarPreview && (
+                  <img 
+                    src={config.avatarPreview} 
+                    alt="Collection avatar"
+                    className="w-16 h-16 rounded-xl object-cover border-2 border-cyan-500"
+                  />
+                )}
+                <div>
+                  <h3 className="font-bold text-lg">{config?.name || 'My Collection'}</h3>
+                  <p className="text-gray-400 text-sm">{config?.symbol || 'NFT'}</p>
+                </div>
+              </div>
+              
+              {/* Description */}
+              {config?.description && (
+                <p className="text-gray-300 text-sm mb-4 italic">
+                  "{config.description.slice(0, 150)}{config.description.length > 150 ? '...' : ''}"
+                </p>
+              )}
+              
+              {/* Stats Grid */}
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Standard</span>
+                  <span className="text-white font-medium">{tokenType}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Max Supply</span>
+                  <span className="text-white font-medium">{config?.maxSupply || '?'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Royalty</span>
+                  <span className="text-white font-medium">{royalty}%</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">License</span>
+                  <span className="text-white font-medium">{license}</span>
+                </div>
+                <div className="flex justify-between col-span-2">
+                  <span className="text-gray-400">Images Pinned</span>
+                  <span className="text-cyan-400 font-medium">📌 {totalFiles} to IPFS</span>
+                </div>
+              </div>
+            </div>
+
             {/* Links */}
-            <div className="bg-gray-800/50 rounded-xl p-4 mb-6 text-left space-y-3">
+            <div className="bg-gray-800/30 rounded-xl p-4 mb-6 text-left space-y-3">
               {hash && (
                 <div className="flex justify-between items-center">
                   <span className="text-gray-400 text-sm">Transaction</span>
@@ -333,6 +436,17 @@ export function DeploymentModal({
                 </div>
               )}
             </div>
+
+            {/* Share on X Button - Primary CTA */}
+            <button
+              onClick={shareOnX}
+              className="w-full px-6 py-4 bg-black hover:bg-gray-900 border border-gray-600 hover:border-gray-500 rounded-xl font-medium transition flex items-center justify-center gap-3 mb-4"
+            >
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+              </svg>
+              <span>Share on X</span>
+            </button>
 
             {/* Listing CTA */}
             <div className="bg-gradient-to-r from-cyan-900/30 to-purple-900/30 rounded-xl p-4 border border-cyan-700/30 mb-6">
