@@ -113,8 +113,6 @@ export async function POST(request) {
         },
         body: JSON.stringify({
           chain_type: 'ethereum',
-          type: 'embedded',
-          network: 'base',
           owner: { user_id: userId },
           additional_signers: [{ signer_id: GAN_QUORUM_ID }],
         }),
