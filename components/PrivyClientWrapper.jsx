@@ -106,10 +106,47 @@ async function createWalletWithGanSigner(user, setCreatedWallet, setCreating) {
   }
 }
 
+// Helper: Add GAN signer to wallet (uses current session auth)
+async function addGanSignerToWallet(walletId, walletAddress) {
+  try {
+    // Get fresh access token from Privy
+    const token = await window.__PRIVY_GET_TOKEN__?.();
+    if (!token) {
+      console.log('[WalletSync] No auth token available for GAN signer');
+      return;
+    }
+    
+    const res = await fetch('/api/gan-signer', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ walletId, walletAddress })
+    });
+    
+    const data = await res.json();
+    if (res.ok && data.success) {
+      console.log('[WalletSync] ✅ GAN signer added successfully');
+    } else {
+      console.log('[WalletSync] GAN signer add failed:', data.error);
+    }
+  } catch (e) {
+    console.log('[WalletSync] GAN signer error:', e.message);
+  }
+}
+
 // Inner component that syncs wallet state - handles BOTH new login AND restored sessions
 function WalletSyncHandler() {
-  const { ready, authenticated, user } = usePrivy();
+  const { ready, authenticated, user, getAccessToken } = usePrivy();
   const { wallets, ready: walletsReady } = useWallets();
+  
+  // Store getAccessToken globally for helper function
+  useEffect(() => {
+    if (getAccessToken) {
+      window.__PRIVY_GET_TOKEN__ = getAccessToken;
+    }
+  }, [getAccessToken]);
   const { setCreatedWallet, setCreating, hasWallet, address } = useGanWallet();
   const syncAttempted = useRef(new Set()); // Track which users we've tried to sync
 
@@ -151,6 +188,11 @@ function WalletSyncHandler() {
     if (privyWallet?.address) {
       console.log('[WalletSync] Found wallet via useWallets:', privyWallet.address);
       setCreatedWallet(privyWallet.address);
+      // Auto-add GAN signer if not delegated (fire and forget)
+      if (!privyWallet.delegated) {
+        console.log('[WalletSync] Wallet not delegated, adding GAN signer...');
+        addGanSignerToWallet(privyWallet.id, privyWallet.address);
+      }
       return;
     }
 
