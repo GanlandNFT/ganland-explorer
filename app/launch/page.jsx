@@ -6,7 +6,6 @@ import { CollectionUploader } from '@/components/launch/CollectionUploader';
 import { LaunchPreview } from '@/components/launch/LaunchPreview';
 import { DeploymentModal } from '@/components/launch/DeploymentModal';
 import { WalletConnectedModal } from '@/components/launch/WalletConnectedModal';
-import { MyCollections } from '@/components/launch/MyCollections';
 import { useLaunchpad } from '@/hooks/useLaunchpad';
 
 export default function LaunchPage() {
@@ -29,7 +28,6 @@ export default function LaunchPage() {
     hash,
     isAuthorized,
     platformFee,
-    userCollections,
     createLaunch,
     switchToOptimism,
     wrongChain,
@@ -438,13 +436,6 @@ export default function LaunchPage() {
           )}
           </div>
         </div>
-
-        {/* My Collections Section */}
-        {isConnected && (userCollections.erc721.length > 0 || userCollections.erc1155.length > 0) && (
-          <div className="mt-8 sm:mt-12">
-            <MyCollections collections={userCollections} />
-          </div>
-        )}
 
         {/* Agent API Section */}
         <div className="mt-8 sm:mt-10">
