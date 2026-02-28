@@ -717,7 +717,7 @@ export default function CreatorDashboard() {
                 </div>
                 
                 <div>
-                  <label className="block text-sm text-gray-400 mb-2">Images Path (optional)</label>
+                  <label className="block text-sm text-gray-400 mb-2">Images Path (subfolder)</label>
                   <input
                     type="text"
                     value={fixImagesPath}
@@ -725,8 +725,26 @@ export default function CreatorDashboard() {
                     placeholder="e.g., Firestorm-images"
                     className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
                   />
-                  <p className="text-gray-500 text-xs mt-1">Subfolder path within the CID, if any</p>
+                  <p className="text-gray-500 text-xs mt-1">If your images are in a subfolder (e.g., collection-name/images/), enter that path</p>
                 </div>
+                
+                {/* Preview: Show what the image path will look like */}
+                {fixImagesCid && (
+                  <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-3">
+                    <p className="text-gray-400 text-xs mb-2">📸 Image path preview:</p>
+                    <code className="text-cyan-400 text-sm break-all">
+                      ipfs://{fixImagesCid}/{fixImagesPath ? `${fixImagesPath}/` : ''}1.jpg
+                    </code>
+                    <a 
+                      href={`https://gateway.pinata.cloud/ipfs/${fixImagesCid}/${fixImagesPath ? `${fixImagesPath}/` : ''}1.jpg`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block text-cyan-500 hover:text-cyan-400 text-xs mt-2 underline"
+                    >
+                      🔗 Test this link (should show your image)
+                    </a>
+                  </div>
+                )}
                 
                 <div>
                   <label className="block text-sm text-gray-400 mb-2">Description (optional)</label>
