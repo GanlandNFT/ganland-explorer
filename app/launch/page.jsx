@@ -255,10 +255,10 @@ export default function LaunchPage() {
               </div>
             )}
 
-          {/* External Wallet Warning - With acknowledgment */}
-          {ready && authenticated && usingExternalWallet && !hasEmbeddedWallet && step < 4 && !acknowledgedExternalWallet && hasShownWalletModal && (
+          {/* Security Gate - Shows for ALL users after wallet modal closes */}
+          {ready && authenticated && isConnected && step < 4 && !acknowledgedExternalWallet && hasShownWalletModal && (
             <div className="text-center py-8 sm:py-12">
-              {/* Show embedded wallet at top if exists */}
+              {/* Show embedded wallet at top in green */}
               {address && (
                 <div className="mb-6 inline-flex items-center gap-2 px-4 py-2 bg-green-900/30 border border-green-600/50 rounded-full">
                   <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
@@ -282,7 +282,7 @@ export default function LaunchPage() {
               
               {/* Acknowledgment buttons */}
               <div className="flex flex-col items-center gap-4">
-                <p className="text-gray-500 text-sm">Do you have a Privy embedded wallet and want to continue?</p>
+                <p className="text-gray-500 text-sm">Do you understand and want to continue?</p>
                 <div className="flex gap-4">
                   <button
                     onClick={() => setAcknowledgedExternalWallet(true)}
