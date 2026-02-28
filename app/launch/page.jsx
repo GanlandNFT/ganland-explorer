@@ -8,13 +8,16 @@ import { MyCollections } from '@/components/launch/MyCollections';
 import { useLaunchpad } from '@/hooks/useLaunchpad';
 
 export default function LaunchPage() {
-  const [step, setStep] = useState(1); // 1: Upload, 2: Configure, 3: Review, 4: Launch
+  const [step, setStep] = useState(1);
   const [uploadedData, setUploadedData] = useState(null);
   const [launchConfig, setLaunchConfig] = useState(null);
   
   const {
+    ready,
+    authenticated,
     isConnected,
     address,
+    user,
     isLoading,
     isSuccess,
     error,
@@ -49,16 +52,19 @@ export default function LaunchPage() {
     }
   };
 
+  // Steps config
+  const steps = ['Upload', 'Configure', 'Review', 'Launch'];
+
   return (
     <div className="min-h-screen bg-black text-white">
       {/* Header */}
-      <header className="border-b border-gray-800 py-6 px-8">
-        <div className="max-w-6xl mx-auto flex justify-between items-center">
+      <header className="border-b border-gray-800 py-4 sm:py-6 px-4 sm:px-8">
+        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
           <div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-400 to-purple-500 bg-clip-text text-transparent">
+            <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-cyan-400 to-purple-500 bg-clip-text text-transparent">
               Fractal Visions Launchpad
             </h1>
-            <p className="text-gray-400 mt-1">Deploy NFT collections on Optimism</p>
+            <p className="text-gray-400 mt-1 text-sm sm:text-base">Deploy NFT collections on Optimism</p>
           </div>
           <div className="text-right">
             {isAuthorized && (
@@ -75,32 +81,47 @@ export default function LaunchPage() {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto py-8 px-4 sm:px-8 overflow-x-hidden">
-        {/* Progress Steps - Responsive */}
-        <div className="flex items-center justify-center mb-8 sm:mb-12 overflow-x-auto pb-2">
-          <div className="flex items-center min-w-max sm:min-w-0">
-            {['Upload', 'Configure', 'Review', 'Launch'].map((label, i) => (
-              <div key={label} className="flex items-center">
-                <div className={`
-                  w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold text-sm sm:text-base flex-shrink-0
-                  ${step > i + 1 ? 'bg-green-500' : step === i + 1 ? 'bg-cyan-500' : 'bg-gray-700'}
-                `}>
-                  {step > i + 1 ? '✓' : i + 1}
+      <main className="max-w-6xl mx-auto py-6 sm:py-8 px-4 sm:px-8">
+        {/* Progress Steps - Vertical on mobile, horizontal on desktop */}
+        <div className="flex justify-center mb-8 sm:mb-12">
+          <div className="grid grid-cols-4 gap-2 sm:flex sm:items-center sm:gap-0 w-full max-w-md sm:max-w-none sm:w-auto">
+            {steps.map((label, i) => (
+              <div key={label} className="flex flex-col items-center sm:flex-row">
+                {/* Step circle */}
+                <div className="flex flex-col items-center">
+                  <div className={`
+                    w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center font-bold text-sm sm:text-base
+                    ${step > i + 1 ? 'bg-green-500' : step === i + 1 ? 'bg-cyan-500' : 'bg-gray-700'}
+                  `}>
+                    {step > i + 1 ? '✓' : i + 1}
+                  </div>
+                  {/* Label below circle */}
+                  <span className={`mt-2 text-xs sm:text-sm text-center ${step === i + 1 ? 'text-cyan-400 font-medium' : 'text-gray-500'}`}>
+                    {label}
+                  </span>
                 </div>
-                <span className={`ml-1 sm:ml-2 text-xs sm:text-base whitespace-nowrap ${step === i + 1 ? 'text-cyan-400' : 'text-gray-500'}`}>
-                  <span className="hidden sm:inline">{label}</span>
-                  <span className="sm:hidden">{label.slice(0, 3)}</span>
-                </span>
-                {i < 3 && <div className="w-4 sm:w-16 h-0.5 mx-1 sm:mx-4 bg-gray-700 flex-shrink-0" />}
+                {/* Connector line - only on desktop, between items */}
+                {i < 3 && (
+                  <div className="hidden sm:block w-12 lg:w-20 h-0.5 mx-2 bg-gray-700" />
+                )}
               </div>
             ))}
           </div>
         </div>
 
         {/* Step Content */}
-        <div className="bg-gray-900 rounded-2xl p-4 sm:p-8 border border-gray-800">
-          {/* Wallet Connection Gate - explicit check */}
-          {isConnected !== true && step < 4 && (
+        <div className="bg-gray-900 rounded-2xl p-4 sm:p-8 border border-gray-800 min-h-[300px]">
+          
+          {/* Loading state while Privy initializes */}
+          {!ready && (
+            <div className="flex flex-col items-center justify-center py-12">
+              <div className="animate-spin w-12 h-12 border-4 border-cyan-500 border-t-transparent rounded-full mb-4" />
+              <p className="text-gray-400">Loading...</p>
+            </div>
+          )}
+
+          {/* Wallet Connection Gate - show when ready but not authenticated */}
+          {ready && !authenticated && step < 4 && (
             <div className="text-center py-8 sm:py-12">
               <div className="text-5xl sm:text-6xl mb-4 sm:mb-6">🔐</div>
               <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">Connect Your Wallet</h2>
@@ -113,11 +134,21 @@ export default function LaunchPage() {
             </div>
           )}
 
-          {isConnected === true && step === 1 && (
+          {/* Authenticated but waiting for wallet address */}
+          {ready && authenticated && !isConnected && step < 4 && (
+            <div className="text-center py-8 sm:py-12">
+              <div className="animate-spin w-12 h-12 border-4 border-cyan-500 border-t-transparent rounded-full mx-auto mb-4" />
+              <p className="text-gray-400">Connecting wallet...</p>
+            </div>
+          )}
+
+          {/* Step 1: Upload */}
+          {ready && isConnected && step === 1 && (
             <CollectionUploader onComplete={handleUploadComplete} />
           )}
           
-          {isConnected === true && step === 2 && (
+          {/* Step 2: Configure */}
+          {ready && isConnected && step === 2 && (
             <LaunchpadForm 
               uploadedData={uploadedData}
               onComplete={handleConfigComplete}
@@ -127,7 +158,8 @@ export default function LaunchPage() {
             />
           )}
           
-          {isConnected === true && step === 3 && (
+          {/* Step 3: Review */}
+          {ready && isConnected && step === 3 && (
             <LaunchPreview
               uploadedData={uploadedData}
               config={launchConfig}
@@ -138,6 +170,7 @@ export default function LaunchPage() {
             />
           )}
           
+          {/* Step 4: Launch result */}
           {step === 4 && (
             <div className="text-center py-12">
               {isLoading && (
@@ -182,7 +215,7 @@ export default function LaunchPage() {
         </div>
 
         {/* My Collections Section */}
-        {isConnected === true && (userCollections.erc721.length > 0 || userCollections.erc1155.length > 0) && (
+        {isConnected && (userCollections.erc721.length > 0 || userCollections.erc1155.length > 0) && (
           <div className="mt-8 sm:mt-12">
             <MyCollections collections={userCollections} />
           </div>
@@ -190,14 +223,9 @@ export default function LaunchPage() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-gray-800 py-6 px-8 mt-12">
+      <footer className="border-t border-gray-800 py-6 px-4 sm:px-8 mt-12">
         <div className="max-w-6xl mx-auto text-center text-gray-500 text-sm">
           <p>Powered by Fractal Visions • Built on Optimism</p>
-          <p className="mt-1">
-            <a href="/launch/api" className="text-cyan-400 hover:underline">API Docs</a>
-            {' • '}
-            <a href="https://ganland.io" className="text-cyan-400 hover:underline">Ganland</a>
-          </p>
         </div>
       </footer>
     </div>

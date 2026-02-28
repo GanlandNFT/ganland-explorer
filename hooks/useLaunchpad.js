@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import { usePrivy, useWallets } from '@privy-io/react-auth';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract } from 'wagmi';
 import { parseEther, formatEther } from 'viem';
 import { optimism } from 'viem/chains';
@@ -9,7 +10,18 @@ import { CONTRACTS, PLATFORM_FEE, TOKEN_TYPES, LICENSE_VERSIONS } from '@/lib/co
 import FractalLaunchpadABI from '@/lib/contracts/FractalLaunchpadABI.json';
 
 export function useLaunchpad() {
-  const { address, isConnected } = useAccount();
+  // Privy auth state (for login status)
+  const { ready, authenticated, user } = usePrivy();
+  const { wallets } = useWallets();
+  
+  // Wagmi state (for contract interactions)
+  const { address: wagmiAddress, isConnected: wagmiConnected } = useAccount();
+  
+  // Combined connection state - user is authenticated via Privy
+  const isAuthenticated = ready && authenticated;
+  const address = wagmiAddress || wallets?.[0]?.address;
+  const isConnected = isAuthenticated && !!address;
+  
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -121,9 +133,14 @@ export function useLaunchpad() {
   }, []);
 
   return {
-    // State
-    isConnected,
+    // Auth state
+    ready,           // Privy SDK ready
+    authenticated,   // User logged in via Privy
+    isConnected,     // Authenticated + has wallet address
     address,
+    user,
+    
+    // Loading/status
     isLoading: isLoading || isPending || isConfirming,
     isSuccess,
     error,
