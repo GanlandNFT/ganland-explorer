@@ -35,12 +35,20 @@ const NFT_ABI = [
   { name: 'owner', type: 'function', inputs: [], outputs: [{ type: 'address' }], stateMutability: 'view' },
   { name: 'contractURI', type: 'function', inputs: [], outputs: [{ type: 'string' }], stateMutability: 'view' },
   { name: 'totalSupply', type: 'function', inputs: [], outputs: [{ type: 'uint256' }], stateMutability: 'view' },
+  { name: 'baseURI', type: 'function', inputs: [], outputs: [{ type: 'string' }], stateMutability: 'view' },
   { 
     name: 'transferOwnership', 
     type: 'function', 
     inputs: [{ name: 'newOwner', type: 'address' }], 
     outputs: [], 
     stateMutability: 'nonpayable' 
+  },
+  {
+    name: 'setBaseURI',
+    type: 'function',
+    inputs: [{ name: 'baseURI_', type: 'string' }],
+    outputs: [],
+    stateMutability: 'nonpayable'
   },
   {
     name: 'mint',
@@ -80,9 +88,17 @@ export default function CreatorDashboard() {
   // Modal states
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [showMintModal, setShowMintModal] = useState(false);
+  const [showFixModal, setShowFixModal] = useState(false);
   const [adminAddress, setAdminAddress] = useState('');
   const [mintAddress, setMintAddress] = useState('');
   const [activeTab, setActiveTab] = useState('erc721'); // 'erc721' | 'erc1155'
+  
+  // Fix metadata form state
+  const [fixImagesCid, setFixImagesCid] = useState('');
+  const [fixImagesPath, setFixImagesPath] = useState('');
+  const [fixDescription, setFixDescription] = useState('');
+  const [fixStep, setFixStep] = useState(1); // 1: input, 2: uploading, 3: ready to sign
+  const [fixResult, setFixResult] = useState(null);
   
   const [isProcessing, setIsProcessing] = useState(false);
   const [txResult, setTxResult] = useState(null);
@@ -122,11 +138,12 @@ export default function CreatorDashboard() {
         const collectionDetails = await Promise.all(
           allCollections.map(async ({ addr, tokenType }) => {
             try {
-              const [name, symbol, owner, totalSupply] = await Promise.all([
+              const [name, symbol, owner, totalSupply, baseURI] = await Promise.all([
                 publicClient.readContract({ address: addr, abi: NFT_ABI, functionName: 'name' }),
                 publicClient.readContract({ address: addr, abi: NFT_ABI, functionName: 'symbol' }),
                 publicClient.readContract({ address: addr, abi: NFT_ABI, functionName: 'owner' }),
-                publicClient.readContract({ address: addr, abi: NFT_ABI, functionName: 'totalSupply' }).catch(() => 0n)
+                publicClient.readContract({ address: addr, abi: NFT_ABI, functionName: 'totalSupply' }).catch(() => 0n),
+                publicClient.readContract({ address: addr, abi: NFT_ABI, functionName: 'baseURI' }).catch(() => '')
               ]);
               
               // Try to get avatar - first from our API, then from contractURI
@@ -151,6 +168,9 @@ export default function CreatorDashboard() {
                 console.log('No avatar found for', addr);
               }
 
+              // Check if baseURI needs fixing (is placeholder or empty)
+              const needsFix = !baseURI || baseURI === '' || baseURI.includes('pending');
+              
               return {
                 address: addr,
                 name,
@@ -159,6 +179,8 @@ export default function CreatorDashboard() {
                 totalSupply: Number(totalSupply),
                 avatar,
                 tokenType,
+                baseURI,
+                needsFix,
                 isOwner: owner.toLowerCase() === address.toLowerCase()
               };
             } catch (e) {
@@ -448,6 +470,25 @@ export default function CreatorDashboard() {
                       >
                         🎨 Mint NFT
                       </button>
+                      
+                      {/* Fix Metadata - Only show if baseURI is broken */}
+                      {collection.needsFix && (
+                        <button
+                          onClick={() => {
+                            setSelectedCollection(collection);
+                            setFixStep(1);
+                            setFixResult(null);
+                            setFixImagesCid('');
+                            setFixImagesPath('');
+                            setFixDescription('');
+                            setError(null);
+                            setShowFixModal(true);
+                          }}
+                          className="w-full px-4 py-3 bg-orange-600/20 hover:bg-orange-600/30 border border-orange-500/50 text-orange-400 rounded-lg text-sm font-medium transition"
+                        >
+                          ⚠️ Fix Metadata
+                        </button>
+                      )}
                     </>
                   )}
 
@@ -589,6 +630,217 @@ export default function CreatorDashboard() {
                 {isProcessing ? 'Minting...' : 'Mint'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Fix Metadata Modal */}
+      {showFixModal && selectedCollection && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-gray-900 rounded-2xl max-w-lg w-full p-6 border border-gray-700 max-h-[90vh] overflow-y-auto">
+            <h2 className="text-xl font-bold mb-2">Fix Collection Metadata</h2>
+            <p className="text-gray-400 text-sm mb-4">
+              <strong>{selectedCollection.name}</strong> has missing metadata. 
+              This will generate metadata JSONs and update the contract.
+            </p>
+            
+            <div className="bg-orange-900/20 border border-orange-700/50 rounded-lg p-3 mb-4">
+              <p className="text-orange-300 text-sm">
+                ⚠️ Current baseURI: <code className="bg-black/30 px-1 rounded">{selectedCollection.baseURI || 'empty'}</code>
+              </p>
+            </div>
+            
+            {/* Step 1: Input IPFS details */}
+            {fixStep === 1 && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm text-gray-400 mb-2">Images IPFS CID *</label>
+                  <input
+                    type="text"
+                    value={fixImagesCid}
+                    onChange={(e) => setFixImagesCid(e.target.value)}
+                    placeholder="Qm... or bafy..."
+                    className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  />
+                  <p className="text-gray-500 text-xs mt-1">The CID where your images are already stored</p>
+                </div>
+                
+                <div>
+                  <label className="block text-sm text-gray-400 mb-2">Images Path (optional)</label>
+                  <input
+                    type="text"
+                    value={fixImagesPath}
+                    onChange={(e) => setFixImagesPath(e.target.value)}
+                    placeholder="e.g., Firestorm-images"
+                    className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  />
+                  <p className="text-gray-500 text-xs mt-1">Subfolder path within the CID, if any</p>
+                </div>
+                
+                <div>
+                  <label className="block text-sm text-gray-400 mb-2">Description (optional)</label>
+                  <textarea
+                    value={fixDescription}
+                    onChange={(e) => setFixDescription(e.target.value)}
+                    placeholder="Collection description..."
+                    rows={2}
+                    className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  />
+                </div>
+                
+                {error && (
+                  <p className="text-red-400 text-sm">{error}</p>
+                )}
+                
+                <div className="flex gap-3 pt-2">
+                  <button
+                    onClick={() => {
+                      setShowFixModal(false);
+                      setError(null);
+                    }}
+                    className="flex-1 px-4 py-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (!fixImagesCid) {
+                        setError('Images CID is required');
+                        return;
+                      }
+                      setError(null);
+                      setIsProcessing(true);
+                      setFixStep(2);
+                      
+                      try {
+                        // Call API to generate and upload metadata
+                        const res = await fetch('/api/collections/fix-metadata', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            imagesCid: fixImagesCid,
+                            imagesPath: fixImagesPath,
+                            collectionName: selectedCollection.name,
+                            description: fixDescription,
+                            totalSupply: selectedCollection.totalSupply || 1,
+                            startIndex: 0,
+                          }),
+                        });
+                        
+                        const data = await res.json();
+                        if (!res.ok) throw new Error(data.error);
+                        
+                        setFixResult(data);
+                        setFixStep(3);
+                      } catch (e) {
+                        setError(e.message);
+                        setFixStep(1);
+                      }
+                      setIsProcessing(false);
+                    }}
+                    disabled={isProcessing || !fixImagesCid}
+                    className="flex-1 px-4 py-3 bg-orange-600 hover:bg-orange-500 disabled:bg-gray-600 disabled:cursor-not-allowed rounded-lg font-medium transition"
+                  >
+                    Generate Metadata
+                  </button>
+                </div>
+              </div>
+            )}
+            
+            {/* Step 2: Uploading */}
+            {fixStep === 2 && (
+              <div className="text-center py-8">
+                <div className="animate-spin w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full mx-auto mb-4" />
+                <p className="text-gray-400">Generating and uploading metadata to IPFS...</p>
+              </div>
+            )}
+            
+            {/* Step 3: Ready to sign transaction */}
+            {fixStep === 3 && fixResult && (
+              <div className="space-y-4">
+                <div className="bg-green-900/20 border border-green-700/50 rounded-lg p-4">
+                  <p className="text-green-400 font-medium mb-2">✓ Metadata uploaded!</p>
+                  <p className="text-sm text-gray-300">
+                    New baseURI: <code className="bg-black/30 px-1 rounded break-all">{fixResult.baseURI}</code>
+                  </p>
+                  <a 
+                    href={fixResult.example?.resolves_to}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-cyan-400 text-sm hover:underline mt-2 block"
+                  >
+                    Preview token 0 metadata ↗
+                  </a>
+                </div>
+                
+                <p className="text-gray-400 text-sm">
+                  Now sign a transaction to update the contract's baseURI. This requires gas on Optimism.
+                </p>
+                
+                {error && (
+                  <p className="text-red-400 text-sm">{error}</p>
+                )}
+                
+                {txResult && (
+                  <p className="text-green-400 text-sm">
+                    ✓ Contract updated!{' '}
+                    <a href={`https://optimistic.etherscan.io/tx/${txResult.hash}`} target="_blank" className="underline">
+                      View transaction
+                    </a>
+                  </p>
+                )}
+                
+                <div className="flex gap-3 pt-2">
+                  <button
+                    onClick={() => {
+                      setShowFixModal(false);
+                      setError(null);
+                      setTxResult(null);
+                    }}
+                    className="flex-1 px-4 py-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition"
+                  >
+                    {txResult ? 'Done' : 'Cancel'}
+                  </button>
+                  {!txResult && (
+                    <button
+                      onClick={async () => {
+                        if (!wallet || !fixResult?.baseURI) return;
+                        
+                        setIsProcessing(true);
+                        setError(null);
+                        
+                        try {
+                          await wallet.switchChain(optimism.id);
+                          const provider = new BrowserProvider(await wallet.getEthereumProvider());
+                          const signer = await provider.getSigner();
+                          
+                          const contract = new Contract(selectedCollection.address, NFT_ABI, signer);
+                          const tx = await contract.setBaseURI(fixResult.baseURI);
+                          
+                          setTxResult({ hash: tx.hash });
+                          await tx.wait();
+                          
+                          // Update local state
+                          setCollections(prev => prev.map(c => 
+                            c.address === selectedCollection.address 
+                              ? { ...c, baseURI: fixResult.baseURI, needsFix: false }
+                              : c
+                          ));
+                        } catch (e) {
+                          console.error('setBaseURI failed:', e);
+                          setError(e.message || 'Transaction failed');
+                        }
+                        setIsProcessing(false);
+                      }}
+                      disabled={isProcessing}
+                      className="flex-1 px-4 py-3 bg-green-600 hover:bg-green-500 disabled:bg-gray-600 disabled:cursor-not-allowed rounded-lg font-medium transition"
+                    >
+                      {isProcessing ? 'Signing...' : 'Update Contract'}
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
