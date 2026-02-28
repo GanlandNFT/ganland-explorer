@@ -133,6 +133,13 @@ export default function NeuralMintPage() {
   const [error, setError] = useState(null);
   const [copied, setCopied] = useState(false);
   const [balance, setBalance] = useState(null);
+  const [currentChainId, setCurrentChainId] = useState(null);
+  const [isSwitching, setIsSwitching] = useState(false);
+  
+  // Base chain ID
+  const REQUIRED_CHAIN_ID = base.id; // 8453
+  const wrongChain = hasWallet && currentChainId && currentChainId !== REQUIRED_CHAIN_ID;
+
 
   // Wallet address from GanWallet context
   const hasWallet = !!walletAddress;
@@ -153,6 +160,39 @@ export default function NeuralMintPage() {
     };
     fetchBalance();
   }, [walletAddress]);
+
+  // Check current chain when wallet connects
+  useEffect(() => {
+    const checkChain = async () => {
+      if (wallet) {
+        try {
+          const provider = await wallet.getEthereumProvider();
+          const chainIdHex = await provider.request({ method: 'eth_chainId' });
+          setCurrentChainId(parseInt(chainIdHex, 16));
+        } catch (e) {
+          console.error('Chain check failed:', e);
+        }
+      } else {
+        setCurrentChainId(null);
+      }
+    };
+    checkChain();
+  }, [wallet]);
+
+  // Switch to Base network
+  const handleSwitchToBase = async () => {
+    if (!wallet) return;
+    setIsSwitching(true);
+    try {
+      await wallet.switchChain(REQUIRED_CHAIN_ID);
+      setCurrentChainId(REQUIRED_CHAIN_ID);
+    } catch (e) {
+      console.error('Chain switch failed:', e);
+      setError('Failed to switch to Base. Please try manually.');
+    } finally {
+      setIsSwitching(false);
+    }
+  };
 
   // Check if user has enough balance
   const mintCost = parseEther(MINT_PRICE);
@@ -439,10 +479,37 @@ export default function NeuralMintPage() {
                     </p>
                   )}
                   
+
+                  {/* Wrong Chain Warning */}
+                  {wrongChain && (
+                    <div style={{ marginBottom: '16px', padding: '16px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '8px' }}>
+                      <p style={{ color: '#ef4444', fontSize: '0.9rem', marginBottom: '12px' }}>
+                        ⚠️ Please switch to Base network to mint
+                      </p>
+                      <button
+                        onClick={handleSwitchToBase}
+                        disabled={isSwitching}
+                        style={{
+                          background: 'linear-gradient(135deg, #0052ff 0%, #003db8 100%)',
+                          color: '#fff',
+                          fontWeight: 600,
+                          fontSize: '0.9rem',
+                          padding: '12px 24px',
+                          borderRadius: '8px',
+                          border: 'none',
+                          cursor: isSwitching ? 'not-allowed' : 'pointer',
+                          opacity: isSwitching ? 0.7 : 1,
+                        }}
+                      >
+                        {isSwitching ? 'Switching...' : 'Switch to Base'}
+                      </button>
+                    </div>
+                  )}
+                  
                   {/* MINT BUTTON - Simple states: Connect, Mint, Minting, Insufficient */}
                   <button
                     onClick={handleMint}
-                    disabled={isMinting || (hasWallet && !hasEnoughBalance)}
+                    disabled={isMinting || wrongChain || (hasWallet && !hasEnoughBalance)}
                     style={{ 
                       display: 'inline-block', 
                       background: isMinting || (hasWallet && !hasEnoughBalance)
