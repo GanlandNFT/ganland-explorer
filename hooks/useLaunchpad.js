@@ -2,12 +2,15 @@
 
 import { useState, useCallback } from 'react';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
-import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract } from 'wagmi';
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract, useSwitchChain, useChainId } from 'wagmi';
 import { parseEther, formatEther } from 'viem';
 import { optimism } from 'viem/chains';
 
 import { CONTRACTS, PLATFORM_FEE, TOKEN_TYPES, LICENSE_VERSIONS } from '@/lib/contracts/addresses';
 import FractalLaunchpadABI from '@/lib/contracts/FractalLaunchpadABI.json';
+
+// Required chain for deployment
+const REQUIRED_CHAIN_ID = optimism.id; // 10
 
 export function useLaunchpad() {
   // Privy auth state (for login status)
@@ -16,11 +19,17 @@ export function useLaunchpad() {
   
   // Wagmi state (for contract interactions)
   const { address: wagmiAddress, isConnected: wagmiConnected } = useAccount();
+  const chainId = useChainId();
+  const { switchChain, isPending: isSwitching } = useSwitchChain();
   
   // Combined connection state - user is authenticated via Privy
   const isAuthenticated = ready && authenticated;
   const address = wagmiAddress || wallets?.[0]?.address;
   const isConnected = isAuthenticated && !!address;
+  
+  // Check if on correct chain
+  const isOnOptimism = chainId === REQUIRED_CHAIN_ID;
+  const wrongChain = isConnected && !isOnOptimism;
   
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -77,6 +86,19 @@ export function useLaunchpad() {
   });
 
   /**
+   * Switch wallet to Optimism network
+   */
+  const switchToOptimism = useCallback(async () => {
+    if (!switchChain) return;
+    try {
+      await switchChain({ chainId: REQUIRED_CHAIN_ID });
+    } catch (err) {
+      setError('Failed to switch to Optimism. Please switch manually in your wallet.');
+      throw err;
+    }
+  }, [switchChain]);
+
+  /**
    * Create a new NFT collection launch
    * @param {Object} params - Launch parameters
    */
@@ -91,6 +113,11 @@ export function useLaunchpad() {
   }) => {
     if (!isConnected) {
       throw new Error('Wallet not connected');
+    }
+    
+    // CRITICAL: Ensure we're on Optimism before deployment
+    if (!isOnOptimism) {
+      throw new Error('Please switch to Optimism network before deploying');
     }
 
     setIsLoading(true);
@@ -122,7 +149,7 @@ export function useLaunchpad() {
       setIsLoading(false);
       throw err;
     }
-  }, [isConnected, isAuthorized, platformFee, launchpadAddress, writeContract]);
+  }, [isConnected, isOnOptimism, isAuthorized, platformFee, launchpadAddress, writeContract]);
 
   /**
    * Get launch info by ID
@@ -139,6 +166,12 @@ export function useLaunchpad() {
     isConnected,     // Authenticated + has wallet address
     address,
     user,
+    
+    // Chain state
+    chainId,
+    isOnOptimism,    // True if connected to Optimism (chain 10)
+    wrongChain,      // True if connected but NOT on Optimism
+    isSwitching,     // True while switching chains
     
     // Loading/status
     isLoading: isLoading || isPending || isConfirming,
@@ -158,6 +191,7 @@ export function useLaunchpad() {
 
     // Actions
     createLaunch,
+    switchToOptimism,
     getLaunchInfo,
 
     // Constants

@@ -30,6 +30,9 @@ export default function LaunchPage() {
     platformFee,
     userCollections,
     createLaunch,
+    switchToOptimism,
+    wrongChain,
+    isSwitching,
     TOKEN_TYPES,
     LICENSE_VERSIONS,
   } = useLaunchpad();
@@ -249,6 +252,9 @@ export default function LaunchPage() {
               onLaunch={handleLaunch}
               onBack={() => setStep(2)}
               isLoading={isLoading}
+              wrongChain={wrongChain}
+              onSwitchChain={switchToOptimism}
+              isSwitching={isSwitching}
             />
           )}
           

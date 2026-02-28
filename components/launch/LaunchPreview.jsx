@@ -7,8 +7,9 @@ import { LICENSE_DESCRIPTIONS } from '@/lib/contracts/addresses';
  * 
  * Flow:
  * 1. User reviews collection info
- * 2. Clicks "Deploy Contract"
- * 3. DeploymentModal handles transaction + IPFS upload + success
+ * 2. If wrong chain, prompt to switch to Optimism
+ * 3. Clicks "Deploy Contract"
+ * 4. DeploymentModal handles transaction + IPFS upload + success
  */
 export function LaunchPreview({ 
   uploadedData, 
@@ -17,6 +18,9 @@ export function LaunchPreview({
   onLaunch, 
   onBack,
   isLoading,
+  wrongChain,
+  onSwitchChain,
+  isSwitching,
 }) {
   const tokenTypeLabel = config.tokenType === 0 ? 'ERC-721' : 'ERC-1155';
   const licenseLabel = Object.keys(LICENSE_DESCRIPTIONS).find(
@@ -113,6 +117,28 @@ export function LaunchPreview({
         </div>
       </div>
 
+      {/* Wrong Chain Warning */}
+      {wrongChain && (
+        <div className="bg-red-900/30 border border-red-700/50 rounded-xl p-4">
+          <div className="flex items-start gap-3">
+            <span className="text-2xl">⛓️</span>
+            <div className="flex-1">
+              <h4 className="font-medium text-red-400 mb-1">Wrong Network</h4>
+              <p className="text-gray-400 text-sm mb-3">
+                You're connected to the wrong network. Please switch to <strong className="text-white">Optimism</strong> to deploy your collection.
+              </p>
+              <button
+                onClick={onSwitchChain}
+                disabled={isSwitching}
+                className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg text-sm transition disabled:opacity-50"
+              >
+                {isSwitching ? 'Switching...' : '🔄 Switch to Optimism'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Warning */}
       <div className="bg-yellow-900/20 border border-yellow-700/30 rounded-xl p-4 text-yellow-400 text-sm">
         <strong>⚠️ Important:</strong> Once deployed, collection settings cannot be changed. 
@@ -124,17 +150,21 @@ export function LaunchPreview({
         <button
           type="button"
           onClick={onBack}
-          disabled={isLoading}
+          disabled={isLoading || isSwitching}
           className="px-6 py-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition disabled:opacity-50"
         >
           ← Back
         </button>
         <button
           onClick={handleDeploy}
-          disabled={isLoading}
-          className="px-8 py-3 bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500 rounded-lg font-medium transition disabled:opacity-50"
+          disabled={isLoading || wrongChain || isSwitching}
+          className={`px-8 py-3 rounded-lg font-medium transition disabled:opacity-50 ${
+            wrongChain 
+              ? 'bg-gray-700 text-gray-500 cursor-not-allowed' 
+              : 'bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500'
+          }`}
         >
-          🚀 Deploy Contract
+          {wrongChain ? '⛓️ Switch Network First' : '🚀 Deploy Contract'}
         </button>
       </div>
     </div>

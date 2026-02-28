@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import confetti from 'canvas-confetti';
 import { PinataClient } from '@/lib/pinata';
+import { Checkmark3D } from '@/components/icons/Checkmark3D';
 
 /**
  * DeploymentModal - Handles the entire deployment flow:
@@ -246,9 +247,11 @@ export function DeploymentModal({
         {/* Success Stage */}
         {stage === 'success' && (
           <div className="text-center">
-            <div className="text-7xl mb-4">✅</div>
+            <div className="flex justify-center mb-4">
+              <Checkmark3D size={96} />
+            </div>
             <h2 className="text-3xl font-bold mb-2 text-green-400">Successful Deployment!</h2>
-            <p className="text-gray-400 mb-6">Your NFT collection is now live on Optimism</p>
+            <p className="text-gray-400 mb-6">Your NFT collection is now live on <span className="text-red-400 font-medium">Optimism</span></p>
 
             {/* Links */}
             <div className="bg-gray-800/50 rounded-xl p-4 mb-6 text-left space-y-3">
