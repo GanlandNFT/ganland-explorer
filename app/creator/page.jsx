@@ -82,6 +82,7 @@ export default function CreatorDashboard() {
   const [showMintModal, setShowMintModal] = useState(false);
   const [adminAddress, setAdminAddress] = useState('');
   const [mintAddress, setMintAddress] = useState('');
+  const [activeTab, setActiveTab] = useState('erc721'); // 'erc721' | 'erc1155'
   
   const [isProcessing, setIsProcessing] = useState(false);
   const [txResult, setTxResult] = useState(null);
@@ -114,10 +115,12 @@ export default function CreatorDashboard() {
           args: [address]
         });
 
-        // Fetch details for each collection
-        const allCollections = [...erc721s, ...erc1155s];
+        // Fetch details for each collection (with token type)
+        const erc721WithType = erc721s.map(addr => ({ addr, tokenType: 'erc721' }));
+        const erc1155WithType = erc1155s.map(addr => ({ addr, tokenType: 'erc1155' }));
+        const allCollections = [...erc721WithType, ...erc1155WithType];
         const collectionDetails = await Promise.all(
-          allCollections.map(async (addr) => {
+          allCollections.map(async ({ addr, tokenType }) => {
             try {
               const [name, symbol, owner, totalSupply] = await Promise.all([
                 publicClient.readContract({ address: addr, abi: NFT_ABI, functionName: 'name' }),
@@ -155,6 +158,7 @@ export default function CreatorDashboard() {
                 owner,
                 totalSupply: Number(totalSupply),
                 avatar,
+                tokenType,
                 isOwner: owner.toLowerCase() === address.toLowerCase()
               };
             } catch (e) {
@@ -329,10 +333,45 @@ export default function CreatorDashboard() {
           </div>
         )}
 
-        {/* Collections Grid */}
+        {/* Collections with Tabs */}
         {ready && authenticated && !loading && collections.length > 0 && (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {collections.map((collection) => (
+          <div>
+            {/* Token Type Tabs */}
+            <div className="flex gap-2 mb-6">
+              <button
+                onClick={() => setActiveTab('erc721')}
+                className={`px-5 py-2.5 rounded-lg font-medium transition-all ${
+                  activeTab === 'erc721'
+                    ? 'bg-cyan-600 text-white'
+                    : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                }`}
+              >
+                ERC-721 ({collections.filter(c => c.tokenType === 'erc721').length})
+              </button>
+              <button
+                onClick={() => setActiveTab('erc1155')}
+                className={`px-5 py-2.5 rounded-lg font-medium transition-all ${
+                  activeTab === 'erc1155'
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                }`}
+              >
+                ERC-1155 ({collections.filter(c => c.tokenType === 'erc1155').length})
+              </button>
+            </div>
+
+            {/* Filtered Collections Grid */}
+            {collections.filter(c => c.tokenType === activeTab).length === 0 ? (
+              <div className="text-center py-12 bg-gray-900/50 rounded-xl border border-gray-800">
+                <div className="text-4xl mb-4">{activeTab === 'erc721' ? '🖼️' : '📦'}</div>
+                <p className="text-gray-400">No {activeTab.toUpperCase()} collections found</p>
+                <a href="/launch" className="inline-block mt-4 text-cyan-400 hover:text-cyan-300">
+                  Launch your first {activeTab.toUpperCase()} collection →
+                </a>
+              </div>
+            ) : (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {collections.filter(c => c.tokenType === activeTab).map((collection) => (
               <div
                 key={collection.address}
                 className="bg-gray-900 rounded-2xl border border-gray-800 overflow-hidden hover:border-cyan-500/50 transition"
@@ -352,7 +391,16 @@ export default function CreatorDashboard() {
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-bold text-lg truncate">{collection.name}</h3>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-bold text-lg truncate">{collection.name}</h3>
+                        <span className={`px-2 py-0.5 text-[10px] font-medium rounded ${
+                          collection.tokenType === 'erc721' 
+                            ? 'bg-cyan-500/20 text-cyan-400' 
+                            : 'bg-purple-500/20 text-purple-400'
+                        }`}>
+                          {collection.tokenType?.toUpperCase()}
+                        </span>
+                      </div>
                       <p className="text-gray-400 text-sm">{collection.symbol}</p>
                     </div>
                   </div>
@@ -411,6 +459,8 @@ export default function CreatorDashboard() {
                 </div>
               </div>
             ))}
+            </div>
+            )}
           </div>
         )}
 

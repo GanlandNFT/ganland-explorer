@@ -4,6 +4,26 @@ import { useState, useEffect, useCallback } from 'react';
 import confetti from 'canvas-confetti';
 import { PinataClient } from '@/lib/pinata';
 import { Checkmark3D } from '@/components/icons/Checkmark3D';
+import { createPublicClient, http, decodeEventLog } from 'viem';
+import { optimism } from 'viem/chains';
+
+// Public client for reading transaction receipts
+const publicClient = createPublicClient({
+  chain: optimism,
+  transport: http()
+});
+
+// LaunchCreated event ABI for parsing
+const LAUNCH_CREATED_EVENT = {
+  type: 'event',
+  name: 'LaunchCreated',
+  inputs: [
+    { indexed: false, name: 'launchId', type: 'uint256' },
+    { indexed: true, name: 'tokenType', type: 'uint8' },
+    { indexed: true, name: 'tokenContract', type: 'address' },
+    { indexed: true, name: 'creator', type: 'address' }
+  ]
+};
 
 // Add 3D rotation keyframes
 const rotateKeyframes = `
@@ -201,6 +221,31 @@ export function DeploymentModal({
         setIpfsProgress(90);
       }
 
+      // Get deployed collection address from transaction receipt
+      let deployedAddress = null;
+      try {
+        const receipt = await publicClient.getTransactionReceipt({ hash });
+        // Find the LaunchCreated event log
+        for (const log of receipt.logs) {
+          try {
+            const decoded = decodeEventLog({
+              abi: [LAUNCH_CREATED_EVENT],
+              data: log.data,
+              topics: log.topics,
+            });
+            if (decoded.eventName === 'LaunchCreated') {
+              deployedAddress = decoded.args.tokenContract;
+              console.log('Deployed collection:', deployedAddress);
+              break;
+            }
+          } catch (e) {
+            // Not our event, skip
+          }
+        }
+      } catch (e) {
+        console.error('Failed to get collection address:', e);
+      }
+
       // Track the pin in Supabase
       if (walletAddress) {
         try {
@@ -209,6 +254,7 @@ export function DeploymentModal({
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               wallet: walletAddress,
+              collectionAddress: deployedAddress,
               imagesCid: result.imagesHash,
               metadataCid: result.metadataHash,
               baseUri: result.baseURI,
@@ -219,6 +265,35 @@ export function DeploymentModal({
           console.error('Failed to track pin:', e);
         }
       }
+
+      // Store collection avatar if we have one
+      if (deployedAddress && config?.avatarFile) {
+        try {
+          // Upload avatar to IPFS
+          const pinata = new PinataClient(
+            process.env.NEXT_PUBLIC_PINATA_API_KEY,
+            process.env.NEXT_PUBLIC_PINATA_SECRET_KEY
+          );
+          const avatarResult = await pinata.uploadFile(config.avatarFile, `${config.name}-avatar`);
+          
+          // Store in Supabase
+          await fetch('/api/collection-avatar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              collectionAddress: deployedAddress,
+              ipfsCid: avatarResult.IpfsHash,
+              creatorWallet: walletAddress,
+            }),
+          });
+          console.log('Avatar stored for collection:', deployedAddress, avatarResult.IpfsHash);
+        } catch (e) {
+          console.error('Failed to store avatar:', e);
+        }
+      }
+      
+      // Store the deployed address in result for later use
+      result.deployedAddress = deployedAddress;
 
       // Delete the draft since deployment is complete
       if (walletAddress) {
