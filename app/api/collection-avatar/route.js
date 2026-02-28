@@ -49,11 +49,14 @@ export async function POST(request) {
 
     const supabase = getSupabase();
 
+    // Build avatar URL from CID if not provided
+    const finalAvatarUrl = avatarUrl || (ipfsCid ? `https://gateway.pinata.cloud/ipfs/${ipfsCid}` : null);
+
     const { data, error } = await supabase
       .from('collection_avatars')
       .upsert({
         collection_address: collectionAddress.toLowerCase(),
-        avatar_url: avatarUrl || null,
+        avatar_url: finalAvatarUrl,
         ipfs_cid: ipfsCid || null,
         creator_wallet: creatorWallet?.toLowerCase() || null,
         updated_at: new Date().toISOString()
