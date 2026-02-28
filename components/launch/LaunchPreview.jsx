@@ -25,23 +25,29 @@ export function LaunchPreview({
       </div>
 
       {/* Collection Summary */}
-      <div className="bg-gray-800 rounded-xl p-6">
-        <div className="flex gap-6">
-          {/* Preview Image */}
-          <div className="w-32 h-32 bg-gray-700 rounded-xl overflow-hidden flex-shrink-0">
-            {uploadedData?.files?.[0] && (
-              <div className="w-full h-full flex items-center justify-center text-4xl">
+      <div className="bg-gray-800 rounded-xl p-4 sm:p-6">
+        <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
+          {/* Collection Avatar */}
+          <div className="w-24 h-24 sm:w-32 sm:h-32 bg-gray-700 rounded-full overflow-hidden flex-shrink-0 mx-auto sm:mx-0 ring-4 ring-cyan-500/30">
+            {config.avatarPreview ? (
+              <img 
+                src={config.avatarPreview} 
+                alt={config.name} 
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-4xl bg-gradient-to-br from-cyan-600 to-purple-600">
                 🎨
               </div>
             )}
           </div>
 
           {/* Collection Info */}
-          <div className="flex-1">
-            <h3 className="text-2xl font-bold">{config.name}</h3>
-            <p className="text-gray-400">{config.symbol} • {tokenTypeLabel}</p>
+          <div className="flex-1 text-center sm:text-left">
+            <h3 className="text-xl sm:text-2xl font-bold">{config.name || 'Unnamed Collection'}</h3>
+            <p className="text-gray-400">{config.symbol || 'SYM'} • {tokenTypeLabel}</p>
             {config.description && (
-              <p className="text-gray-300 mt-2 line-clamp-2">{config.description}</p>
+              <p className="text-gray-300 mt-2 line-clamp-2 text-sm sm:text-base">{config.description}</p>
             )}
           </div>
         </div>

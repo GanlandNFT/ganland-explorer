@@ -58,7 +58,7 @@ export default function LaunchPage() {
   return (
     <div className="min-h-screen bg-black text-white">
       {/* Header */}
-      <header className="border-b border-gray-800 py-4 sm:py-6 px-4 sm:px-8">
+      <header className="border-b border-gray-800 py-3 sm:py-6 px-3 sm:px-8">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-cyan-400 to-purple-500 bg-clip-text text-transparent">
@@ -81,7 +81,7 @@ export default function LaunchPage() {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto py-6 sm:py-8 px-4 sm:px-8">
+      <main className="max-w-6xl mx-auto py-4 sm:py-8 px-0 sm:px-8">
         {/* Progress Steps - Vertical on mobile, horizontal on desktop */}
         <div className="flex justify-center mb-8 sm:mb-12">
           <div className="grid grid-cols-4 gap-2 sm:flex sm:items-center sm:gap-0 w-full max-w-md sm:max-w-none sm:w-auto">
@@ -110,8 +110,8 @@ export default function LaunchPage() {
         </div>
 
         {/* Step Content - Animated border container */}
-        <div className="relative rounded-2xl p-[2px] bg-gradient-to-r from-cyan-500 via-purple-500 to-cyan-500 bg-[length:200%_100%] animate-gradient-x min-h-[300px]">
-          <div className="bg-gray-900 rounded-2xl p-4 sm:p-8 h-full">
+        <div className="relative rounded-none sm:rounded-2xl p-[2px] bg-gradient-to-r from-cyan-500 via-purple-500 to-cyan-500 bg-[length:200%_100%] animate-gradient-x min-h-[300px] mx-0">
+          <div className="bg-gray-900 rounded-none sm:rounded-2xl p-4 sm:p-8 h-full">
           
             {/* Loading state while Privy initializes */}
             {!ready && (
@@ -224,8 +224,55 @@ export default function LaunchPage() {
         )}
       </main>
 
+        {/* Agent API Section */}
+        <div className="mt-8 sm:mt-12 px-0 sm:px-0">
+          <div className="bg-gray-900/50 rounded-none sm:rounded-2xl p-4 sm:p-8 border-y sm:border border-gray-800">
+            <div className="flex items-center gap-3 mb-4">
+              <span className="text-2xl">🤖</span>
+              <h3 className="text-xl font-bold">Agent API</h3>
+            </div>
+            <p className="text-gray-400 mb-4 text-sm sm:text-base">
+              Deploy NFT collections programmatically via the GAN Launchpad API.
+            </p>
+            
+            <div className="bg-gray-800 rounded-lg p-4 font-mono text-xs sm:text-sm overflow-x-auto">
+              <p className="text-gray-500 mb-2"># Contract Address (Optimism)</p>
+              <p className="text-cyan-400 mb-4">0x07cB9a4c2Dc5Bb341A6F1A20D7641A70bF91E5Ed</p>
+              
+              <p className="text-gray-500 mb-2"># Create Launch Function</p>
+              <p className="text-green-400">createLaunch(</p>
+              <p className="text-gray-300 pl-4">name: string,</p>
+              <p className="text-gray-300 pl-4">symbol: string,</p>
+              <p className="text-gray-300 pl-4">maxSupply: uint256,</p>
+              <p className="text-gray-300 pl-4">baseURI: string,</p>
+              <p className="text-gray-300 pl-4">royaltyFee: uint256, <span className="text-gray-500">// basis points (500 = 5%)</span></p>
+              <p className="text-gray-300 pl-4">licenseVersion: uint8,</p>
+              <p className="text-gray-300 pl-4">tokenType: uint8 <span className="text-gray-500">// 0 = ERC721, 1 = ERC1155</span></p>
+              <p className="text-green-400">)</p>
+              <p className="text-gray-500 mt-2"># Value: 0.01 ETH (platform fee, waived for authorized creators)</p>
+            </div>
+
+            <div className="mt-4 flex flex-wrap gap-3">
+              <a 
+                href="https://optimistic.etherscan.io/address/0x07cB9a4c2Dc5Bb341A6F1A20D7641A70bF91E5Ed#code"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm transition"
+              >
+                View Contract ↗
+              </a>
+              <a 
+                href="/docs/launchpad-api"
+                className="px-4 py-2 bg-cyan-600/20 text-cyan-400 hover:bg-cyan-600/30 rounded-lg text-sm transition"
+              >
+                API Documentation
+              </a>
+            </div>
+          </div>
+        </div>
+
       {/* Footer */}
-      <footer className="border-t border-gray-800 py-6 px-4 sm:px-8 mt-12">
+      <footer className="border-t border-gray-800 py-4 sm:py-6 px-3 sm:px-8 mt-8 sm:mt-12">
         <div className="max-w-6xl mx-auto text-center text-gray-500 text-sm">
           <p>Powered by Fractal Visions • Built on Optimism</p>
         </div>

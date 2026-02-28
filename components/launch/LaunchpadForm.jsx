@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
+import { useDropzone } from 'react-dropzone';
 import { LICENSE_DESCRIPTIONS } from '@/lib/contracts/addresses';
 
 export function LaunchpadForm({ 
@@ -16,12 +17,33 @@ export function LaunchpadForm({
     description: '',
     maxSupply: uploadedData?.totalFiles || 100,
     royaltyFee: 500, // 5% default
-    licenseVersion: licenseVersions.COMMERCIAL,
+    licenseVersion: licenseVersions.COMMERCIAL || 2,
     tokenType: tokenTypes.ERC721,
     externalUrl: '',
+    avatarFile: null,
+    avatarPreview: null,
   });
 
   const [errors, setErrors] = useState({});
+
+  // Avatar dropzone
+  const onAvatarDrop = useCallback((acceptedFiles) => {
+    const file = acceptedFiles[0];
+    if (file) {
+      setFormData(prev => ({
+        ...prev,
+        avatarFile: file,
+        avatarPreview: URL.createObjectURL(file),
+      }));
+    }
+  }, []);
+
+  const avatarDropzone = useDropzone({
+    onDrop: onAvatarDrop,
+    accept: { 'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.webp'] },
+    multiple: false,
+    maxSize: 5 * 1024 * 1024, // 5MB
+  });
 
   const handleChange = (e) => {
     const { name, value, type } = e.target;
@@ -30,7 +52,6 @@ export function LaunchpadForm({
       [name]: type === 'number' ? parseInt(value) || 0 : value,
     }));
     
-    // Clear error on change
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: null }));
     }
@@ -69,13 +90,64 @@ export function LaunchpadForm({
     }
   };
 
+  // Group licenses for better UX
+  const standardLicenses = ['CC0', 'PERSONAL_USE', 'COMMERCIAL', 'COMMERCIAL_NO_HATE', 'EXCLUSIVE'];
+  const cbeLicenses = ['CBE_CC0', 'CBE_NECR', 'CBE_NECR_HS', 'CBE_ECR', 'CBE_PR', 'CBE_PR_HS'];
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-8">
+    <form onSubmit={handleSubmit} className="space-y-6 sm:space-y-8">
       <div>
-        <h2 className="text-2xl font-bold mb-2">Configure Your Collection</h2>
-        <p className="text-gray-400">
+        <h2 className="text-xl sm:text-2xl font-bold mb-2">Configure Your Collection</h2>
+        <p className="text-gray-400 text-sm sm:text-base">
           Set up the details for your NFT collection on Optimism
         </p>
+      </div>
+
+      {/* Collection Avatar */}
+      <div>
+        <label className="block text-sm font-medium text-gray-300 mb-3">
+          Collection Avatar
+        </label>
+        <div className="flex items-start gap-4">
+          <div
+            {...avatarDropzone.getRootProps()}
+            className={`
+              w-24 h-24 sm:w-32 sm:h-32 rounded-full border-2 border-dashed cursor-pointer
+              flex items-center justify-center overflow-hidden transition
+              ${avatarDropzone.isDragActive 
+                ? 'border-cyan-500 bg-cyan-500/10' 
+                : 'border-gray-700 hover:border-gray-500'
+              }
+            `}
+          >
+            <input {...avatarDropzone.getInputProps()} />
+            {formData.avatarPreview ? (
+              <img 
+                src={formData.avatarPreview} 
+                alt="Avatar preview" 
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="text-center p-2">
+                <div className="text-2xl mb-1">📷</div>
+                <p className="text-xs text-gray-500">Upload</p>
+              </div>
+            )}
+          </div>
+          <div className="flex-1 text-sm text-gray-400">
+            <p>Square image recommended (will be cropped to circle)</p>
+            <p className="text-gray-500 mt-1">PNG, JPG, GIF, WEBP • Max 5MB</p>
+            {formData.avatarFile && (
+              <button
+                type="button"
+                onClick={() => setFormData(prev => ({ ...prev, avatarFile: null, avatarPreview: null }))}
+                className="mt-2 text-red-400 hover:text-red-300 text-xs"
+              >
+                Remove avatar
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Token Type Selection */}
@@ -83,40 +155,40 @@ export function LaunchpadForm({
         <label className="block text-sm font-medium text-gray-300 mb-3">
           Token Standard
         </label>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <button
             type="button"
             onClick={() => setFormData(prev => ({ ...prev, tokenType: tokenTypes.ERC721 }))}
-            className={`p-4 rounded-xl border-2 transition text-left ${
+            className={`p-3 sm:p-4 rounded-xl border-2 transition text-left ${
               formData.tokenType === tokenTypes.ERC721
                 ? 'border-cyan-500 bg-cyan-500/10'
                 : 'border-gray-700 hover:border-gray-600'
             }`}
           >
             <div className="font-bold mb-1">ERC-721</div>
-            <div className="text-sm text-gray-400">
-              Unique NFTs (1 of 1). Best for art collections, PFPs.
+            <div className="text-xs sm:text-sm text-gray-400">
+              Unique NFTs (1 of 1). Art, PFPs.
             </div>
           </button>
           <button
             type="button"
             onClick={() => setFormData(prev => ({ ...prev, tokenType: tokenTypes.ERC1155 }))}
-            className={`p-4 rounded-xl border-2 transition text-left ${
+            className={`p-3 sm:p-4 rounded-xl border-2 transition text-left ${
               formData.tokenType === tokenTypes.ERC1155
                 ? 'border-cyan-500 bg-cyan-500/10'
                 : 'border-gray-700 hover:border-gray-600'
             }`}
           >
             <div className="font-bold mb-1">ERC-1155</div>
-            <div className="text-sm text-gray-400">
-              Semi-fungible tokens. Best for editions, gaming items.
+            <div className="text-xs sm:text-sm text-gray-400">
+              Semi-fungible. Editions, gaming.
             </div>
           </button>
         </div>
       </div>
 
       {/* Basic Info */}
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
         <div>
           <label className="block text-sm font-medium text-gray-300 mb-2">
             Collection Name *
@@ -162,14 +234,14 @@ export function LaunchpadForm({
           name="description"
           value={formData.description}
           onChange={handleChange}
-          rows={4}
+          rows={3}
           placeholder="Describe your collection..."
           className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
         />
       </div>
 
       {/* Supply & Royalty */}
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
         <div>
           <label className="block text-sm font-medium text-gray-300 mb-2">
             Max Supply
@@ -192,7 +264,7 @@ export function LaunchpadForm({
 
         <div>
           <label className="block text-sm font-medium text-gray-300 mb-2">
-            Royalty Fee
+            Royalty Fee (max 10%)
           </label>
           <div className="relative">
             <input
@@ -201,11 +273,11 @@ export function LaunchpadForm({
               value={formData.royaltyFee / 100}
               onChange={(e) => setFormData(prev => ({ 
                 ...prev, 
-                royaltyFee: Math.round(parseFloat(e.target.value) * 100) || 0
+                royaltyFee: Math.min(Math.round(parseFloat(e.target.value) * 100) || 0, 1000)
               }))}
               min={0}
               max={10}
-              step={0.1}
+              step={0.5}
               className={`w-full px-4 py-3 bg-gray-800 border rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 pr-12 ${
                 errors.royaltyFee ? 'border-red-500' : 'border-gray-700'
               }`}
@@ -216,29 +288,62 @@ export function LaunchpadForm({
         </div>
       </div>
 
-      {/* License Version */}
+      {/* License Version - Expandable sections */}
       <div>
         <label className="block text-sm font-medium text-gray-300 mb-3">
-          License
+          IP License
         </label>
-        <div className="grid grid-cols-3 gap-3">
-          {Object.entries(licenseVersions).map(([key, value]) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setFormData(prev => ({ ...prev, licenseVersion: value }))}
-              className={`p-3 rounded-lg border transition text-left ${
-                formData.licenseVersion === value
-                  ? 'border-cyan-500 bg-cyan-500/10'
-                  : 'border-gray-700 hover:border-gray-600'
-              }`}
-            >
-              <div className="font-medium text-sm">{key.replace(/_/g, ' ')}</div>
-              <div className="text-xs text-gray-500 mt-1">
-                {LICENSE_DESCRIPTIONS[value]}
-              </div>
-            </button>
-          ))}
+        
+        {/* Standard Licenses */}
+        <p className="text-xs text-gray-500 mb-2">Standard Licenses</p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
+          {standardLicenses.map((key) => {
+            const value = licenseVersions[key];
+            if (value === undefined) return null;
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setFormData(prev => ({ ...prev, licenseVersion: value }))}
+                className={`p-2 sm:p-3 rounded-lg border transition text-left text-xs sm:text-sm ${
+                  formData.licenseVersion === value
+                    ? 'border-cyan-500 bg-cyan-500/10'
+                    : 'border-gray-700 hover:border-gray-600'
+                }`}
+              >
+                <div className="font-medium">{key.replace(/_/g, ' ')}</div>
+                <div className="text-gray-500 text-xs mt-0.5 line-clamp-2">
+                  {LICENSE_DESCRIPTIONS[value]?.split(' - ')[1] || LICENSE_DESCRIPTIONS[value]}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* CBE Licenses */}
+        <p className="text-xs text-gray-500 mb-2">Can't Be Evil (a]labs) Licenses</p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          {cbeLicenses.map((key) => {
+            const value = licenseVersions[key];
+            if (value === undefined) return null;
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setFormData(prev => ({ ...prev, licenseVersion: value }))}
+                className={`p-2 sm:p-3 rounded-lg border transition text-left text-xs sm:text-sm ${
+                  formData.licenseVersion === value
+                    ? 'border-purple-500 bg-purple-500/10'
+                    : 'border-gray-700 hover:border-gray-600'
+                }`}
+              >
+                <div className="font-medium">{key.replace(/_/g, '-')}</div>
+                <div className="text-gray-500 text-xs mt-0.5 line-clamp-2">
+                  {LICENSE_DESCRIPTIONS[value]?.split('(')[1]?.replace(')', '') || LICENSE_DESCRIPTIONS[value]}
+                </div>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -262,13 +367,13 @@ export function LaunchpadForm({
         <button
           type="button"
           onClick={onBack}
-          className="px-6 py-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition"
+          className="px-4 sm:px-6 py-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition"
         >
           ← Back
         </button>
         <button
           type="submit"
-          className="px-8 py-3 bg-cyan-600 hover:bg-cyan-500 rounded-lg font-medium transition"
+          className="px-6 sm:px-8 py-3 bg-cyan-600 hover:bg-cyan-500 rounded-lg font-medium transition"
         >
           Continue →
         </button>
