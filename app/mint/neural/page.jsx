@@ -136,13 +136,12 @@ export default function NeuralMintPage() {
   const [currentChainId, setCurrentChainId] = useState(null);
   const [isSwitching, setIsSwitching] = useState(false);
   
+  // Wallet address from GanWallet context
+  const hasWallet = !!walletAddress;
+
   // Base chain ID
   const REQUIRED_CHAIN_ID = base.id; // 8453
   const wrongChain = hasWallet && currentChainId && currentChainId !== REQUIRED_CHAIN_ID;
-
-
-  // Wallet address from GanWallet context
-  const hasWallet = !!walletAddress;
 
   // Fetch balance when wallet connects
   useEffect(() => {
