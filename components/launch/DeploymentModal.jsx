@@ -5,6 +5,17 @@ import confetti from 'canvas-confetti';
 import { PinataClient } from '@/lib/pinata';
 import { Checkmark3D } from '@/components/icons/Checkmark3D';
 
+// Add 3D rotation keyframes
+const rotateKeyframes = `
+  @keyframes spin3d {
+    0% { transform: rotateY(0deg); }
+    50% { transform: rotateY(180deg); }
+    100% { transform: rotateY(360deg); }
+  }
+`;
+
+
+
 // License version labels
 const LICENSE_LABELS = {
   1: 'Personal Use',
@@ -89,39 +100,45 @@ export function DeploymentModal({
   /**
    * Share on X (Twitter) with collection details
    */
+  /**
+   * Share on X - Opens 2 tweet windows (280 char limit for non-premium)
+   */
   const shareOnX = useCallback(() => {
     const tokenType = TOKEN_TYPE_LABELS[config?.tokenType] || 'ERC-721';
     const license = LICENSE_LABELS[config?.licenseVersion] || 'Commercial';
     const royalty = config?.royaltyFee ? (config.royaltyFee / 100).toFixed(1) : '5.0';
     const totalFiles = ipfsResult?.totalFiles || uploadedData?.totalFiles || config?.maxSupply || '?';
     
-    // Build the tweet text
-    const tweetLines = [
+    // Tweet 1: Main announcement (under 280 chars)
+    const tweet1 = [
       `🎉 I just launched my NFT project on @Optimism!`,
       ``,
       `📦 ${config?.name || 'My Collection'} (${config?.symbol || 'NFT'})`,
-      `📜 ${config?.description?.slice(0, 100) || 'A new NFT collection'}${config?.description?.length > 100 ? '...' : ''}`,
-      ``,
-      `⚡ Standard: ${tokenType}`,
-      `🖼️ Supply: ${config?.maxSupply || '?'} NFTs`,
-      `💰 Royalty: ${royalty}%`,
-      `📄 License: ${license}`,
-      `📌 ${totalFiles} images pinned to IPFS`,
-      ``,
-      `🔗 Transaction:`,
-      `https://optimistic.etherscan.io/tx/${hash}`,
+      `⚡ ${tokenType} | 🖼️ ${config?.maxSupply || '?'} NFTs`,
+      `💰 ${royalty}% royalty | 📄 ${license}`,
       ``,
       `Built with @GanlandNFT Launchpad 🚀`,
-    ];
+    ].join('\n');
     
-    const tweetText = tweetLines.join('\n');
+    // Tweet 2: Links & details
+    const tweet2 = [
+      `📌 ${totalFiles} images pinned to IPFS`,
+      ``,
+      `🔗 View on Etherscan:`,
+      `https://optimistic.etherscan.io/tx/${hash}`,
+      ``,
+      `Deploy your own collection at ganland.ai/launch ✨`,
+    ].join('\n');
     
-    // If we have an avatar/image, we can't directly attach it via intent
-    // But we can include the IPFS gateway URL in the tweet for preview
-    const encodedText = encodeURIComponent(tweetText);
-    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodedText}`;
+    // Open first tweet
+    const url1 = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweet1)}`;
+    window.open(url1, '_blank', 'width=550,height=420');
     
-    window.open(twitterUrl, '_blank', 'width=550,height=420');
+    // Open second tweet after short delay
+    setTimeout(() => {
+      const url2 = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweet2)}`;
+      window.open(url2, 'tweet2', 'width=550,height=420,left=100');
+    }, 500);
   }, [config, hash, ipfsResult, uploadedData]);
 
   // Handle IPFS upload after transaction success
@@ -248,6 +265,14 @@ export function DeploymentModal({
 
   if (!isOpen) return null;
 
+  // Inject keyframes
+  if (typeof document !== 'undefined' && !document.getElementById('spin3d-keyframes')) {
+    const style = document.createElement('style');
+    style.id = 'spin3d-keyframes';
+    style.textContent = rotateKeyframes;
+    document.head.appendChild(style);
+  }
+
   // Get display values for success screen
   const tokenType = TOKEN_TYPE_LABELS[config?.tokenType] || 'ERC-721';
   const license = LICENSE_LABELS[config?.licenseVersion] || 'Commercial';
@@ -256,7 +281,7 @@ export function DeploymentModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-      <div className="bg-gray-900 rounded-2xl max-w-lg w-full p-6 sm:p-8 relative border border-gray-700 shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-gray-900 rounded-2xl max-w-2xl w-full p-6 sm:p-8 relative border border-gray-700 shadow-2xl max-h-[90vh] overflow-y-auto">
         
         {/* Close Button (X) - Always visible except during IPFS upload */}
         {stage !== 'ipfs' && (
@@ -339,8 +364,10 @@ export function DeploymentModal({
         {/* Success Stage */}
         {stage === 'success' && (
           <div className="text-center">
-            <div className="flex justify-center mb-4">
+            <div className="flex justify-center mb-4 animate-spin-slow">
+              <div style={{ animation: 'spin3d 3s ease-in-out infinite' }}>
               <Checkmark3D size={96} />
+            </div>
             </div>
             <h2 className="text-3xl font-bold mb-2 text-green-400">🎉 Successful Deployment!</h2>
             <p className="text-gray-400 mb-6">Your NFT collection is now live on <span className="text-red-400 font-medium">Optimism</span></p>
