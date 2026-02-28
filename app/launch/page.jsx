@@ -40,12 +40,34 @@ export default function LaunchPage() {
     setStep(3);
   };
 
-  const handleLaunch = async () => {
+  const handleLaunch = async (finalUploadData) => {
     try {
+      // Use the final upload data (with IPFS hashes) from LaunchPreview
+      const dataToUse = finalUploadData || uploadedData;
+      
       await createLaunch({
         ...launchConfig,
-        baseURI: uploadedData.baseURI,
+        baseURI: dataToUse.baseURI,
       });
+
+      // Track the IPFS pin with collection address after deploy
+      if (address && dataToUse.imagesHash) {
+        try {
+          await fetch('/api/ipfs/track', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              wallet: address,
+              imagesCid: dataToUse.imagesHash,
+              metadataCid: dataToUse.metadataHash,
+              // Collection address will be added after successful deploy
+            }),
+          });
+        } catch (e) {
+          console.error('Failed to update tracking:', e);
+        }
+      }
+
       setStep(4);
     } catch (err) {
       console.error('Launch failed:', err);
@@ -169,6 +191,7 @@ export default function LaunchPage() {
               onLaunch={handleLaunch}
               onBack={() => setStep(2)}
               isLoading={isLoading}
+              walletAddress={address}
             />
           )}
           
