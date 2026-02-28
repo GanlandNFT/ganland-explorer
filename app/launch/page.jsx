@@ -75,46 +75,49 @@ export default function LaunchPage() {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto py-8 px-8">
-        {/* Progress Steps */}
-        <div className="flex items-center justify-center mb-12">
-          {['Upload', 'Configure', 'Review', 'Launch'].map((label, i) => (
-            <div key={label} className="flex items-center">
-              <div className={`
-                w-10 h-10 rounded-full flex items-center justify-center font-bold
-                ${step > i + 1 ? 'bg-green-500' : step === i + 1 ? 'bg-cyan-500' : 'bg-gray-700'}
-              `}>
-                {step > i + 1 ? '✓' : i + 1}
+      <main className="max-w-6xl mx-auto py-8 px-4 sm:px-8 overflow-x-hidden">
+        {/* Progress Steps - Responsive */}
+        <div className="flex items-center justify-center mb-8 sm:mb-12 overflow-x-auto pb-2">
+          <div className="flex items-center min-w-max sm:min-w-0">
+            {['Upload', 'Configure', 'Review', 'Launch'].map((label, i) => (
+              <div key={label} className="flex items-center">
+                <div className={`
+                  w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold text-sm sm:text-base flex-shrink-0
+                  ${step > i + 1 ? 'bg-green-500' : step === i + 1 ? 'bg-cyan-500' : 'bg-gray-700'}
+                `}>
+                  {step > i + 1 ? '✓' : i + 1}
+                </div>
+                <span className={`ml-1 sm:ml-2 text-xs sm:text-base whitespace-nowrap ${step === i + 1 ? 'text-cyan-400' : 'text-gray-500'}`}>
+                  <span className="hidden sm:inline">{label}</span>
+                  <span className="sm:hidden">{label.slice(0, 3)}</span>
+                </span>
+                {i < 3 && <div className="w-4 sm:w-16 h-0.5 mx-1 sm:mx-4 bg-gray-700 flex-shrink-0" />}
               </div>
-              <span className={`ml-2 ${step === i + 1 ? 'text-cyan-400' : 'text-gray-500'}`}>
-                {label}
-              </span>
-              {i < 3 && <div className="w-16 h-0.5 mx-4 bg-gray-700" />}
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
 
         {/* Step Content */}
-        <div className="bg-gray-900 rounded-2xl p-8 border border-gray-800">
-          {/* Wallet Connection Gate */}
-          {!isConnected && step < 4 && (
-            <div className="text-center py-12">
-              <div className="text-6xl mb-6">🔐</div>
-              <h2 className="text-2xl font-bold mb-4">Connect Your Wallet</h2>
-              <p className="text-gray-400 mb-6 max-w-md mx-auto">
+        <div className="bg-gray-900 rounded-2xl p-4 sm:p-8 border border-gray-800">
+          {/* Wallet Connection Gate - explicit check */}
+          {isConnected !== true && step < 4 && (
+            <div className="text-center py-8 sm:py-12">
+              <div className="text-5xl sm:text-6xl mb-4 sm:mb-6">🔐</div>
+              <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">Connect Your Wallet</h2>
+              <p className="text-gray-400 mb-4 sm:mb-6 max-w-md mx-auto text-sm sm:text-base px-4">
                 Connect your wallet to create an NFT collection on the Fractal Visions Launchpad.
               </p>
-              <p className="text-gray-500 text-sm">
-                Click "Connect Wallet" in the top right corner to get started.
+              <p className="text-gray-500 text-xs sm:text-sm">
+                Click "Connect Wallet" in the header to get started.
               </p>
             </div>
           )}
 
-          {isConnected && step === 1 && (
+          {isConnected === true && step === 1 && (
             <CollectionUploader onComplete={handleUploadComplete} />
           )}
           
-          {isConnected && step === 2 && (
+          {isConnected === true && step === 2 && (
             <LaunchpadForm 
               uploadedData={uploadedData}
               onComplete={handleConfigComplete}
@@ -124,7 +127,7 @@ export default function LaunchPage() {
             />
           )}
           
-          {isConnected && step === 3 && (
+          {isConnected === true && step === 3 && (
             <LaunchPreview
               uploadedData={uploadedData}
               config={launchConfig}
@@ -179,8 +182,8 @@ export default function LaunchPage() {
         </div>
 
         {/* My Collections Section */}
-        {isConnected && (userCollections.erc721.length > 0 || userCollections.erc1155.length > 0) && (
-          <div className="mt-12">
+        {isConnected === true && (userCollections.erc721.length > 0 || userCollections.erc1155.length > 0) && (
+          <div className="mt-8 sm:mt-12">
             <MyCollections collections={userCollections} />
           </div>
         )}
