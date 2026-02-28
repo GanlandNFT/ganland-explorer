@@ -1,9 +1,15 @@
 'use client';
 
-import { useState } from 'react';
 import { LICENSE_DESCRIPTIONS } from '@/lib/contracts/addresses';
-import { PinataClient } from '@/lib/pinata';
 
+/**
+ * LaunchPreview - Review page before deployment
+ * 
+ * Flow:
+ * 1. User reviews collection info
+ * 2. Clicks "Deploy Contract"
+ * 3. DeploymentModal handles transaction + IPFS upload + success
+ */
 export function LaunchPreview({ 
   uploadedData, 
   config, 
@@ -11,115 +17,14 @@ export function LaunchPreview({
   onLaunch, 
   onBack,
   isLoading,
-  walletAddress,
 }) {
-  const [ipfsStatus, setIpfsStatus] = useState('pending'); // pending, uploading, complete, error
-  const [ipfsProgress, setIpfsProgress] = useState(0);
-  const [ipfsResult, setIpfsResult] = useState(null);
-  const [ipfsError, setIpfsError] = useState(null);
-
   const tokenTypeLabel = config.tokenType === 0 ? 'ERC-721' : 'ERC-1155';
   const licenseLabel = Object.keys(LICENSE_DESCRIPTIONS).find(
     key => LICENSE_DESCRIPTIONS[key] === LICENSE_DESCRIPTIONS[config.licenseVersion]
   ) || 'COMMERCIAL';
 
-  const isPendingIpfs = uploadedData?.ipfsPending && ipfsStatus === 'pending';
-  const hasIpfsResult = ipfsStatus === 'complete' || !uploadedData?.ipfsPending;
-
-  // Upload to IPFS when user confirms
-  const handleIpfsUpload = async () => {
-    if (!uploadedData?.stagedFiles?.length) {
-      setIpfsError('No files to upload');
-      return;
-    }
-
-    setIpfsStatus('uploading');
-    setIpfsProgress(0);
-    setIpfsError(null);
-
-    try {
-      const apiKey = process.env.NEXT_PUBLIC_PINATA_API_KEY;
-      const secretKey = process.env.NEXT_PUBLIC_PINATA_SECRET_KEY;
-      
-      if (!apiKey || !secretKey) {
-        throw new Error('Pinata API keys not configured');
-      }
-
-      const pinata = new PinataClient(apiKey, secretKey);
-      const files = uploadedData.stagedFiles;
-      const collectionName = config.name?.replace(/[^a-zA-Z0-9]/g, '-') || `collection-${Date.now()}`;
-
-      setIpfsProgress(10);
-
-      let result;
-      if (uploadedData.uploadMode === 'full' && uploadedData.stagedMetadata?.length > 0) {
-        // User provided custom metadata
-        const imagesResult = await pinata.uploadFolder(files, `${collectionName}-images`);
-        setIpfsProgress(50);
-        
-        const metadataResult = await pinata.uploadFolder(uploadedData.stagedMetadata, `${collectionName}-metadata`);
-        setIpfsProgress(90);
-
-        result = {
-          imagesHash: imagesResult.ipfsHash,
-          metadataHash: metadataResult.ipfsHash,
-          baseURI: `ipfs://${metadataResult.ipfsHash}/${collectionName}-metadata/`,
-          totalFiles: files.length,
-        };
-      } else {
-        // Auto-generate metadata
-        result = await pinata.bulkUploadCollection({
-          imageFiles: files,
-          collectionName,
-          description: config.description || '',
-        });
-        setIpfsProgress(90);
-      }
-
-      // Track the pin in Supabase
-      if (walletAddress) {
-        try {
-          await fetch('/api/ipfs/track', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              wallet: walletAddress,
-              imagesCid: result.imagesHash,
-              metadataCid: result.metadataHash,
-              baseUri: result.baseURI,
-            }),
-          });
-        } catch (e) {
-          console.error('Failed to track pin:', e);
-        }
-      }
-
-      // Delete the draft since we've uploaded
-      if (walletAddress) {
-        try {
-          await fetch(`/api/drafts?wallet=${encodeURIComponent(walletAddress)}`, {
-            method: 'DELETE',
-          });
-        } catch (e) {
-          console.error('Failed to delete draft:', e);
-        }
-      }
-
-      setIpfsProgress(100);
-      setIpfsResult(result);
-      setIpfsStatus('complete');
-
-    } catch (err) {
-      console.error('IPFS upload error:', err);
-      setIpfsError(err.message);
-      setIpfsStatus('error');
-    }
-  };
-
-  // Handle deploy - only after IPFS is complete
   const handleDeploy = () => {
-    const finalData = ipfsResult || uploadedData;
-    onLaunch(finalData);
+    onLaunch(uploadedData);
   };
 
   return (
@@ -127,10 +32,7 @@ export function LaunchPreview({
       <div>
         <h2 className="text-2xl font-bold mb-2">Review & Launch</h2>
         <p className="text-gray-400">
-          {isPendingIpfs 
-            ? 'Confirm IPFS upload, then deploy your collection'
-            : 'Double-check everything before deploying your collection'
-          }
+          Double-check everything before deploying your collection
         </p>
       </div>
 
@@ -170,111 +72,28 @@ export function LaunchPreview({
         <DetailCard label="License" value={licenseLabel.replace(/_/g, ' ')} />
         <DetailCard label="Token Standard" value={tokenTypeLabel} />
         <DetailCard 
-          label="Files" 
+          label="Files Ready" 
           value={`${uploadedData?.totalFiles || uploadedData?.stagedFiles?.length || 0} items`} 
         />
         <DetailCard 
-          label="IPFS Status" 
-          value={
-            ipfsStatus === 'pending' ? '⏳ Pending Upload' :
-            ipfsStatus === 'uploading' ? `⬆️ ${ipfsProgress}%` :
-            ipfsStatus === 'complete' ? '✅ Uploaded' :
-            ipfsStatus === 'error' ? '❌ Error' :
-            '✅ Ready'
-          }
+          label="IPFS" 
+          value="📌 Auto-pin on deploy" 
         />
       </div>
 
-      {/* IPFS Upload Section - Show if files are staged but not uploaded */}
-      {isPendingIpfs && (
-        <div className="bg-purple-900/30 rounded-xl p-6 border border-purple-700/50">
-          <div className="flex items-start gap-4">
-            <span className="text-3xl">📤</span>
-            <div className="flex-1">
-              <h4 className="font-bold text-purple-300 mb-1">Step 1: Upload to IPFS</h4>
-              <p className="text-gray-400 text-sm mb-4">
-                Your {uploadedData?.stagedFiles?.length || 0} files are staged locally. 
-                Click below to pin them to IPFS via Pinata before deployment.
-              </p>
-              <button
-                onClick={handleIpfsUpload}
-                className="px-6 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg transition"
-              >
-                📌 Upload to IPFS
-              </button>
-            </div>
+      {/* Info: IPFS upload is automatic */}
+      <div className="bg-purple-900/20 border border-purple-700/30 rounded-xl p-4">
+        <div className="flex items-start gap-3">
+          <span className="text-2xl">📤</span>
+          <div>
+            <h4 className="font-medium text-purple-300 mb-1">Automatic IPFS Pinning</h4>
+            <p className="text-gray-400 text-sm">
+              Your {uploadedData?.stagedFiles?.length || uploadedData?.totalFiles || 0} files will be 
+              automatically pinned to IPFS after successful payment. No manual upload required!
+            </p>
           </div>
         </div>
-      )}
-
-      {/* IPFS Uploading Progress */}
-      {ipfsStatus === 'uploading' && (
-        <div className="bg-gray-800 rounded-xl p-6">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="animate-spin w-6 h-6 border-2 border-cyan-500 border-t-transparent rounded-full" />
-            <span className="font-medium">Uploading to IPFS...</span>
-          </div>
-          <div className="h-3 bg-gray-700 rounded-full overflow-hidden">
-            <div 
-              className="h-full bg-gradient-to-r from-cyan-500 to-purple-500 transition-all duration-300"
-              style={{ width: `${ipfsProgress}%` }}
-            />
-          </div>
-          <p className="text-center text-gray-400 text-sm mt-2">{ipfsProgress}% complete</p>
-        </div>
-      )}
-
-      {/* IPFS Error */}
-      {ipfsStatus === 'error' && (
-        <div className="bg-red-900/30 border border-red-700 rounded-xl p-4 text-red-400">
-          <strong>❌ Upload Failed:</strong> {ipfsError}
-          <button
-            onClick={() => setIpfsStatus('pending')}
-            className="ml-4 text-sm underline hover:no-underline"
-          >
-            Try Again
-          </button>
-        </div>
-      )}
-
-      {/* IPFS Complete - Show CIDs */}
-      {hasIpfsResult && (ipfsResult || uploadedData?.imagesHash) && (
-        <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
-          <h4 className="font-medium mb-3 flex items-center gap-2">
-            <span className="text-green-400">✓</span> IPFS Details
-          </h4>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between items-center">
-              <span className="text-gray-400">Images CID</span>
-              <a 
-                href={`https://gateway.pinata.cloud/ipfs/${ipfsResult?.imagesHash || uploadedData?.imagesHash}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-mono text-cyan-400 hover:underline truncate max-w-[200px]"
-              >
-                {(ipfsResult?.imagesHash || uploadedData?.imagesHash)?.slice(0, 20)}...
-              </a>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-gray-400">Metadata CID</span>
-              <a 
-                href={`https://gateway.pinata.cloud/ipfs/${ipfsResult?.metadataHash || uploadedData?.metadataHash}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-mono text-cyan-400 hover:underline truncate max-w-[200px]"
-              >
-                {(ipfsResult?.metadataHash || uploadedData?.metadataHash)?.slice(0, 20)}...
-              </a>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-gray-400">Base URI</span>
-              <span className="font-mono text-gray-300 truncate max-w-[200px]">
-                {ipfsResult?.baseURI || uploadedData?.baseURI || 'N/A'}
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
+      </div>
 
       {/* Cost Summary */}
       <div className="bg-gradient-to-r from-cyan-900/30 to-purple-900/30 rounded-xl p-6 border border-cyan-700/30">
@@ -305,29 +124,17 @@ export function LaunchPreview({
         <button
           type="button"
           onClick={onBack}
-          disabled={isLoading || ipfsStatus === 'uploading'}
+          disabled={isLoading}
           className="px-6 py-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition disabled:opacity-50"
         >
           ← Back
         </button>
         <button
           onClick={handleDeploy}
-          disabled={isLoading || !hasIpfsResult || ipfsStatus === 'uploading'}
-          className={`px-8 py-3 rounded-lg font-medium transition ${
-            hasIpfsResult && !isLoading
-              ? 'bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500'
-              : 'bg-gray-700 text-gray-500 cursor-not-allowed'
-          }`}
+          disabled={isLoading}
+          className="px-8 py-3 bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500 rounded-lg font-medium transition disabled:opacity-50"
         >
-          {isLoading ? (
-            <span className="flex items-center gap-2">
-              <span className="animate-spin">⏳</span> Deploying...
-            </span>
-          ) : !hasIpfsResult ? (
-            'Upload to IPFS First ↑'
-          ) : (
-            '🚀 Deploy Collection'
-          )}
+          🚀 Deploy Contract
         </button>
       </div>
     </div>

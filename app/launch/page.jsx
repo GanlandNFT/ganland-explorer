@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { LaunchpadForm } from '@/components/launch/LaunchpadForm';
 import { CollectionUploader } from '@/components/launch/CollectionUploader';
 import { LaunchPreview } from '@/components/launch/LaunchPreview';
+import { DeploymentModal } from '@/components/launch/DeploymentModal';
 import { MyCollections } from '@/components/launch/MyCollections';
 import { useLaunchpad } from '@/hooks/useLaunchpad';
 
@@ -12,6 +13,8 @@ export default function LaunchPage() {
   const [uploadedData, setUploadedData] = useState(null);
   const [launchConfig, setLaunchConfig] = useState(null);
   const [draftConfig, setDraftConfig] = useState(null); // Loaded from Supabase
+  const [showDeployModal, setShowDeployModal] = useState(false);
+  const [deploymentResult, setDeploymentResult] = useState(null);
   
   const {
     ready,
@@ -82,36 +85,35 @@ export default function LaunchPage() {
   };
 
   const handleLaunch = async (finalUploadData) => {
+    // Open the deployment modal
+    setShowDeployModal(true);
+    
     try {
-      // Use the final upload data (with IPFS hashes) from LaunchPreview
+      // Use the upload data (files will be pinned after payment)
       const dataToUse = finalUploadData || uploadedData;
       
+      // Start the contract deployment
+      // The modal will handle showing progress and IPFS upload after tx success
       await createLaunch({
         ...launchConfig,
-        baseURI: dataToUse.baseURI,
+        // baseURI will be set after IPFS upload in the modal
+        baseURI: dataToUse.baseURI || 'ipfs://pending',
       });
 
-      // Track the IPFS pin with collection address after deploy
-      if (address && dataToUse.imagesHash) {
-        try {
-          await fetch('/api/ipfs/track', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              wallet: address,
-              imagesCid: dataToUse.imagesHash,
-              metadataCid: dataToUse.metadataHash,
-              // Collection address will be added after successful deploy
-            }),
-          });
-        } catch (e) {
-          console.error('Failed to update tracking:', e);
-        }
-      }
-
-      setStep(4);
     } catch (err) {
       console.error('Launch failed:', err);
+    }
+  };
+
+  const handleDeploymentComplete = (result) => {
+    setDeploymentResult(result);
+  };
+
+  const handleModalClose = () => {
+    setShowDeployModal(false);
+    if (isSuccess) {
+      // Reset to show success state
+      setStep(4);
     }
   };
 
@@ -120,6 +122,20 @@ export default function LaunchPage() {
 
   return (
     <div className="min-h-screen bg-gray-950 text-white flex flex-col">
+      {/* Deployment Modal */}
+      <DeploymentModal
+        isOpen={showDeployModal}
+        onClose={handleModalClose}
+        config={launchConfig}
+        uploadedData={uploadedData}
+        walletAddress={address}
+        hash={hash}
+        isLoading={isLoading}
+        isSuccess={isSuccess}
+        error={error}
+        onComplete={handleDeploymentComplete}
+      />
+
       {/* Header */}
       <header className="border-b border-gray-800 py-3 sm:py-6 px-4 sm:px-8">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
@@ -233,50 +249,98 @@ export default function LaunchPage() {
               onLaunch={handleLaunch}
               onBack={() => setStep(2)}
               isLoading={isLoading}
-              walletAddress={address}
             />
           )}
           
-          {/* Step 4: Launch result */}
-          {step === 4 && (
+          {/* Step 4: Final success page (after modal closes) */}
+          {step === 4 && deploymentResult && (
             <div className="text-center py-12">
-              {isLoading && (
-                <div>
-                  <div className="animate-spin w-16 h-16 border-4 border-cyan-500 border-t-transparent rounded-full mx-auto mb-6" />
-                  <h2 className="text-2xl font-bold mb-2">Deploying Collection...</h2>
-                  <p className="text-gray-400">Please confirm the transaction in your wallet</p>
-                </div>
-              )}
-              
-              {isSuccess && (
-                <div>
-                  <div className="text-6xl mb-6">🎉</div>
-                  <h2 className="text-2xl font-bold mb-2 text-green-400">Collection Deployed!</h2>
-                  <p className="text-gray-400 mb-6">Your NFT collection is now live on Optimism</p>
-                  <a 
-                    href={`https://optimistic.etherscan.io/tx/${hash}`}
+              <div className="text-6xl mb-6">🎉</div>
+              <h2 className="text-2xl font-bold mb-2 text-green-400">Collection Deployed!</h2>
+              <p className="text-gray-400 mb-6">Your NFT collection is now live on Optimism</p>
+
+              {/* Links */}
+              <div className="max-w-md mx-auto bg-gray-800/50 rounded-xl p-4 mb-6 text-left space-y-3">
+                {deploymentResult.txHash && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400 text-sm">Transaction</span>
+                    <a
+                      href={`https://optimistic.etherscan.io/tx/${deploymentResult.txHash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-cyan-400 hover:underline text-sm"
+                    >
+                      View on Etherscan ↗
+                    </a>
+                  </div>
+                )}
+                {deploymentResult.imagesHash && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400 text-sm">Images (IPFS)</span>
+                    <a
+                      href={`https://gateway.pinata.cloud/ipfs/${deploymentResult.imagesHash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-cyan-400 hover:underline text-sm"
+                    >
+                      View on IPFS ↗
+                    </a>
+                  </div>
+                )}
+                {deploymentResult.metadataHash && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400 text-sm">Metadata (IPFS)</span>
+                    <a
+                      href={`https://gateway.pinata.cloud/ipfs/${deploymentResult.metadataHash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-cyan-400 hover:underline text-sm"
+                    >
+                      View on IPFS ↗
+                    </a>
+                  </div>
+                )}
+              </div>
+
+              {/* Listing CTA */}
+              <div className="max-w-md mx-auto bg-gradient-to-r from-cyan-900/30 to-purple-900/30 rounded-xl p-4 border border-cyan-700/30 mb-6">
+                <p className="text-sm text-gray-300 mb-3">
+                  🎨 Want your collection listed on <strong>Fractal Visions</strong> marketplace?
+                </p>
+                <div className="flex flex-wrap justify-center gap-3">
+                  <a
+                    href="https://x.com/ganlandnft"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-cyan-400 hover:underline"
+                    className="px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-sm transition"
                   >
-                    View Transaction →
+                    Contact @ganlandnft
+                  </a>
+                  <a
+                    href="https://x.com/fractal_visions"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-sm transition"
+                  >
+                    Contact @fractal_visions
                   </a>
                 </div>
-              )}
-              
-              {error && (
-                <div>
-                  <div className="text-6xl mb-6">❌</div>
-                  <h2 className="text-2xl font-bold mb-2 text-red-400">Launch Failed</h2>
-                  <p className="text-gray-400 mb-6">{error}</p>
-                  <button
-                    onClick={() => setStep(3)}
-                    className="px-6 py-3 bg-gray-700 hover:bg-gray-600 rounded-lg"
-                  >
-                    Try Again
-                  </button>
-                </div>
-              )}
+                <p className="text-xs text-gray-500 mt-2">
+                  Visit <a href="https://fractalvisions.io" className="text-cyan-400 hover:underline">fractalvisions.io</a> 🍄🎨
+                </p>
+              </div>
+
+              <button
+                onClick={() => {
+                  setStep(1);
+                  setUploadedData(null);
+                  setLaunchConfig(null);
+                  setDeploymentResult(null);
+                }}
+                className="px-6 py-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition"
+              >
+                Launch Another Collection
+              </button>
             </div>
           )}
           </div>
