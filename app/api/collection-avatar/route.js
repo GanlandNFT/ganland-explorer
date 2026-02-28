@@ -3,11 +3,16 @@ import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
 
+// Lazy init Supabase with fallback env vars
 function getSupabase() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_KEY
-  );
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://qeubpfvvmfgdvjxlvmwh.supabase.co';
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY || '';
+  
+  if (!key) {
+    console.error('No Supabase service key found in environment');
+  }
+  
+  return createClient(url, key);
 }
 
 // GET - fetch avatar for a collection
@@ -66,7 +71,10 @@ export async function POST(request) {
 
     if (error) {
       console.error('Error storing avatar:', error);
-      return NextResponse.json({ error: 'Failed to store avatar' }, { status: 500 });
+      return NextResponse.json({ 
+        error: `Failed to store avatar: ${error.message || error.code || 'Unknown error'}`,
+        details: error 
+      }, { status: 500 });
     }
 
     return NextResponse.json({ success: true, data });

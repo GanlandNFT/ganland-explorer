@@ -1041,48 +1041,32 @@ export default function CreatorDashboard() {
                   setError(null);
                   
                   try {
-                    let finalCid = avatarCid;
+                    // Use API route for upload (handles IPFS + Supabase)
+                    const formData = new FormData();
+                    formData.append('collectionAddress', selectedCollection.address);
+                    formData.append('creatorWallet', address || '');
                     
-                    // Upload file to IPFS if provided
                     if (avatarFile) {
-                      const formData = new FormData();
                       formData.append('file', avatarFile);
-                      formData.append('name', `${selectedCollection.name}-avatar`);
-                      
-                      // Use Pinata API directly
-                      const pinataRes = await fetch('https://api.pinata.cloud/pinning/pinFileToIPFS', {
-                        method: 'POST',
-                        headers: {
-                          'pinata_api_key': process.env.NEXT_PUBLIC_PINATA_API_KEY,
-                          'pinata_secret_api_key': process.env.NEXT_PUBLIC_PINATA_SECRET_KEY,
-                        },
-                        body: formData,
-                      });
-                      
-                      if (!pinataRes.ok) throw new Error('Failed to upload to IPFS');
-                      const pinataData = await pinataRes.json();
-                      finalCid = pinataData.IpfsHash;
+                    } else if (avatarCid) {
+                      formData.append('existingCid', avatarCid);
                     }
                     
-                    // Save to Supabase
-                    const res = await fetch('/api/collection-avatar', {
+                    const res = await fetch('/api/upload-avatar', {
                       method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        collectionAddress: selectedCollection.address,
-                        ipfsCid: finalCid,
-                        creatorWallet: address,
-                      }),
+                      body: formData,
                     });
                     
-                    if (!res.ok) throw new Error('Failed to save avatar');
+                    const result = await res.json();
                     
-                    const avatarUrl = `https://gateway.pinata.cloud/ipfs/${finalCid}`;
+                    if (!res.ok) {
+                      throw new Error(result.error || 'Failed to save avatar');
+                    }
                     
                     // Update local state
                     setCollections(prev => prev.map(c => 
                       c.address === selectedCollection.address 
-                        ? { ...c, avatar: avatarUrl }
+                        ? { ...c, avatar: result.avatarUrl }
                         : c
                     ));
                     
