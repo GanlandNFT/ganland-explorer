@@ -5,6 +5,7 @@ import { usePrivy, useWallets } from '@privy-io/react-auth';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract, useSwitchChain, useChainId } from 'wagmi';
 import { parseEther, formatEther, encodeFunctionData, createPublicClient, http } from 'viem';
 import { optimism } from 'viem/chains';
+import { BrowserProvider } from 'ethers';  // ✅ Added for Privy SDK v3
 
 // Public client for balance fetching
 const publicClient = createPublicClient({
@@ -142,18 +143,18 @@ export function useLaunchpad() {
    * Switch wallet to Optimism network
    */
   const switchToOptimism = useCallback(async () => {
-    if (!switchChain) return;
+    if (!embeddedWallet) return;
     try {
-      await switchChain({ chainId: REQUIRED_CHAIN_ID });
+      await embeddedWallet.switchChain(REQUIRED_CHAIN_ID);
     } catch (err) {
-      setError('Failed to switch to Optimism. Please switch manually in your wallet.');
+      setError('Failed to switch to Optimism. Please try again.');
       throw err;
     }
-  }, [switchChain]);
+  }, [embeddedWallet]);
 
   /**
    * Create a new NFT collection launch
-   * @param {Object} params - Launch parameters
+   * Uses Privy embedded wallet DIRECTLY (not wagmi)
    */
   const createLaunch = useCallback(async ({
     name,
@@ -172,26 +173,24 @@ export function useLaunchpad() {
     if (!isConnected) {
       throw new Error('Wallet not connected');
     }
-    
-    // CRITICAL: Ensure we're on Optimism before deployment
-    if (!isOnOptimism) {
-      throw new Error('Please switch to Optimism network before deploying');
-    }
 
     setIsLoading(true);
     setError(null);
+    setTxHash(null);
+    setTxSuccess(false);
 
     try {
       // Calculate fee (0 if authorized)
       const fee = isAuthorized ? 0n : BigInt(platformFee || PLATFORM_FEE);
 
-      // CRITICAL: Use embedded wallet DIRECTLY - not wagmi which uses MetaMask
       // Switch embedded wallet to Optimism first
       await embeddedWallet.switchChain(REQUIRED_CHAIN_ID);
       
-      // Get provider from embedded wallet
-      const provider = await embeddedWallet.getEthersProvider();
-      const signer = provider.getSigner();
+      // ✅ FIXED: Use new Privy SDK v3 method
+      // getEthersProvider() is deprecated → use getEthereumProvider() + BrowserProvider
+      const ethereumProvider = await embeddedWallet.getEthereumProvider();
+      const provider = new BrowserProvider(ethereumProvider);
+      const signer = await provider.getSigner();  // Note: await required in ethers v6
       
       // Encode the createLaunch function call
       const data = encodeCreateLaunch(
@@ -208,7 +207,7 @@ export function useLaunchpad() {
       const tx = await signer.sendTransaction({
         to: launchpadAddress,
         data: data,
-        value: fee.toString(),
+        value: fee,  // BigInt works directly in ethers v6
       });
       
       console.log('Transaction sent from embedded wallet:', tx.hash);
@@ -231,7 +230,7 @@ export function useLaunchpad() {
       setTxSuccess(false);
       throw err;
     }
-  }, [isConnected, isOnOptimism, hasEmbeddedWallet, isAuthorized, platformFee, launchpadAddress, embeddedWallet]);
+  }, [isConnected, hasEmbeddedWallet, isAuthorized, platformFee, launchpadAddress, embeddedWallet]);
 
   /**
    * Get launch info by ID
