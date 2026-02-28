@@ -126,19 +126,26 @@ export default function CreatorDashboard() {
                 publicClient.readContract({ address: addr, abi: NFT_ABI, functionName: 'totalSupply' }).catch(() => 0n)
               ]);
               
-              // Try to get contract URI for avatar
+              // Try to get avatar - first from our API, then from contractURI
               let avatar = null;
               try {
-                const contractUri = await publicClient.readContract({ address: addr, abi: NFT_ABI, functionName: 'contractURI' });
-                if (contractUri) {
-                  // Fetch metadata from IPFS
-                  const metadataUrl = contractUri.replace('ipfs://', 'https://gateway.pinata.cloud/ipfs/');
-                  const res = await fetch(metadataUrl);
-                  const metadata = await res.json();
-                  avatar = metadata.image?.replace('ipfs://', 'https://gateway.pinata.cloud/ipfs/');
+                // 1. Try our Supabase API first
+                const avatarRes = await fetch(`/api/collection-avatar?address=${addr}`);
+                const avatarData = await avatarRes.json();
+                if (avatarData.avatar) {
+                  avatar = avatarData.avatar;
+                } else {
+                  // 2. Fallback: try contractURI
+                  const contractUri = await publicClient.readContract({ address: addr, abi: NFT_ABI, functionName: 'contractURI' });
+                  if (contractUri) {
+                    const metadataUrl = contractUri.replace('ipfs://', 'https://gateway.pinata.cloud/ipfs/');
+                    const res = await fetch(metadataUrl);
+                    const metadata = await res.json();
+                    avatar = metadata.image?.replace('ipfs://', 'https://gateway.pinata.cloud/ipfs/');
+                  }
                 }
               } catch (e) {
-                console.log('No contractURI for', addr);
+                console.log('No avatar found for', addr);
               }
 
               return {

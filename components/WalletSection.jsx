@@ -40,28 +40,56 @@ export default function WalletSection() {
     }
   }, [walletAddress]);
 
-  // Fetch NFTs when switching to NFT view
+  // Fetch NFTs when switching to NFT view or changing chain
   useEffect(() => {
-    if (viewMode === 'nfts' && walletAddress && nfts.length === 0) {
-      fetchNfts(walletAddress);
+    if (viewMode === 'nfts' && walletAddress) {
+      fetchNfts(walletAddress, selectedChain);
     }
-  }, [viewMode, walletAddress]);
+  }, [viewMode, walletAddress, selectedChain]);
 
-  async function fetchNfts(address) {
+  async function fetchNfts(address, chain) {
     setLoadingNfts(true);
+    setNfts([]); // Clear previous NFTs when chain changes
+    
+    // Alchemy NFT API endpoints by chain
+    const alchemyEndpoints = {
+      8453: 'https://base-mainnet.g.alchemy.com/nft/v3/ThO48tmVpneJP9OB8I4-3ucrNYBrZ2tU',
+      10: 'https://opt-mainnet.g.alchemy.com/nft/v3/ThO48tmVpneJP9OB8I4-3ucrNYBrZ2tU',
+      1: 'https://eth-mainnet.g.alchemy.com/nft/v3/ThO48tmVpneJP9OB8I4-3ucrNYBrZ2tU',
+    };
+    
+    const endpoint = alchemyEndpoints[chain.id];
+    
+    if (!endpoint) {
+      // For chains without Alchemy support, try to fetch from Launchpad contracts
+      if (chain.id === 10) {
+        // Optimism - check our Launchpad collections
+        try {
+          const launchpadRes = await fetch(`/api/user-nfts?wallet=${address}&chain=optimism`);
+          const launchpadData = await launchpadRes.json();
+          if (launchpadData.nfts) {
+            setNfts(launchpadData.nfts);
+          }
+        } catch (e) {
+          console.log('Launchpad NFT fetch failed:', e);
+        }
+      }
+      setLoadingNfts(false);
+      return;
+    }
+    
     try {
-      // Try Alchemy NFT API for Base
-      const res = await fetch(`https://base-mainnet.g.alchemy.com/nft/v3/ThO48tmVpneJP9OB8I4-3ucrNYBrZ2tU/getNFTsForOwner?owner=${address}&withMetadata=true&pageSize=20`);
+      const res = await fetch(`${endpoint}/getNFTsForOwner?owner=${address}&withMetadata=true&pageSize=20`);
       const data = await res.json();
       if (data.ownedNfts) {
         setNfts(data.ownedNfts.map(nft => ({
           id: `${nft.contract.address}-${nft.tokenId}`,
           name: nft.name || nft.title || `#${nft.tokenId}`,
-          image: nft.image?.thumbnailUrl || nft.image?.cachedUrl || nft.raw?.metadata?.image || '/gan-logo.jpg',
+          image: nft.image?.thumbnailUrl || nft.image?.cachedUrl || nft.raw?.metadata?.image?.replace('ipfs://', 'https://gateway.pinata.cloud/ipfs/') || '/gan-logo.jpg',
           collection: nft.contract.name || 'Unknown',
           tokenId: nft.tokenId,
           contract: nft.contract.address,
-          chain: 'base'
+          chain: chain.name.toLowerCase()
         })));
       }
     } catch (e) {
