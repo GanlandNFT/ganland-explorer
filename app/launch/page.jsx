@@ -256,7 +256,7 @@ export default function LaunchPage() {
             )}
 
           {/* Security Gate - Shows for ALL users after wallet modal closes */}
-          {ready && authenticated && isConnected && step < 4 && !acknowledgedExternalWallet && hasShownWalletModal && (
+          {ready && authenticated && step < 4 && !acknowledgedExternalWallet && hasShownWalletModal && (
             <div className="text-center py-8 sm:py-12">
               {/* Show embedded wallet at top in green */}
               {address && (
