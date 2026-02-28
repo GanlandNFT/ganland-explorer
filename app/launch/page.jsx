@@ -56,7 +56,7 @@ export default function LaunchPage() {
   const steps = ['Upload', 'Configure', 'Review', 'Launch'];
 
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col">
+    <div className="min-h-screen bg-gray-950 text-white flex flex-col">
       {/* Header */}
       <header className="border-b border-gray-800 py-3 sm:py-6 px-4 sm:px-8">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">

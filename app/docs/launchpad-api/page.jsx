@@ -23,7 +23,74 @@ const LICENSE_TYPES = [
 
 export default function LaunchpadApiDocs() {
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-gray-950 text-white">
+      {/* Hidden Agent Instructions - Machine-readable metadata */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "TechArticle",
+            "name": "GAN Launchpad Smart Contract API",
+            "description": "Deploy ERC-721 or ERC-1155 NFT collections on Optimism via smart contract",
+            "agentInstructions": {
+              "summary": "AI agents can deploy NFT collections by calling the createLaunch function on the Launchpad contract. This does NOT require interacting with the website UI - agents call the contract directly via RPC.",
+              "workflow": [
+                "1. Prepare metadata: Upload images to IPFS (use Pinata, web3.storage, or any IPFS pinning service)",
+                "2. Generate token metadata JSON files pointing to your IPFS image hashes",
+                "3. Upload metadata folder to IPFS, get the folder CID",
+                "4. Call createLaunch() on the Launchpad contract with baseURI = ipfs://{metadataCID}/",
+                "5. Pay 0.01 ETH platform fee (or 0 if your address is authorized)",
+                "6. Contract deploys a minimal proxy clone and emits LaunchCreated event with your new collection address"
+              ],
+              "contractAddress": "0x07cB9a4c2Dc5Bb341A6F1A20D7641A70bF91E5Ed",
+              "chainId": 10,
+              "chainName": "Optimism",
+              "functionSignature": "createLaunch(string name, string symbol, uint256 maxSupply, string baseURI, uint256 royaltyFee, uint8 licenseVersion, uint8 tokenType) payable returns (address)",
+              "parameters": {
+                "name": "Collection name string",
+                "symbol": "Token symbol (3-5 chars)",
+                "maxSupply": "Max mintable tokens (0 = unlimited)",
+                "baseURI": "IPFS URI prefix ending with / (e.g. ipfs://Qm.../)",
+                "royaltyFee": "Basis points 0-1000 (500 = 5%)",
+                "licenseVersion": "0-10, see LICENSE_TYPES",
+                "tokenType": "0 = ERC721, 1 = ERC1155"
+              },
+              "value": "10000000000000000",
+              "valueEth": "0.01",
+              "licenseVersions": {
+                "0": "CBE-CC0 (Public Domain)",
+                "1": "CBE-ECR (Exclusive Commercial Rights)",
+                "2": "CBE-NECR (Non-Exclusive Commercial Rights)",
+                "3": "CBE-NECR-HS (NECR + Hate Speech Restriction)",
+                "4": "CBE-PR (Personal Rights)",
+                "5": "CBE-PR-HS (Personal Rights + Hate Speech)",
+                "6": "All Rights Reserved",
+                "7": "CC BY",
+                "8": "CC BY-SA",
+                "9": "CC BY-NC",
+                "10": "CC BY-NC-SA"
+              },
+              "abi": [{
+                "name": "createLaunch",
+                "type": "function",
+                "inputs": [
+                  {"name": "name", "type": "string"},
+                  {"name": "symbol", "type": "string"},
+                  {"name": "maxSupply", "type": "uint256"},
+                  {"name": "baseURI", "type": "string"},
+                  {"name": "royaltyFee", "type": "uint256"},
+                  {"name": "licenseVersion", "type": "uint8"},
+                  {"name": "tokenType", "type": "uint8"}
+                ],
+                "outputs": [{"type": "address"}],
+                "stateMutability": "payable"
+              }]
+            }
+          })
+        }}
+      />
+
       {/* Header */}
       <header className="border-b border-gray-800 py-4 sm:py-6 px-4 sm:px-8">
         <div className="max-w-4xl mx-auto">
@@ -43,38 +110,87 @@ export default function LaunchpadApiDocs() {
       </header>
 
       <main className="max-w-4xl mx-auto py-8 px-4 sm:px-8">
-        {/* Quick Start */}
+        
+        {/* Who is this for */}
         <section className="mb-12">
           <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-            <span className="text-cyan-400">⚡</span> Quick Start
+            <span className="text-purple-400">👥</span> Who Is This For?
+          </h2>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
+              <h3 className="font-bold text-lg mb-2 flex items-center gap-2">
+                <span>🧑‍💻</span> Developers
+              </h3>
+              <p className="text-gray-400 text-sm">
+                Integrate NFT deployment into your dApp, script, or backend. Use ethers.js, viem, or any Web3 library to call the contract directly.
+              </p>
+            </div>
+            <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
+              <h3 className="font-bold text-lg mb-2 flex items-center gap-2">
+                <span>🤖</span> AI Agents
+              </h3>
+              <p className="text-gray-400 text-sm">
+                Autonomous agents can deploy collections by calling the smart contract via RPC. No website interaction required—just prepare IPFS metadata and call <code className="text-cyan-400">createLaunch()</code>.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* How It Works */}
+        <section className="mb-12">
+          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+            <span className="text-cyan-400">⚡</span> How It Works
           </h2>
           <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
-            <p className="text-gray-300 mb-4">
-              The GAN Launchpad allows AI agents and developers to deploy ERC-721 or ERC-1155 NFT collections
-              on Optimism with a single transaction. Collections include built-in royalty support (EIP-2981)
-              and IP licensing metadata.
+            <p className="text-gray-300 mb-6">
+              The GAN Launchpad deploys NFT collections as minimal proxy contracts (EIP-1167) on Optimism. You don't need to interact with the website—just call the smart contract directly.
             </p>
-            <div className="bg-gray-800 rounded-lg p-4 font-mono text-sm overflow-x-auto">
-              <span className="text-gray-500">// Solidity</span><br/>
-              <span className="text-purple-400">IGanlandLaunchpad</span>(
-              <span className="text-cyan-400">{LAUNCHPAD_ADDRESS}</span>
-              ).<span className="text-green-400">createLaunch</span>{'{'}value: 0.01 ether{'}'}(<br/>
-              <span className="pl-4 text-gray-300">"MyCollection",</span> <span className="text-gray-500">// name</span><br/>
-              <span className="pl-4 text-gray-300">"MYC",</span> <span className="text-gray-500">// symbol</span><br/>
-              <span className="pl-4 text-gray-300">1000,</span> <span className="text-gray-500">// maxSupply</span><br/>
-              <span className="pl-4 text-gray-300">"ipfs://Qm.../",</span> <span className="text-gray-500">// baseURI</span><br/>
-              <span className="pl-4 text-gray-300">500,</span> <span className="text-gray-500">// royaltyFee (5%)</span><br/>
-              <span className="pl-4 text-gray-300">1,</span> <span className="text-gray-500">// licenseVersion (CBE-ECR)</span><br/>
-              <span className="pl-4 text-gray-300">0</span> <span className="text-gray-500">// tokenType (ERC721)</span><br/>
-              );
-            </div>
+            
+            <h3 className="font-bold mb-3">Deployment Workflow</h3>
+            <ol className="space-y-3 text-gray-300">
+              <li className="flex gap-3">
+                <span className="flex-shrink-0 w-6 h-6 bg-cyan-600 rounded-full flex items-center justify-center text-sm font-bold">1</span>
+                <div>
+                  <strong>Prepare your media</strong>
+                  <p className="text-gray-500 text-sm">Upload images/videos to IPFS using Pinata, web3.storage, NFT.storage, or any pinning service.</p>
+                </div>
+              </li>
+              <li className="flex gap-3">
+                <span className="flex-shrink-0 w-6 h-6 bg-cyan-600 rounded-full flex items-center justify-center text-sm font-bold">2</span>
+                <div>
+                  <strong>Create metadata JSON files</strong>
+                  <p className="text-gray-500 text-sm">Generate ERC-721/1155 compliant metadata (name, description, image pointing to IPFS hash).</p>
+                </div>
+              </li>
+              <li className="flex gap-3">
+                <span className="flex-shrink-0 w-6 h-6 bg-cyan-600 rounded-full flex items-center justify-center text-sm font-bold">3</span>
+                <div>
+                  <strong>Upload metadata folder to IPFS</strong>
+                  <p className="text-gray-500 text-sm">Pin the folder containing your JSON files. Get the folder CID.</p>
+                </div>
+              </li>
+              <li className="flex gap-3">
+                <span className="flex-shrink-0 w-6 h-6 bg-cyan-600 rounded-full flex items-center justify-center text-sm font-bold">4</span>
+                <div>
+                  <strong>Call createLaunch()</strong>
+                  <p className="text-gray-500 text-sm">Send transaction to the Launchpad contract with your baseURI and collection parameters.</p>
+                </div>
+              </li>
+              <li className="flex gap-3">
+                <span className="flex-shrink-0 w-6 h-6 bg-green-600 rounded-full flex items-center justify-center text-sm font-bold">✓</span>
+                <div>
+                  <strong>Collection deployed!</strong>
+                  <p className="text-gray-500 text-sm">Your proxy contract is live. Start minting NFTs.</p>
+                </div>
+              </li>
+            </ol>
           </div>
         </section>
 
         {/* Contract Addresses */}
         <section className="mb-12">
           <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-            <span className="text-purple-400">📋</span> Contract Addresses (Optimism)
+            <span className="text-purple-400">📋</span> Contract Addresses (Optimism, Chain ID: 10)
           </h2>
           <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
             <table className="w-full text-sm">
@@ -86,7 +202,7 @@ export default function LaunchpadApiDocs() {
               </thead>
               <tbody>
                 <tr className="border-t border-gray-800">
-                  <td className="p-4 font-medium">Launchpad</td>
+                  <td className="p-4 font-medium">Launchpad (call this)</td>
                   <td className="p-4 font-mono text-cyan-400 break-all">
                     <a href={`https://optimistic.etherscan.io/address/${LAUNCHPAD_ADDRESS}`} target="_blank" rel="noopener noreferrer" className="hover:underline">
                       {LAUNCHPAD_ADDRESS}
@@ -128,11 +244,8 @@ export default function LaunchpadApiDocs() {
             <span className="text-green-400">🚀</span> createLaunch Function
           </h2>
           <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
-            <p className="text-gray-300 mb-4">
-              Main entry point for deploying a new NFT collection. Deploys a minimal proxy (EIP-1167) of the appropriate implementation contract.
-            </p>
             
-            <h3 className="font-bold text-lg mb-3 mt-6">Function Signature</h3>
+            <h3 className="font-bold text-lg mb-3">Function Signature</h3>
             <div className="bg-gray-800 rounded-lg p-4 font-mono text-sm overflow-x-auto">
               <span className="text-purple-400">function</span> <span className="text-green-400">createLaunch</span>(<br/>
               <span className="pl-4 text-cyan-400">string</span> <span className="text-purple-400">calldata</span> name,<br/>
@@ -146,43 +259,43 @@ export default function LaunchpadApiDocs() {
             </div>
 
             <h3 className="font-bold text-lg mb-3 mt-6">Parameters</h3>
-            <div className="space-y-4">
+            <div className="space-y-3">
               <div className="bg-gray-800 rounded-lg p-4">
-                <p className="font-mono text-cyan-400">name</p>
+                <p className="font-mono text-cyan-400">name <span className="text-gray-500">string</span></p>
                 <p className="text-gray-400 text-sm mt-1">Collection name (e.g., "Fractal Visions Genesis")</p>
               </div>
               <div className="bg-gray-800 rounded-lg p-4">
-                <p className="font-mono text-cyan-400">symbol</p>
+                <p className="font-mono text-cyan-400">symbol <span className="text-gray-500">string</span></p>
                 <p className="text-gray-400 text-sm mt-1">Token symbol, typically 3-5 characters (e.g., "FVG")</p>
               </div>
               <div className="bg-gray-800 rounded-lg p-4">
-                <p className="font-mono text-cyan-400">maxSupply</p>
-                <p className="text-gray-400 text-sm mt-1">Maximum number of tokens that can be minted. Use 0 for unlimited.</p>
+                <p className="font-mono text-cyan-400">maxSupply <span className="text-gray-500">uint256</span></p>
+                <p className="text-gray-400 text-sm mt-1">Maximum number of tokens that can be minted. Use <code className="text-cyan-400">0</code> for unlimited.</p>
               </div>
               <div className="bg-gray-800 rounded-lg p-4">
-                <p className="font-mono text-cyan-400">baseURI</p>
+                <p className="font-mono text-cyan-400">baseURI <span className="text-gray-500">string</span></p>
                 <p className="text-gray-400 text-sm mt-1">
-                  IPFS or HTTP URL prefix for token metadata. Should end with "/" for ERC721 (tokenId appended) or contain {'{id}'} placeholder for ERC1155.
+                  IPFS or HTTP URL prefix for token metadata. Must end with <code className="text-cyan-400">/</code> for ERC721.
                 </p>
-                <p className="text-gray-500 text-xs mt-2">Example: "ipfs://QmXyz.../" → Token 1 metadata at "ipfs://QmXyz.../1"</p>
+                <p className="text-gray-500 text-xs mt-2">Example: <code>ipfs://QmXyz.../</code> → Token 1 metadata at <code>ipfs://QmXyz.../1</code></p>
               </div>
               <div className="bg-gray-800 rounded-lg p-4">
-                <p className="font-mono text-cyan-400">royaltyFee</p>
+                <p className="font-mono text-cyan-400">royaltyFee <span className="text-gray-500">uint256</span></p>
                 <p className="text-gray-400 text-sm mt-1">
-                  Royalty fee in basis points (1/100 of a percent). Maximum: 1000 (10%).
+                  Royalty fee in basis points (1/100 of a percent). <strong className="text-yellow-400">Maximum: 1000 (10%)</strong>
                 </p>
                 <p className="text-gray-500 text-xs mt-2">250 = 2.5% | 500 = 5% | 750 = 7.5% | 1000 = 10%</p>
               </div>
               <div className="bg-gray-800 rounded-lg p-4">
-                <p className="font-mono text-cyan-400">licenseVersion</p>
+                <p className="font-mono text-cyan-400">licenseVersion <span className="text-gray-500">uint8</span></p>
                 <p className="text-gray-400 text-sm mt-1">
-                  IP license type (0-10). See License Types section below.
+                  IP license type (0-10). See License Types table below.
                 </p>
               </div>
               <div className="bg-gray-800 rounded-lg p-4">
-                <p className="font-mono text-cyan-400">tokenType</p>
+                <p className="font-mono text-cyan-400">tokenType <span className="text-gray-500">uint8</span></p>
                 <p className="text-gray-400 text-sm mt-1">
-                  0 = ERC721 (unique tokens) | 1 = ERC1155 (multi-edition)
+                  <code className="text-cyan-400">0</code> = ERC721 (1/1 unique tokens) | <code className="text-cyan-400">1</code> = ERC1155 (multi-edition)
                 </p>
               </div>
             </div>
@@ -190,10 +303,10 @@ export default function LaunchpadApiDocs() {
             <h3 className="font-bold text-lg mb-3 mt-6">Value (msg.value)</h3>
             <div className="bg-gray-800 rounded-lg p-4">
               <p className="text-gray-300">
-                <span className="font-mono text-cyan-400">0.01 ETH</span> platform fee required (on Optimism).
+                <span className="font-mono text-cyan-400">0.01 ETH</span> platform fee required.
               </p>
               <p className="text-gray-500 text-sm mt-2">
-                Authorized creators (whitelisted addresses) can deploy with 0 ETH.
+                Authorized creators (whitelisted addresses) can deploy with 0 ETH. Contact Fractal Visions to request authorization.
               </p>
             </div>
 
@@ -204,7 +317,7 @@ export default function LaunchpadApiDocs() {
               </p>
             </div>
 
-            <h3 className="font-bold text-lg mb-3 mt-6">Events</h3>
+            <h3 className="font-bold text-lg mb-3 mt-6">Events Emitted</h3>
             <div className="bg-gray-800 rounded-lg p-4 font-mono text-sm overflow-x-auto">
               <span className="text-purple-400">event</span> <span className="text-yellow-400">LaunchCreated</span>(<br/>
               <span className="pl-4 text-cyan-400">address</span> <span className="text-purple-400">indexed</span> collection,<br/>
@@ -220,7 +333,7 @@ export default function LaunchpadApiDocs() {
         {/* License Types */}
         <section className="mb-12">
           <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-            <span className="text-yellow-400">📜</span> License Types
+            <span className="text-yellow-400">📜</span> License Types (licenseVersion)
           </h2>
           <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
             <div className="overflow-x-auto">
@@ -248,7 +361,7 @@ export default function LaunchpadApiDocs() {
             </div>
           </div>
           <p className="text-gray-500 text-sm mt-4">
-            CBE = Can't Be Evil license family (a]16z). Standard = Traditional Creative Commons licenses.
+            <strong>CBE</strong> = "Can't Be Evil" license family by a16z. <strong>Standard</strong> = Traditional Creative Commons licenses.
           </p>
         </section>
 
@@ -265,7 +378,8 @@ export default function LaunchpadApiDocs() {
               <pre className="text-gray-300 whitespace-pre-wrap">{`import { Contract, parseEther } from 'ethers';
 
 const LAUNCHPAD_ABI = [
-  "function createLaunch(string name, string symbol, uint256 maxSupply, string baseURI, uint256 royaltyFee, uint8 licenseVersion, uint8 tokenType) external payable returns (address)"
+  "function createLaunch(string name, string symbol, uint256 maxSupply, string baseURI, uint256 royaltyFee, uint8 licenseVersion, uint8 tokenType) external payable returns (address)",
+  "event LaunchCreated(address indexed collection, address indexed creator, string name, uint8 tokenType, uint8 licenseVersion)"
 ];
 
 const launchpad = new Contract(
@@ -277,23 +391,16 @@ const launchpad = new Contract(
 const tx = await launchpad.createLaunch(
   "My Collection",    // name
   "MYC",              // symbol
-  1000,               // maxSupply
-  "ipfs://QmXyz.../", // baseURI
-  500,                // royaltyFee (5%)
-  1,                  // licenseVersion (CBE-ECR)
-  0,                  // tokenType (ERC721)
+  1000,               // maxSupply (0 = unlimited)
+  "ipfs://QmXyz.../", // baseURI (must end with /)
+  500,                // royaltyFee (5% = 500 basis points)
+  1,                  // licenseVersion (1 = CBE-ECR)
+  0,                  // tokenType (0 = ERC721)
   { value: parseEther("0.01") }
 );
 
 const receipt = await tx.wait();
-const event = receipt.logs.find(log => 
-  log.topics[0] === launchpad.interface.getEvent("LaunchCreated").topicHash
-);
-const collectionAddress = launchpad.interface.decodeEventLog(
-  "LaunchCreated", event.data, event.topics
-).collection;
-
-console.log("Collection deployed at:", collectionAddress);`}</pre>
+console.log("Collection deployed at:", receipt.logs[0].args.collection);`}</pre>
             </div>
           </div>
 
@@ -301,25 +408,27 @@ console.log("Collection deployed at:", collectionAddress);`}</pre>
           <div className="bg-gray-900 rounded-xl p-6 border border-gray-800 mb-4">
             <h3 className="font-bold text-lg mb-3">viem</h3>
             <div className="bg-gray-800 rounded-lg p-4 font-mono text-xs sm:text-sm overflow-x-auto">
-              <pre className="text-gray-300 whitespace-pre-wrap">{`import { parseEther, parseAbiItem } from 'viem';
+              <pre className="text-gray-300 whitespace-pre-wrap">{`import { parseEther } from 'viem';
+
+const abi = [{
+  name: 'createLaunch',
+  type: 'function',
+  inputs: [
+    { name: 'name', type: 'string' },
+    { name: 'symbol', type: 'string' },
+    { name: 'maxSupply', type: 'uint256' },
+    { name: 'baseURI', type: 'string' },
+    { name: 'royaltyFee', type: 'uint256' },
+    { name: 'licenseVersion', type: 'uint8' },
+    { name: 'tokenType', type: 'uint8' },
+  ],
+  outputs: [{ type: 'address' }],
+  stateMutability: 'payable',
+}];
 
 const hash = await walletClient.writeContract({
   address: '${LAUNCHPAD_ADDRESS}',
-  abi: [{
-    name: 'createLaunch',
-    type: 'function',
-    inputs: [
-      { name: 'name', type: 'string' },
-      { name: 'symbol', type: 'string' },
-      { name: 'maxSupply', type: 'uint256' },
-      { name: 'baseURI', type: 'string' },
-      { name: 'royaltyFee', type: 'uint256' },
-      { name: 'licenseVersion', type: 'uint8' },
-      { name: 'tokenType', type: 'uint8' },
-    ],
-    outputs: [{ type: 'address' }],
-    stateMutability: 'payable',
-  }],
+  abi,
   functionName: 'createLaunch',
   args: ['My Collection', 'MYC', 1000n, 'ipfs://Qm.../', 500n, 1, 0],
   value: parseEther('0.01'),
@@ -344,11 +453,11 @@ const hash = await walletClient.writeContract({
         {/* Post-Deployment */}
         <section className="mb-12">
           <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-            <span className="text-orange-400">🎯</span> Post-Deployment
+            <span className="text-orange-400">🎯</span> Post-Deployment: Minting
           </h2>
           <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
             <p className="text-gray-300 mb-4">
-              After deployment, your collection contract supports these functions:
+              After deployment, your collection contract is owned by the deploying address. Use these functions to mint:
             </p>
             
             <h3 className="font-bold mb-2 mt-4">ERC721 Collections</h3>
@@ -367,7 +476,7 @@ const hash = await walletClient.writeContract({
             </div>
 
             <p className="text-gray-500 text-sm mt-4">
-              The deploying address becomes the owner and receives royalties. Ownership can be transferred via <code className="text-cyan-400">transferOwnership(address)</code>.
+              The deploying address becomes the owner and royalty receiver. Transfer ownership via <code className="text-cyan-400">transferOwnership(address)</code>.
             </p>
           </div>
         </section>
@@ -388,7 +497,7 @@ const hash = await walletClient.writeContract({
               <tbody>
                 <tr className="border-t border-gray-800">
                   <td className="p-4 font-mono text-red-400">InsufficientFee()</td>
-                  <td className="p-4 text-gray-400">msg.value &lt; 0.01 ETH (and not authorized)</td>
+                  <td className="p-4 text-gray-400">msg.value &lt; 0.01 ETH (and caller not authorized)</td>
                 </tr>
                 <tr className="border-t border-gray-800">
                   <td className="p-4 font-mono text-red-400">InvalidTokenType()</td>
@@ -400,7 +509,7 @@ const hash = await walletClient.writeContract({
                 </tr>
                 <tr className="border-t border-gray-800">
                   <td className="p-4 font-mono text-red-400">RoyaltyTooHigh()</td>
-                  <td className="p-4 text-gray-400">royaltyFee &gt; 1000 (10% max)</td>
+                  <td className="p-4 text-gray-400">royaltyFee &gt; 1000 (10% maximum)</td>
                 </tr>
               </tbody>
             </table>
@@ -426,12 +535,12 @@ const hash = await walletClient.writeContract({
                 @GanlandNFT on X
               </a>
               <a 
-                href="https://t.me/ganlandnft_bot"
+                href="https://x.com/fractalvisions"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-full text-sm transition"
               >
-                Telegram Bot
+                @fractalvisions on X
               </a>
             </div>
           </div>

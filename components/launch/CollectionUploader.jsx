@@ -115,11 +115,11 @@ export function CollectionUploader({ onComplete }) {
       
       setUploadSuccess(uploadData);
       
-      // Auto-proceed after 3 seconds
+      // Auto-proceed after 8 seconds (longer for user to read/click)
       setTimeout(() => {
         setUploadSuccess(null);
         onComplete(uploadData);
-      }, 3000);
+      }, 8000);
 
     } catch (err) {
       console.error('Upload error:', err);
@@ -134,28 +134,34 @@ export function CollectionUploader({ onComplete }) {
       {/* Success Modal */}
       {uploadSuccess && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-900 rounded-2xl p-8 max-w-md w-full border border-green-500/50 shadow-lg shadow-green-500/20">
+          <div className="bg-gray-800 rounded-2xl p-6 sm:p-8 max-w-md w-full border border-green-500/50 shadow-lg shadow-green-500/20">
             <div className="text-center">
-              <div className="text-6xl mb-4">✅</div>
-              <h3 className="text-2xl font-bold text-green-400 mb-2">Upload Successful!</h3>
+              <div className="text-5xl sm:text-6xl mb-4">✅</div>
+              <h3 className="text-xl sm:text-2xl font-bold text-green-400 mb-2">Upload Successful!</h3>
               <p className="text-gray-400 mb-4">
                 {uploadSuccess.totalFiles} files pinned to IPFS
               </p>
-              <div className="bg-gray-800 rounded-lg p-3 mb-4">
-                <p className="text-xs text-gray-500 mb-1">IPFS Hash</p>
+              <div className="bg-gray-900 rounded-lg p-3 mb-4">
+                <p className="text-xs text-gray-500 mb-1">View on IPFS Gateway</p>
                 <a 
                   href={`https://gateway.pinata.cloud/ipfs/${uploadSuccess.imagesHash || uploadSuccess.metadataHash}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-cyan-400 hover:underline text-sm font-mono break-all"
                 >
-                  {(uploadSuccess.imagesHash || uploadSuccess.metadataHash)?.slice(0, 20)}...
+                  gateway.pinata.cloud/ipfs/{(uploadSuccess.imagesHash || uploadSuccess.metadataHash)?.slice(0, 12)}...
                 </a>
               </div>
-              <p className="text-gray-500 text-sm">Continuing to configuration...</p>
-              <div className="mt-4 h-1 bg-gray-700 rounded-full overflow-hidden">
-                <div className="h-full bg-green-500 animate-pulse" style={{ width: '100%' }} />
-              </div>
+              <button
+                onClick={() => {
+                  setUploadSuccess(null);
+                  onComplete(uploadSuccess);
+                }}
+                className="w-full px-6 py-3 bg-green-600 hover:bg-green-500 text-white font-medium rounded-full transition mb-3"
+              >
+                Continue to Configuration →
+              </button>
+              <p className="text-gray-500 text-xs">Auto-continuing in a few seconds...</p>
             </div>
           </div>
         </div>
