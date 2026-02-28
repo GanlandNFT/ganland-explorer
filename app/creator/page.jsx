@@ -43,10 +43,17 @@ const NFT_ABI = [
     stateMutability: 'nonpayable' 
   },
   {
-    name: 'mintTo',
+    name: 'mint',
     type: 'function',
-    inputs: [{ name: 'to', type: 'address' }, { name: 'uri', type: 'string' }],
-    outputs: [],
+    inputs: [{ name: 'to', type: 'address' }],
+    outputs: [{ name: '', type: 'uint256' }],
+    stateMutability: 'nonpayable'
+  },
+  {
+    name: 'batchMint',
+    type: 'function',
+    inputs: [{ name: 'to', type: 'address' }, { name: 'amount', type: 'uint256' }],
+    outputs: [{ name: 'startId', type: 'uint256' }],
     stateMutability: 'nonpayable'
   }
 ];
@@ -75,7 +82,7 @@ export default function CreatorDashboard() {
   const [showMintModal, setShowMintModal] = useState(false);
   const [adminAddress, setAdminAddress] = useState('');
   const [mintAddress, setMintAddress] = useState('');
-  const [mintUri, setMintUri] = useState('');
+  
   const [isProcessing, setIsProcessing] = useState(false);
   const [txResult, setTxResult] = useState(null);
   const [error, setError] = useState(null);
@@ -241,8 +248,8 @@ export default function CreatorDashboard() {
       
       const contract = new Contract(selectedCollection.address, NFT_ABI, signer);
       
-      // Use mintTo if available, otherwise try safeMint
-      const tx = await contract.mintTo(toAddress, mintUri || '');
+      // Use mint(address) function
+      const tx = await contract.mint(toAddress);
       
       setTxResult({ hash: tx.hash, type: 'mint' });
       await tx.wait();
@@ -256,7 +263,7 @@ export default function CreatorDashboard() {
       
       setShowMintModal(false);
       setMintAddress('');
-      setMintUri('');
+      
     } catch (e) {
       console.error('Mint failed:', e);
       setError(e.message || 'Mint failed');
@@ -474,7 +481,7 @@ export default function CreatorDashboard() {
           <div className="bg-gray-900 rounded-2xl max-w-md w-full p-6 border border-gray-700">
             <h2 className="text-xl font-bold mb-4">Mint NFT</h2>
             <p className="text-gray-400 text-sm mb-4">
-              Mint a new token from <strong>{selectedCollection.name}</strong> to any wallet.
+              Mint the next token from <strong>{selectedCollection.name}</strong> to any wallet. Token ID will be automatically assigned.
             </p>
             
             <div className="space-y-4 mb-4">
@@ -489,16 +496,7 @@ export default function CreatorDashboard() {
                 />
               </div>
               
-              <div>
-                <label className="block text-sm text-gray-400 mb-2">Token URI (optional)</label>
-                <input
-                  type="text"
-                  value={mintUri}
-                  onChange={(e) => setMintUri(e.target.value)}
-                  placeholder="ipfs://... or https://..."
-                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                />
-              </div>
+              {/* Token URI not needed - metadata is from baseURI + tokenId */}
             </div>
             
             {error && (
@@ -519,7 +517,7 @@ export default function CreatorDashboard() {
                 onClick={() => {
                   setShowMintModal(false);
                   setMintAddress('');
-                  setMintUri('');
+                  
                   setError(null);
                 }}
                 className="flex-1 px-4 py-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition"
