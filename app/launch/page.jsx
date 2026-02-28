@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { LaunchpadForm } from '@/components/launch/LaunchpadForm';
 import { CollectionUploader } from '@/components/launch/CollectionUploader';
 import { LaunchPreview } from '@/components/launch/LaunchPreview';
@@ -11,6 +11,7 @@ export default function LaunchPage() {
   const [step, setStep] = useState(1);
   const [uploadedData, setUploadedData] = useState(null);
   const [launchConfig, setLaunchConfig] = useState(null);
+  const [draftConfig, setDraftConfig] = useState(null); // Loaded from Supabase
   
   const {
     ready,
@@ -30,13 +31,53 @@ export default function LaunchPage() {
     LICENSE_VERSIONS,
   } = useLaunchpad();
 
+  // Load draft config from Supabase when wallet connects
+  useEffect(() => {
+    async function loadDraftConfig() {
+      if (!address) return;
+      
+      try {
+        const res = await fetch(`/api/drafts?wallet=${encodeURIComponent(address)}`);
+        const data = await res.json();
+        
+        if (data.draft?.launch_config && Object.keys(data.draft.launch_config).length > 0) {
+          setDraftConfig(data.draft.launch_config);
+        }
+      } catch (e) {
+        console.error('Failed to load draft config:', e);
+      }
+    }
+    
+    loadDraftConfig();
+  }, [address]);
+
   const handleUploadComplete = (data) => {
     setUploadedData(data);
     setStep(2);
   };
 
-  const handleConfigComplete = (config) => {
+  const handleConfigComplete = async (config) => {
+    // Auto-save config to draft before proceeding
+    if (address) {
+      try {
+        await fetch('/api/drafts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            wallet: address,
+            collectionName: config.name,
+            description: config.description,
+            config: config,
+            step: 3,
+          }),
+        });
+      } catch (e) {
+        console.error('Failed to save draft config:', e);
+      }
+    }
+    
     setLaunchConfig(config);
+    setDraftConfig(config); // Keep in state for back navigation
     setStep(3);
   };
 
@@ -175,6 +216,7 @@ export default function LaunchPage() {
           {ready && isConnected && step === 2 && (
             <LaunchpadForm 
               uploadedData={uploadedData}
+              initialValues={launchConfig || draftConfig}
               onComplete={handleConfigComplete}
               onBack={() => setStep(1)}
               tokenTypes={TOKEN_TYPES}

@@ -6,22 +6,23 @@ import { LICENSE_DESCRIPTIONS } from '@/lib/contracts/addresses';
 
 export function LaunchpadForm({ 
   uploadedData, 
+  initialValues,
   onComplete, 
   onBack, 
   tokenTypes, 
   licenseVersions 
 }) {
   const [formData, setFormData] = useState({
-    name: '',
-    symbol: '',
-    description: '',
-    maxSupply: uploadedData?.totalFiles || 100,
-    royaltyFee: 500, // 5% default
-    licenseVersion: licenseVersions.COMMERCIAL || 2,
-    tokenType: tokenTypes.ERC721,
-    externalUrl: '',
-    avatarFile: null,
-    avatarPreview: null,
+    name: initialValues?.name || '',
+    symbol: initialValues?.symbol || '',
+    description: initialValues?.description || '',
+    maxSupply: initialValues?.maxSupply || uploadedData?.totalFiles || 100,
+    royaltyFee: initialValues?.royaltyFee ?? 500, // 5% default
+    licenseVersion: initialValues?.licenseVersion ?? licenseVersions.COMMERCIAL ?? 2,
+    tokenType: initialValues?.tokenType ?? tokenTypes.ERC721,
+    externalUrl: initialValues?.externalUrl || '',
+    avatarFile: initialValues?.avatarFile || null,
+    avatarPreview: initialValues?.avatarPreview || null,
   });
 
   const [errors, setErrors] = useState({});
