@@ -34,6 +34,7 @@ export default function LaunchPage() {
     isSwitching,
     hasEmbeddedWallet,
     usingExternalWallet,
+    embeddedWallet,
     balance,
     balanceFormatted,
     balanceLoading,
@@ -167,6 +168,7 @@ export default function LaunchPage() {
         config={launchConfig}
         uploadedData={uploadedData}
         walletAddress={address}
+        wallet={embeddedWallet}
         hash={hash}
         isLoading={isLoading}
         isSuccess={isSuccess}

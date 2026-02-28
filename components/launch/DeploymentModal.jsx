@@ -6,6 +6,18 @@ import { PinataClient } from '@/lib/pinata';
 import { Checkmark3D } from '@/components/icons/Checkmark3D';
 import { createPublicClient, http, decodeEventLog } from 'viem';
 import { optimism } from 'viem/chains';
+import { BrowserProvider, Contract } from 'ethers';
+
+// NFT ABI for setBaseURI
+const NFT_ABI = [
+  {
+    name: 'setBaseURI',
+    type: 'function',
+    inputs: [{ name: 'baseURI_', type: 'string' }],
+    outputs: [],
+    stateMutability: 'nonpayable'
+  }
+];
 
 // Public client for reading transaction receipts
 const publicClient = createPublicClient({
@@ -61,6 +73,7 @@ export function DeploymentModal({
   config,        // Collection config (name, symbol, description, etc.)
   uploadedData,
   walletAddress,
+  wallet,        // Privy embedded wallet for signing setBaseURI
   hash,
   isLoading,
   isSuccess,
@@ -72,6 +85,12 @@ export function DeploymentModal({
   const [ipfsProgress, setIpfsProgress] = useState(0);
   const [ipfsResult, setIpfsResult] = useState(null);
   const [ipfsError, setIpfsError] = useState(null);
+  
+  // URI update state
+  const [uriUpdatePending, setUriUpdatePending] = useState(false);
+  const [uriUpdateTxHash, setUriUpdateTxHash] = useState(null);
+  const [uriUpdateError, setUriUpdateError] = useState(null);
+  const [uriUpdated, setUriUpdated] = useState(false);
 
   // Reset state when modal opens
   useEffect(() => {
@@ -80,6 +99,10 @@ export function DeploymentModal({
       setIpfsProgress(0);
       setIpfsResult(null);
       setIpfsError(null);
+      setUriUpdatePending(false);
+      setUriUpdateTxHash(null);
+      setUriUpdateError(null);
+      setUriUpdated(false);
     }
   }, [isOpen]);
 
@@ -308,21 +331,65 @@ export function DeploymentModal({
 
       setIpfsProgress(100);
       setIpfsResult(result);
-      setStage('success');
-      fireConfetti();
-
-      if (onComplete) {
-        onComplete({
-          ...result,
-          txHash: hash,
-        });
-      }
+      
+      // Go to update-uri stage instead of success
+      // User MUST update the contract URI before completing
+      setStage('update-uri');
+      
     } catch (err) {
       console.error('IPFS upload error:', err);
       setIpfsError(err.message);
       setStage('error');
     }
-  }, [uploadedData, config, walletAddress, hash, fireConfetti, onComplete]);
+  }, [uploadedData, config, walletAddress, hash]);
+
+  // Handler to update the contract URI
+  const updateContractUri = useCallback(async () => {
+    if (!wallet || !ipfsResult?.deployedAddress || !ipfsResult?.baseURI) {
+      setUriUpdateError('Missing wallet or IPFS data');
+      return;
+    }
+    
+    setUriUpdatePending(true);
+    setUriUpdateError(null);
+    
+    try {
+      // Switch to Optimism
+      await wallet.switchChain(optimism.id);
+      
+      // Get signer from Privy wallet
+      const ethereumProvider = await wallet.getEthereumProvider();
+      const provider = new BrowserProvider(ethereumProvider);
+      const signer = await provider.getSigner();
+      
+      // Call setBaseURI on the deployed contract
+      const contract = new Contract(ipfsResult.deployedAddress, NFT_ABI, signer);
+      const tx = await contract.setBaseURI(ipfsResult.baseURI);
+      
+      console.log('setBaseURI tx:', tx.hash);
+      setUriUpdateTxHash(tx.hash);
+      
+      // Wait for confirmation
+      await tx.wait();
+      
+      setUriUpdated(true);
+      setStage('success');
+      fireConfetti();
+      
+      if (onComplete) {
+        onComplete({
+          ...ipfsResult,
+          txHash: hash,
+          uriUpdateTxHash: tx.hash,
+        });
+      }
+    } catch (err) {
+      console.error('setBaseURI failed:', err);
+      setUriUpdateError(err.message || 'Failed to update contract URI');
+    }
+    
+    setUriUpdatePending(false);
+  }, [wallet, ipfsResult, hash, fireConfetti, onComplete]);
 
   // Watch for transaction success to trigger IPFS upload
   useEffect(() => {
@@ -358,8 +425,8 @@ export function DeploymentModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
       <div className="bg-gray-900 rounded-2xl max-w-2xl w-full p-6 sm:p-8 relative border border-gray-700 shadow-2xl max-h-[90vh] overflow-y-auto">
         
-        {/* Close Button (X) - Always visible except during IPFS upload */}
-        {stage !== 'ipfs' && (
+        {/* Close Button (X) - Hidden during IPFS upload and URI update */}
+        {stage !== 'ipfs' && stage !== 'update-uri' && (
           <button
             onClick={handleClose}
             className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition"
@@ -433,6 +500,97 @@ export function DeploymentModal({
                 Transaction confirmed ✓
               </a>
             )}
+          </div>
+        )}
+
+        {/* Update URI Stage - CRITICAL: Must complete before success */}
+        {stage === 'update-uri' && (
+          <div className="text-center">
+            <div className="w-20 h-20 mx-auto mb-6 bg-orange-500/20 rounded-full flex items-center justify-center">
+              <span className="text-4xl">⚠️</span>
+            </div>
+            <h2 className="text-2xl font-bold mb-2 text-orange-400">Final Step Required!</h2>
+            <p className="text-gray-400 mb-6">
+              Your images are pinned to IPFS. Now you must update the contract URI to link them.
+            </p>
+            
+            {/* Warning box */}
+            <div className="bg-orange-900/30 border border-orange-700/50 rounded-xl p-4 mb-6 text-left">
+              <p className="text-orange-300 text-sm font-medium mb-2">
+                🚨 Do not close this page!
+              </p>
+              <p className="text-orange-200/70 text-sm">
+                If you leave without updating the URI, your NFT images will not display.
+                You'll need to manually fix it later in the Creator Dashboard.
+              </p>
+            </div>
+            
+            {/* IPFS Info */}
+            <div className="bg-gray-800/50 rounded-xl p-4 mb-6 text-left space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-400 text-sm">Contract</span>
+                <a
+                  href={`https://optimistic.etherscan.io/address/${ipfsResult?.deployedAddress}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-cyan-400 hover:underline text-sm truncate max-w-[200px]"
+                >
+                  {ipfsResult?.deployedAddress?.slice(0, 10)}...{ipfsResult?.deployedAddress?.slice(-8)} ↗
+                </a>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-400 text-sm">Images (IPFS)</span>
+                <span className="text-green-400 text-sm">✓ Pinned</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-400 text-sm">New URI</span>
+                <span className="text-gray-300 text-sm truncate max-w-[200px]" title={ipfsResult?.baseURI}>
+                  {ipfsResult?.baseURI?.slice(0, 30)}...
+                </span>
+              </div>
+            </div>
+            
+            {uriUpdateError && (
+              <div className="bg-red-900/30 border border-red-700/50 rounded-lg p-3 mb-4">
+                <p className="text-red-400 text-sm">{uriUpdateError}</p>
+              </div>
+            )}
+            
+            {uriUpdateTxHash && !uriUpdated && (
+              <div className="bg-blue-900/30 border border-blue-700/50 rounded-lg p-3 mb-4">
+                <p className="text-blue-400 text-sm">
+                  Transaction submitted!{' '}
+                  <a 
+                    href={`https://optimistic.etherscan.io/tx/${uriUpdateTxHash}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline"
+                  >
+                    View on Etherscan ↗
+                  </a>
+                </p>
+              </div>
+            )}
+            
+            <button
+              onClick={updateContractUri}
+              disabled={uriUpdatePending}
+              className="w-full px-6 py-4 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-500 hover:to-red-500 disabled:from-gray-600 disabled:to-gray-600 disabled:cursor-not-allowed rounded-xl font-bold text-lg transition shadow-lg shadow-orange-500/20"
+            >
+              {uriUpdatePending ? (
+                <span className="flex items-center justify-center gap-3">
+                  <span className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full" />
+                  Updating Contract...
+                </span>
+              ) : (
+                '🔗 Update Contract URI'
+              )}
+            </button>
+            
+            <p className="text-gray-500 text-xs mt-4">
+              This will call <code className="bg-gray-800 px-1 rounded">setBaseURI()</code> on your contract. 
+              Requires a small gas fee on Optimism.
+            </p>
           </div>
         )}
 
