@@ -256,7 +256,7 @@ export default function LaunchPage() {
             )}
 
           {/* External Wallet Warning - With acknowledgment */}
-          {ready && authenticated && usingExternalWallet && !hasEmbeddedWallet && step < 4 && !acknowledgedExternalWallet && (
+          {ready && authenticated && usingExternalWallet && !hasEmbeddedWallet && step < 4 && !acknowledgedExternalWallet && hasShownWalletModal && (
             <div className="text-center py-8 sm:py-12">
               {/* Show embedded wallet at top if exists */}
               {address && (
