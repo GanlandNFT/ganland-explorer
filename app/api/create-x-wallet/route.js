@@ -35,20 +35,31 @@ export async function POST(request) {
       'Authorization': `Basic ${authHeader}`,
     };
     
-    // Step 1: Check if user already exists
-    console.log('[create-x-wallet] Checking for existing user:', twitterUsername);
-    const searchResponse = await fetch(
-      `https://api.privy.io/v1/users?twitter_username=${twitterUsername}`,
-      { headers }
-    );
+    // Step 1: Search for existing user by Twitter subject (ID)
+    console.log('[create-x-wallet] Searching for existing user:', twitterUsername, '(id:', twitterId, ')');
     
     let userId;
     let existingWallet = null;
     
+    // Use GET /v1/users/{did} won't work - use search by twitter subject
+    // The correct Privy search: POST /v1/users/search
+    const searchResponse = await fetch('https://auth.privy.io/api/v1/users/search', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        filter: {
+          type: 'twitter',
+          value: { subject: String(twitterId) }
+        }
+      }),
+    });
+    
     if (searchResponse.ok) {
       const searchResult = await searchResponse.json();
-      if (searchResult.data && searchResult.data.length > 0) {
-        const existingUser = searchResult.data[0];
+      const users = searchResult.data || searchResult;
+      
+      if (Array.isArray(users) && users.length > 0) {
+        const existingUser = users[0];
         userId = existingUser.id;
         console.log('[create-x-wallet] Found existing user:', userId);
         
@@ -63,7 +74,44 @@ export async function POST(request) {
             wallet: wallet.address,
             existing: true,
             userId,
+            username: twitterUsername,
           });
+        }
+      }
+    } else {
+      // Search failed - try by username as fallback
+      console.log('[create-x-wallet] Search by subject failed, trying by username...');
+      const fallbackResponse = await fetch('https://auth.privy.io/api/v1/users/search', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          filter: {
+            type: 'twitter',
+            value: { username: twitterUsername }
+          }
+        }),
+      });
+      
+      if (fallbackResponse.ok) {
+        const fallbackResult = await fallbackResponse.json();
+        const users = fallbackResult.data || fallbackResult;
+        if (Array.isArray(users) && users.length > 0) {
+          const existingUser = users[0];
+          userId = existingUser.id;
+          console.log('[create-x-wallet] Found via username fallback:', userId);
+          
+          const wallet = existingUser.linked_accounts?.find(
+            a => a.type === 'wallet' && a.wallet_client_type === 'privy'
+          );
+          if (wallet) {
+            return Response.json({
+              success: true,
+              wallet: wallet.address,
+              existing: true,
+              userId,
+              username: twitterUsername,
+            });
+          }
         }
       }
     }
@@ -71,13 +119,13 @@ export async function POST(request) {
     // Step 2: Create user if doesn't exist
     if (!userId) {
       console.log('[create-x-wallet] Creating new user for:', twitterUsername);
-      const userResponse = await fetch('https://api.privy.io/v1/users', {
+      const userResponse = await fetch('https://auth.privy.io/api/v1/users', {
         method: 'POST',
         headers,
         body: JSON.stringify({
           linked_accounts: [{
             type: 'twitter_oauth',
-            subject: twitterId,
+            subject: String(twitterId),
             username: twitterUsername,
             name: twitterName || twitterUsername,
           }],
@@ -121,6 +169,7 @@ export async function POST(request) {
       wallet: walletData.address,
       walletId: walletData.id,
       userId,
+      username: twitterUsername,
       signers: walletData.additional_signers,
     });
     
